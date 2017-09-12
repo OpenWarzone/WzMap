@@ -1,0 +1,346 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{814eb833-269d-421a-b71e-30bfabc6a62c}</UniqueIdentifier>
+      <Extensions>c;cpp;cxx;cc;C</Extensions>
+    </Filter>
+    <Filter Include="src\common">
+      <UniqueIdentifier>{87821f20-dd43-4ed3-9723-5603ee3aa431}</UniqueIdentifier>
+      <Extensions>.c</Extensions>
+    </Filter>
+    <Filter Include="src\bsp">
+      <UniqueIdentifier>{2c31a925-2308-414d-91c4-83242138ad45}</UniqueIdentifier>
+      <Extensions>.c</Extensions>
+    </Filter>
+    <Filter Include="src\light">
+      <UniqueIdentifier>{e29c5ced-d94c-4e6d-b68a-e5f898ef4d74}</UniqueIdentifier>
+      <Extensions>.c</Extensions>
+    </Filter>
+    <Filter Include="src\vis">
+      <UniqueIdentifier>{3c371dc8-c1d7-49e1-8a99-57590755a152}</UniqueIdentifier>
+      <Extensions>.c</Extensions>
+    </Filter>
+    <Filter Include="src\convert">
+      <UniqueIdentifier>{4988cdfb-0153-432e-8314-09a2de24a74b}</UniqueIdentifier>
+      <Extensions>.c</Extensions>
+    </Filter>
+    <Filter Include="games">
+      <UniqueIdentifier>{fc05b32f-bd23-4d52-95fe-1665fb8eb449}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{b0180953-da82-494c-a1f1-a8811fe04f97}</UniqueIdentifier>
+      <Extensions>h</Extensions>
+    </Filter>
+    <Filter Include="include\rc">
+      <UniqueIdentifier>{89f78f98-c44a-4ca3-99f3-caa355c80b24}</UniqueIdentifier>
+      <Extensions>.rc;.ico</Extensions>
+    </Filter>
+    <Filter Include="include\common">
+      <UniqueIdentifier>{db4d8c69-9967-4422-bfaa-e4817c68b39d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\libs">
+      <UniqueIdentifier>{6536c95b-3386-4f76-aa75-5fafb459c3c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="doc">
+      <UniqueIdentifier>{87e9c235-06dc-48c9-ad0b-05bf58f43e18}</UniqueIdentifier>
+      <Extensions>*.txt</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\bspfile_abstract.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\bspfile_ibsp.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\bspfile_rbsp.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\image.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\main.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mesh.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\model.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\optimize.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\patchbsp.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\path_init.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\shaders.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\surface_extra.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\cmdlib.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\imagelib.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\inout.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\md4.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\mutex.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\polylib.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\scriplib.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\threads.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\unzip.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\vfs.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\brush.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\brush_primit.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\bsp.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\decals.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\decorations.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\facebsp.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\fog.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\leakfile.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\map.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\patch.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\portals.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\prtfile.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\surface.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\surface_foliage.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\surface_fur.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\surface_meta.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\tjunction.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\tree.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\writebsp.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\light.c">
+      <Filter>src\light</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\light_bounce.c">
+      <Filter>src\light</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\light_trace.c">
+      <Filter>src\light</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\light_ydnar.c">
+      <Filter>src\light</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\lightmaps_ydnar.c">
+      <Filter>src\light</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vis.c">
+      <Filter>src\vis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\visflow.c">
+      <Filter>src\vis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\convert_ase.c">
+      <Filter>src\convert</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\convert_map.c">
+      <Filter>src\convert</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\forest.c">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\games\_null.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\darkplaces.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\dq.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\ef.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\etut.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\ja.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\jk2.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\nexuiz.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\prophecy.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\qfusion.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\quake3.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\quakelive.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\reaction.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\sof2.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\tenebrae.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\tremulous.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\wolf.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\wolfet.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\xonotic.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\q3map2.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\stream_version.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\version.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\cmdlib.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\files.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\imagelib.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\inout.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\md4.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\mutex.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\polylib.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\scriplib.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\surfaceflags.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\threads.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\unzip.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\vfs.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\ddslib.h">
+      <Filter>include\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\jpeglib.h">
+      <Filter>include\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\l_net\l_net.h">
+      <Filter>include\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\mathlib.h">
+      <Filter>include\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\picomodel.h">
+      <Filter>include\libs</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\src\bloodmap.ico">
+      <Filter>include\rc</Filter>
+    </None>
+    <None Include="..\changelog.q3map2.txt">
+      <Filter>doc</Filter>
+    </None>
+    <None Include="..\changelog.q3map2_fs.txt">
+      <Filter>doc</Filter>
+    </None>
+    <None Include="compile_notes.txt">
+      <Filter>doc</Filter>
+    </None>
+    <None Include="..\README">
+      <Filter>doc</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\src\bloodmap.rc">
+      <Filter>include\rc</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

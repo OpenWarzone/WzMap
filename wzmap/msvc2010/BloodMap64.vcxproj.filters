@@ -1,0 +1,608 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{d110f142-bac0-491a-a5ed-19beec0b341b}</UniqueIdentifier>
+      <Extensions>c;cpp;cxx;cc;C</Extensions>
+    </Filter>
+    <Filter Include="src\bsp">
+      <UniqueIdentifier>{955bbebc-186a-400b-a308-50c0e57dd639}</UniqueIdentifier>
+      <Extensions>.c</Extensions>
+    </Filter>
+    <Filter Include="src\light">
+      <UniqueIdentifier>{9e3e7c1f-8e60-4f41-abfa-18c4cd4f922f}</UniqueIdentifier>
+      <Extensions>.c</Extensions>
+    </Filter>
+    <Filter Include="src\vis">
+      <UniqueIdentifier>{7d86f08f-e563-4d7e-ae94-eb6d4b3f837b}</UniqueIdentifier>
+      <Extensions>.c</Extensions>
+    </Filter>
+    <Filter Include="src\convert">
+      <UniqueIdentifier>{6226dfd1-2054-43a8-8862-6bc3c8f7e184}</UniqueIdentifier>
+      <Extensions>.c</Extensions>
+    </Filter>
+    <Filter Include="src\common">
+      <UniqueIdentifier>{39af1dbf-78b4-431a-932b-cc1f8052a04e}</UniqueIdentifier>
+      <Extensions>.c</Extensions>
+    </Filter>
+    <Filter Include="games">
+      <UniqueIdentifier>{ac1a843e-8d60-4e83-bb3c-88a6ef481551}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{40d5e7a1-18a9-4e98-8308-69659922ded2}</UniqueIdentifier>
+      <Extensions>h</Extensions>
+    </Filter>
+    <Filter Include="include\rc">
+      <UniqueIdentifier>{be4c31b9-f3a5-4241-aef6-b7ef75d659dc}</UniqueIdentifier>
+      <Extensions>.rc;.ico</Extensions>
+    </Filter>
+    <Filter Include="include\common">
+      <UniqueIdentifier>{30ed97c9-859a-4ee4-b84e-316a25e11b01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\libs">
+      <UniqueIdentifier>{4f679940-52d0-4bb8-af42-cf25345e7c45}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="doc">
+      <UniqueIdentifier>{326a29d5-9e8c-4e4e-8879-e4b4d688266e}</UniqueIdentifier>
+      <Extensions>*.txt</Extensions>
+    </Filter>
+    <Filter Include="Recast">
+      <UniqueIdentifier>{aac4dac5-d243-493a-bdc0-ae0747915db3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Recast\Recast">
+      <UniqueIdentifier>{8ecc843d-a961-4d17-b01c-b89515cb3812}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Recast\Detour">
+      <UniqueIdentifier>{b4e6e718-73db-4967-b1ee-7bbd93ece454}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Recast\DetourCrowd">
+      <UniqueIdentifier>{238a4227-83ab-4a28-b0eb-60e30c81cf59}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\bspfile_abstract.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\bspfile_ibsp.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\bspfile_rbsp.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\image.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\main.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mesh.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\model.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\optimize.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\patchbsp.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\path_init.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\shaders.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\brush.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\brush_primit.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\bsp.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\decals.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\decorations.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\facebsp.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\fog.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\leakfile.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\map.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\patch.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\portals.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\prtfile.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\surface.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\surface_extra.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\surface_foliage.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\surface_fur.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\surface_meta.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\tjunction.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\tree.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\writebsp.c">
+      <Filter>src\bsp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\light.c">
+      <Filter>src\light</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\light_bounce.c">
+      <Filter>src\light</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\light_trace.c">
+      <Filter>src\light</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\light_ydnar.c">
+      <Filter>src\light</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\lightmaps_ydnar.c">
+      <Filter>src\light</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vis.c">
+      <Filter>src\vis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\visflow.c">
+      <Filter>src\vis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\convert_ase.c">
+      <Filter>src\convert</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\convert_map.c">
+      <Filter>src\convert</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\cmdlib.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\imagelib.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\inout.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\md4.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\mutex.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\polylib.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\scriplib.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\threads.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\unzip.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\common\vfs.c">
+      <Filter>src\common</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\forest.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\inifile.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\nav.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\libs\fastlz\fastlz.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\ChunkyTriMesh.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\ConvexVolumeTool.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\CrowdTool.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\InputGeom.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\MeshLoaderObj.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\NavMeshGenerate.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\NavMeshPathfind.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\NavMeshPruneTool.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\OffMeshConnectionTool.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\PerfTimer.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Sample.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\SampleInterfaces.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\ValueHistory.cpp">
+      <Filter>Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Recast\Recast.cpp">
+      <Filter>Recast\Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Recast\RecastAlloc.cpp">
+      <Filter>Recast\Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Recast\RecastArea.cpp">
+      <Filter>Recast\Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Recast\RecastContour.cpp">
+      <Filter>Recast\Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Recast\RecastFilter.cpp">
+      <Filter>Recast\Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Recast\RecastLayers.cpp">
+      <Filter>Recast\Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Recast\RecastMesh.cpp">
+      <Filter>Recast\Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Recast\RecastMeshDetail.cpp">
+      <Filter>Recast\Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Recast\RecastRasterization.cpp">
+      <Filter>Recast\Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Recast\RecastRegion.cpp">
+      <Filter>Recast\Recast</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourCrowd.cpp">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourLocalBoundary.cpp">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourObstacleAvoidance.cpp">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourPathCorridor.cpp">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourPathQueue.cpp">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourProximityGrid.cpp">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\DebugDraw.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\DetourAlloc.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\DetourCommon.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\DetourDebugDraw.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\DetourNavMesh.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\DetourNavMeshBuilder.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\DetourNavMeshQuery.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\DetourNode.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\DetourTileCache.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\DetourTileCacheBuilder.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\RecastDebugDraw.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Recast\Detour\RecastDump.cpp">
+      <Filter>Recast\Detour</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\games\darkplaces.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\dq.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\ef.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\etut.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\ja.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\jk2.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\prophecy.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\qfusion.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\quake3.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\sof2.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\tenebrae.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\tremulous.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\wolf.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\games\wolfet.h">
+      <Filter>games</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\q3map2.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\stream_version.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\version.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\cmdlib.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\files.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\imagelib.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\inout.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\md4.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\mutex.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\polylib.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\scriplib.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\surfaceflags.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\threads.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\unzip.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\common\vfs.h">
+      <Filter>include\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\ddslib.h">
+      <Filter>include\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\jpeglib.h">
+      <Filter>include\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\l_net\l_net.h">
+      <Filter>include\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\mathlib.h">
+      <Filter>include\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\picomodel.h">
+      <Filter>include\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\inifile.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\navgen.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\bot_convert.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\bot_types.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\nav.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\libs\fastlz\fastlz.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\ChunkyTriMesh.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\ConvexVolumeTool.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\CrowdTool.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\InputGeom.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\MeshLoaderObj.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\NavMeshGenerate.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\NavMeshPathfind.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\NavMeshPruneTool.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\OffMeshConnectionTool.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\PerfTimer.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Sample.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\SampleInterfaces.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\ValueHistory.h">
+      <Filter>Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Recast\Recast.h">
+      <Filter>Recast\Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Recast\RecastAlloc.h">
+      <Filter>Recast\Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Recast\RecastAssert.h">
+      <Filter>Recast\Recast</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourCrowd.h">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourLocalBoundary.h">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourObstacleAvoidance.h">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourPathCorridor.h">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourPathQueue.h">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourProximityGrid.h">
+      <Filter>Recast\DetourCrowd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DebugDraw.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourAlloc.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourAssert.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourCommon.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourDebugDraw.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourMath.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourNavMesh.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourNavMeshBuilder.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourNavMeshQuery.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourNode.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourStatus.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourTileCache.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\DetourTileCacheBuilder.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\RecastDebugDraw.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Recast\Detour\RecastDump.h">
+      <Filter>Recast\Detour</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\src\bloodmap.ico">
+      <Filter>include\rc</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\src\bloodmap.rc">
+      <Filter>include\rc</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\changelog.q3map2.txt">
+      <Filter>doc</Filter>
+    </Text>
+    <Text Include="..\changelog.q3map2_fs.txt">
+      <Filter>doc</Filter>
+    </Text>
+    <Text Include="compile_notes.txt">
+      <Filter>doc</Filter>
+    </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\README">
+      <Filter>doc</Filter>
+    </None>
+  </ItemGroup>
+</Project>

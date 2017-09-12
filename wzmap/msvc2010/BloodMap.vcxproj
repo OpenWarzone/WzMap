@@ -1,0 +1,307 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectName>WzMap (x86)</ProjectName>
+    <ProjectGuid>{8ED67991-58A6-44AA-9B3A-3217085EF187}</ProjectGuid>
+    <RootNamespace>bloodmap</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>Intel C++ Compiler XE 15.0</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>Intel C++ Compiler XE 15.0</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\build\debug\x86\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\build\debug\x86\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\build\release\x86\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\build\release\x86\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <BuildLog>
+      <Path>.\build\debug\x86\BuildLog.htm</Path>
+    </BuildLog>
+    <Midl>
+      <TypeLibraryName>.\Debug/bloodmap.tlb</TypeLibraryName>
+    </Midl>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>.\..\src\games;.\..\src\common;.\..\src\libs;.\..\dependencies\x86\libxml\include;.\..\dependencies\x86\gtk2\include;.\..\dependencies\x86\gtk2\include\glib-2.0;.\..\dependencies\x86\gtk2\lib\glib-2.0\include;.\..\dependencies\x86\libmhash\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;_DEBUG;WIN32;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ExceptionHandling>
+      </ExceptionHandling>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FloatingPointModel>Precise</FloatingPointModel>
+      <PrecompiledHeaderOutputFile>.\Debug/bloodmap.pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>.\build\debug\x86\</AssemblerListingLocation>
+      <ObjectFileName>.\build\debug\x86\</ObjectFileName>
+      <ProgramDataBaseFileName>.\build\debug\x86\</ProgramDataBaseFileName>
+      <BrowseInformation>
+      </BrowseInformation>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalOptions>/MACHINE:I386 /NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>glib-2.0.lib;wsock32.lib;libxml2.lib;libpng.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>.\..\win32\bloodmap.exe</OutputFile>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <AdditionalLibraryDirectories>.\..\dependencies\x86\libxml\lib;.\..\dependencies\x86\gtk2\lib;.\..\dependencies\x86\gtk2\lib;.\..\dependencies\x86\libmhash\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>libcd;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>.\..\win32\bloodmap.pdb</ProgramDatabaseFile>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>.\..\win32\bloodmap.map</MapFileName>
+      <SubSystem>Console</SubSystem>
+      <StackReserveSize>4194304</StackReserveSize>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <BuildLog>
+      <Path>.\build\release\x86\BuildLog.htm</Path>
+    </BuildLog>
+    <CustomBuildStep>
+      <Message>
+      </Message>
+    </CustomBuildStep>
+    <Midl>
+      <TypeLibraryName>.\Release/bloodmap.tlb</TypeLibraryName>
+    </Midl>
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>.\..\src\games;.\..\src\common;.\..\src\libs;.\..\dependencies\x86\libxml\include;.\..\dependencies\x86\gtk2\include;.\..\dependencies\x86\gtk2\include\glib-2.0;.\..\dependencies\x86\gtk2\lib\glib-2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;NDEBUG;WIN32;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <ExceptionHandling>
+      </ExceptionHandling>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <PrecompiledHeaderOutputFile>.\Release/bloodmap.pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>.\build\release\x86\</AssemblerListingLocation>
+      <ObjectFileName>.\build\release\x86\</ObjectFileName>
+      <ProgramDataBaseFileName>.\build\release\x86\</ProgramDataBaseFileName>
+      <BrowseInformation>
+      </BrowseInformation>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CallingConvention>Cdecl</CallingConvention>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalOptions>/MACHINE:I386 /NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>glib-2.0.lib;wsock32.lib;libxml2.lib;libpng.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>.\..\win32\WzMap.exe</OutputFile>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <AdditionalLibraryDirectories>.\..\dependencies\x86\libxml\lib;.\..\dependencies\x86\gtk2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>.\..\win32\WzMap.pdb</ProgramDatabaseFile>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>.\..\win32\WzMap.map</MapFileName>
+      <SubSystem>Console</SubSystem>
+      <StackReserveSize>4194304</StackReserveSize>
+      <LargeAddressAware>true</LargeAddressAware>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\bspfile_abstract.c" />
+    <ClCompile Include="..\src\bspfile_ibsp.c" />
+    <ClCompile Include="..\src\bspfile_rbsp.c" />
+    <ClCompile Include="..\src\forest.c" />
+    <ClCompile Include="..\src\image.c" />
+    <ClCompile Include="..\src\main.c" />
+    <ClCompile Include="..\src\mesh.c" />
+    <ClCompile Include="..\src\model.c" />
+    <ClCompile Include="..\src\optimize.c" />
+    <ClCompile Include="..\src\patchbsp.c" />
+    <ClCompile Include="..\src\path_init.c" />
+    <ClCompile Include="..\src\shaders.c" />
+    <ClCompile Include="..\src\surface_extra.c" />
+    <ClCompile Include="..\src\common\cmdlib.c" />
+    <ClCompile Include="..\src\common\imagelib.c" />
+    <ClCompile Include="..\src\common\inout.c" />
+    <ClCompile Include="..\src\common\md4.c" />
+    <ClCompile Include="..\src\common\mutex.c" />
+    <ClCompile Include="..\src\common\polylib.c" />
+    <ClCompile Include="..\src\common\scriplib.c" />
+    <ClCompile Include="..\src\common\threads.c" />
+    <ClCompile Include="..\src\common\unzip.c" />
+    <ClCompile Include="..\src\common\vfs.c" />
+    <ClCompile Include="..\src\brush.c" />
+    <ClCompile Include="..\src\brush_primit.c" />
+    <ClCompile Include="..\src\bsp.c" />
+    <ClCompile Include="..\src\decals.c" />
+    <ClCompile Include="..\src\decorations.c" />
+    <ClCompile Include="..\src\facebsp.c" />
+    <ClCompile Include="..\src\fog.c" />
+    <ClCompile Include="..\src\leakfile.c" />
+    <ClCompile Include="..\src\map.c" />
+    <ClCompile Include="..\src\patch.c" />
+    <ClCompile Include="..\src\portals.c" />
+    <ClCompile Include="..\src\prtfile.c" />
+    <ClCompile Include="..\src\surface.c" />
+    <ClCompile Include="..\src\surface_foliage.c" />
+    <ClCompile Include="..\src\surface_fur.c" />
+    <ClCompile Include="..\src\surface_meta.c" />
+    <ClCompile Include="..\src\tjunction.c" />
+    <ClCompile Include="..\src\tree.c" />
+    <ClCompile Include="..\src\writebsp.c" />
+    <ClCompile Include="..\src\light.c" />
+    <ClCompile Include="..\src\light_bounce.c" />
+    <ClCompile Include="..\src\light_trace.c" />
+    <ClCompile Include="..\src\light_ydnar.c" />
+    <ClCompile Include="..\src\lightmaps_ydnar.c" />
+    <ClCompile Include="..\src\vis.c" />
+    <ClCompile Include="..\src\visflow.c" />
+    <ClCompile Include="..\src\convert_ase.c" />
+    <ClCompile Include="..\src\convert_map.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\games\_null.h" />
+    <ClInclude Include="..\src\games\darkplaces.h" />
+    <ClInclude Include="..\src\games\dq.h" />
+    <ClInclude Include="..\src\games\ef.h" />
+    <ClInclude Include="..\src\games\etut.h" />
+    <ClInclude Include="..\src\games\ja.h" />
+    <ClInclude Include="..\src\games\jk2.h" />
+    <ClInclude Include="..\src\games\nexuiz.h" />
+    <ClInclude Include="..\src\games\prophecy.h" />
+    <ClInclude Include="..\src\games\qfusion.h" />
+    <ClInclude Include="..\src\games\quake3.h" />
+    <ClInclude Include="..\src\games\quakelive.h" />
+    <ClInclude Include="..\src\games\reaction.h" />
+    <ClInclude Include="..\src\games\sof2.h" />
+    <ClInclude Include="..\src\games\tenebrae.h" />
+    <ClInclude Include="..\src\games\tremulous.h" />
+    <ClInclude Include="..\src\games\wolf.h" />
+    <ClInclude Include="..\src\games\wolfet.h" />
+    <ClInclude Include="..\src\games\xonotic.h" />
+    <ClInclude Include="..\src\q3map2.h" />
+    <ClInclude Include="..\src\stream_version.h" />
+    <ClInclude Include="..\src\version.h" />
+    <ClInclude Include="..\src\common\cmdlib.h" />
+    <ClInclude Include="..\src\common\files.h" />
+    <ClInclude Include="..\src\common\imagelib.h" />
+    <ClInclude Include="..\src\common\inout.h" />
+    <ClInclude Include="..\src\common\md4.h" />
+    <ClInclude Include="..\src\common\mutex.h" />
+    <ClInclude Include="..\src\common\polylib.h" />
+    <ClInclude Include="..\src\common\scriplib.h" />
+    <ClInclude Include="..\src\common\surfaceflags.h" />
+    <ClInclude Include="..\src\common\threads.h" />
+    <ClInclude Include="..\src\common\unzip.h" />
+    <ClInclude Include="..\src\common\vfs.h" />
+    <ClInclude Include="..\src\libs\ddslib.h" />
+    <ClInclude Include="..\src\libs\jpeglib.h" />
+    <ClInclude Include="..\src\libs\l_net\l_net.h" />
+    <ClInclude Include="..\src\libs\mathlib.h" />
+    <ClInclude Include="..\src\libs\picomodel.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\src\bloodmap.ico" />
+    <None Include="..\changelog.q3map2.txt" />
+    <None Include="..\changelog.q3map2_fs.txt" />
+    <None Include="compile_notes.txt" />
+    <None Include="..\README" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\src\bloodmap.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="ddslib\ddslib.vcxproj">
+      <Project>{8576ec58-4e54-49c0-879a-f054c92b1d03}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="jpeg6\jpeg6.vcxproj">
+      <Project>{0501a08e-d4d7-42c1-9e2a-ba3f2f320741}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="l_net\l_net.vcxproj">
+      <Project>{8845d5c1-4154-425f-8643-447fadc03449}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="mathlib\mathlib.vcxproj">
+      <Project>{bf0ff048-887f-4d43-a455-f8c04fb98f10}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="picomodel\picomodel.vcxproj">
+      <Project>{015ea9d3-85f2-4c4e-bfc3-430ac59093b9}</Project>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -1,0 +1,392 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectName>WzMap (x64)</ProjectName>
+    <ProjectGuid>{8ED67991-58A6-44AA-9B3A-3217085EF188}</ProjectGuid>
+    <RootNamespace>bloodmap</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v140</PlatformToolset>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>14.0.25431.1</_ProjectFileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>build\debug\x64\</OutDir>
+    <IntDir>build\debug\x64\</IntDir>
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>build\release\x64\</OutDir>
+    <IntDir>build\release\x64\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64;build\release\x64\ddslib;build\release\x64\jpeg6;build\release\x64\l_net;build\release\x64\mathlib;build\release\x64\picomodel</LibraryPath>
+    <IncludePath>$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <BuildLog>
+      <Path>build\debug\x64\BuildLog.htm</Path>
+    </BuildLog>
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+      <TypeLibraryName>.\Debug/bloodmap.tlb</TypeLibraryName>
+    </Midl>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>.\..\src\games;.\..\src\common;.\..\src\libs;.\..\dependencies\x64\libxml\include;.\..\dependencies\x64\gtk2\include;.\..\dependencies\x64\gtk2\include\glib-2.0;.\..\dependencies\x64\gtk2\lib\glib-2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;_DEBUG;WIN64;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ExceptionHandling />
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FloatingPointModel>Precise</FloatingPointModel>
+      <PrecompiledHeaderOutputFile>.\Debug/bloodmap.pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>.\build\debug\x64\</AssemblerListingLocation>
+      <ObjectFileName>.\build\debug\x64\</ObjectFileName>
+      <ProgramDataBaseFileName>.\build\debug\x64\</ProgramDataBaseFileName>
+      <BrowseInformation />
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Link>
+      <PerUserRedirection>true</PerUserRedirection>
+      <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>glib-2.0.lib;wsock32.lib;libxml2.lib;libpng.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>.\..\win64\bloodmap.exe</OutputFile>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <AdditionalLibraryDirectories>.\..\dependencies\x64\libxml\lib;.\..\dependencies\x64\gtk2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>libcd;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>.\..\win64\bloodmap.pdb</ProgramDatabaseFile>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>.\..\win64\bloodmap.map</MapFileName>
+      <SubSystem>Console</SubSystem>
+      <StackReserveSize>4194304</StackReserveSize>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention />
+      <TargetMachine>MachineX64</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <BuildLog>
+      <Path>build\release\x64\BuildLog.htm</Path>
+    </BuildLog>
+    <CustomBuildStep>
+      <Message />
+    </CustomBuildStep>
+    <Midl>
+      <TargetEnvironment>X64</TargetEnvironment>
+      <TypeLibraryName>.\Release/bloodmap.tlb</TypeLibraryName>
+    </Midl>
+    <ClCompile>
+      <Optimization>Full</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>.\..\src\games;.\..\src\common;.\..\src\libs;.\..\dependencies\x64\libxml\include;.\..\dependencies\x64\gtk2\include;.\..\dependencies\x64\gtk2\include\glib-2.0;.\..\dependencies\x64\gtk2\lib\glib-2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;NDEBUG;WIN64;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <ExceptionHandling />
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <FunctionLevelLinking>false</FunctionLevelLinking>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Precise</FloatingPointModel>
+      <PrecompiledHeaderOutputFile>.\Release/bloodmap.pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>.\build\release\x64\</AssemblerListingLocation>
+      <ObjectFileName>.\build\release\x64\</ObjectFileName>
+      <ProgramDataBaseFileName>.\build\release\x64\</ProgramDataBaseFileName>
+      <BrowseInformation />
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CallingConvention>Cdecl</CallingConvention>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
+      <OpenMPSupport>true</OpenMPSupport>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>glib-2.0.lib;wsock32.lib;libxml2.lib;libpng.lib;ddslib.lib;jpeg6.lib;l_net.lib;mathlib.lib;picomodel.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>.\..\win64\WzMap.exe</OutputFile>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <AdditionalLibraryDirectories>.\..\dependencies\x64\libxml\lib;.\..\dependencies\x64\gtk2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>.\..\win64\bloodmap.pdb</ProgramDatabaseFile>
+      <GenerateMapFile>true</GenerateMapFile>
+      <MapFileName>.\..\win64\bloodmap.map</MapFileName>
+      <SubSystem>Console</SubSystem>
+      <StackReserveSize>4194304</StackReserveSize>
+      <LargeAddressAware>true</LargeAddressAware>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention />
+      <TargetMachine>MachineX64</TargetMachine>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\brush.c" />
+    <ClCompile Include="..\src\brush_primit.c" />
+    <ClCompile Include="..\src\bsp.c" />
+    <ClCompile Include="..\src\bspfile_abstract.c" />
+    <ClCompile Include="..\src\bspfile_ibsp.c" />
+    <ClCompile Include="..\src\bspfile_rbsp.c" />
+    <ClCompile Include="..\src\common\cmdlib.c" />
+    <ClCompile Include="..\src\common\imagelib.c" />
+    <ClCompile Include="..\src\common\inout.c" />
+    <ClCompile Include="..\src\common\md4.c" />
+    <ClCompile Include="..\src\common\mutex.c" />
+    <ClCompile Include="..\src\common\polylib.c" />
+    <ClCompile Include="..\src\common\scriplib.c" />
+    <ClCompile Include="..\src\common\threads.c" />
+    <ClCompile Include="..\src\common\unzip.c" />
+    <ClCompile Include="..\src\common\vfs.c" />
+    <ClCompile Include="..\src\convert_ase.c" />
+    <ClCompile Include="..\src\convert_map.c" />
+    <ClCompile Include="..\src\decals.c" />
+    <ClCompile Include="..\src\decorations.c" />
+    <ClCompile Include="..\src\facebsp.c" />
+    <ClCompile Include="..\src\fog.c" />
+    <ClCompile Include="..\src\forest.c" />
+    <ClCompile Include="..\src\image.c" />
+    <ClCompile Include="..\src\inifile.cpp" />
+    <ClCompile Include="..\src\leakfile.c" />
+    <ClCompile Include="..\src\libs\fastlz\fastlz.c" />
+    <ClCompile Include="..\src\light.c" />
+    <ClCompile Include="..\src\lightmaps_ydnar.c" />
+    <ClCompile Include="..\src\light_bounce.c" />
+    <ClCompile Include="..\src\light_trace.c" />
+    <ClCompile Include="..\src\light_ydnar.c" />
+    <ClCompile Include="..\src\main.c" />
+    <ClCompile Include="..\src\map.c" />
+    <ClCompile Include="..\src\mesh.c" />
+    <ClCompile Include="..\src\model.c" />
+    <ClCompile Include="..\src\nav.c" />
+    <ClCompile Include="..\src\optimize.c" />
+    <ClCompile Include="..\src\patch.c" />
+    <ClCompile Include="..\src\patchbsp.c" />
+    <ClCompile Include="..\src\path_init.c" />
+    <ClCompile Include="..\src\portals.c" />
+    <ClCompile Include="..\src\prtfile.c" />
+    <ClCompile Include="..\src\Recast\ChunkyTriMesh.cpp" />
+    <ClCompile Include="..\src\Recast\ConvexVolumeTool.cpp" />
+    <ClCompile Include="..\src\Recast\CrowdTool.cpp" />
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourCrowd.cpp" />
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourLocalBoundary.cpp" />
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourObstacleAvoidance.cpp" />
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourPathCorridor.cpp" />
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourPathQueue.cpp" />
+    <ClCompile Include="..\src\Recast\DetourCrowd\DetourProximityGrid.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\DebugDraw.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\DetourAlloc.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\DetourCommon.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\DetourDebugDraw.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\DetourNavMesh.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\DetourNavMeshBuilder.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\DetourNavMeshQuery.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\DetourNode.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\DetourTileCache.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\DetourTileCacheBuilder.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\RecastDebugDraw.cpp" />
+    <ClCompile Include="..\src\Recast\Detour\RecastDump.cpp" />
+    <ClCompile Include="..\src\Recast\InputGeom.cpp" />
+    <ClCompile Include="..\src\Recast\MeshLoaderObj.cpp" />
+    <ClCompile Include="..\src\Recast\NavMeshGenerate.cpp" />
+    <ClCompile Include="..\src\Recast\NavMeshPathfind.cpp" />
+    <ClCompile Include="..\src\Recast\NavMeshPruneTool.cpp" />
+    <ClCompile Include="..\src\Recast\OffMeshConnectionTool.cpp" />
+    <ClCompile Include="..\src\Recast\PerfTimer.cpp" />
+    <ClCompile Include="..\src\Recast\Recast\Recast.cpp" />
+    <ClCompile Include="..\src\Recast\Recast\RecastAlloc.cpp" />
+    <ClCompile Include="..\src\Recast\Recast\RecastArea.cpp" />
+    <ClCompile Include="..\src\Recast\Recast\RecastContour.cpp" />
+    <ClCompile Include="..\src\Recast\Recast\RecastFilter.cpp" />
+    <ClCompile Include="..\src\Recast\Recast\RecastLayers.cpp" />
+    <ClCompile Include="..\src\Recast\Recast\RecastMesh.cpp" />
+    <ClCompile Include="..\src\Recast\Recast\RecastMeshDetail.cpp" />
+    <ClCompile Include="..\src\Recast\Recast\RecastRasterization.cpp" />
+    <ClCompile Include="..\src\Recast\Recast\RecastRegion.cpp" />
+    <ClCompile Include="..\src\Recast\Sample.cpp" />
+    <ClCompile Include="..\src\Recast\SampleInterfaces.cpp" />
+    <ClCompile Include="..\src\Recast\ValueHistory.cpp" />
+    <ClCompile Include="..\src\shaders.c" />
+    <ClCompile Include="..\src\surface.c" />
+    <ClCompile Include="..\src\surface_extra.c" />
+    <ClCompile Include="..\src\surface_foliage.c" />
+    <ClCompile Include="..\src\surface_fur.c" />
+    <ClCompile Include="..\src\surface_meta.c" />
+    <ClCompile Include="..\src\tjunction.c" />
+    <ClCompile Include="..\src\tree.c" />
+    <ClCompile Include="..\src\vis.c" />
+    <ClCompile Include="..\src\visflow.c" />
+    <ClCompile Include="..\src\writebsp.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\bot_convert.h" />
+    <ClInclude Include="..\src\bot_types.h" />
+    <ClInclude Include="..\src\common\cmdlib.h" />
+    <ClInclude Include="..\src\common\files.h" />
+    <ClInclude Include="..\src\common\imagelib.h" />
+    <ClInclude Include="..\src\common\inout.h" />
+    <ClInclude Include="..\src\common\md4.h" />
+    <ClInclude Include="..\src\common\mutex.h" />
+    <ClInclude Include="..\src\common\polylib.h" />
+    <ClInclude Include="..\src\common\scriplib.h" />
+    <ClInclude Include="..\src\common\surfaceflags.h" />
+    <ClInclude Include="..\src\common\threads.h" />
+    <ClInclude Include="..\src\common\unzip.h" />
+    <ClInclude Include="..\src\common\vfs.h" />
+    <ClInclude Include="..\src\games\darkplaces.h" />
+    <ClInclude Include="..\src\games\dq.h" />
+    <ClInclude Include="..\src\games\ef.h" />
+    <ClInclude Include="..\src\games\etut.h" />
+    <ClInclude Include="..\src\games\ja.h" />
+    <ClInclude Include="..\src\games\jk2.h" />
+    <ClInclude Include="..\src\games\prophecy.h" />
+    <ClInclude Include="..\src\games\qfusion.h" />
+    <ClInclude Include="..\src\games\quake3.h" />
+    <ClInclude Include="..\src\games\sof2.h" />
+    <ClInclude Include="..\src\games\tenebrae.h" />
+    <ClInclude Include="..\src\games\tremulous.h" />
+    <ClInclude Include="..\src\games\wolf.h" />
+    <ClInclude Include="..\src\games\wolfet.h" />
+    <ClInclude Include="..\src\inifile.h" />
+    <ClInclude Include="..\src\libs\ddslib.h" />
+    <ClInclude Include="..\src\libs\fastlz\fastlz.h" />
+    <ClInclude Include="..\src\libs\jpeglib.h" />
+    <ClInclude Include="..\src\libs\l_net\l_net.h" />
+    <ClInclude Include="..\src\libs\mathlib.h" />
+    <ClInclude Include="..\src\libs\picomodel.h" />
+    <ClInclude Include="..\src\nav.h" />
+    <ClInclude Include="..\src\navgen.h" />
+    <ClInclude Include="..\src\q3map2.h" />
+    <ClInclude Include="..\src\Recast\ChunkyTriMesh.h" />
+    <ClInclude Include="..\src\Recast\ConvexVolumeTool.h" />
+    <ClInclude Include="..\src\Recast\CrowdTool.h" />
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourCrowd.h" />
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourLocalBoundary.h" />
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourObstacleAvoidance.h" />
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourPathCorridor.h" />
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourPathQueue.h" />
+    <ClInclude Include="..\src\Recast\DetourCrowd\DetourProximityGrid.h" />
+    <ClInclude Include="..\src\Recast\Detour\DebugDraw.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourAlloc.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourAssert.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourCommon.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourDebugDraw.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourMath.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourNavMesh.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourNavMeshBuilder.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourNavMeshQuery.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourNode.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourStatus.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourTileCache.h" />
+    <ClInclude Include="..\src\Recast\Detour\DetourTileCacheBuilder.h" />
+    <ClInclude Include="..\src\Recast\Detour\RecastDebugDraw.h" />
+    <ClInclude Include="..\src\Recast\Detour\RecastDump.h" />
+    <ClInclude Include="..\src\Recast\InputGeom.h" />
+    <ClInclude Include="..\src\Recast\MeshLoaderObj.h" />
+    <ClInclude Include="..\src\Recast\NavMeshGenerate.h" />
+    <ClInclude Include="..\src\Recast\NavMeshPathfind.h" />
+    <ClInclude Include="..\src\Recast\NavMeshPruneTool.h" />
+    <ClInclude Include="..\src\Recast\OffMeshConnectionTool.h" />
+    <ClInclude Include="..\src\Recast\PerfTimer.h" />
+    <ClInclude Include="..\src\Recast\Recast\Recast.h" />
+    <ClInclude Include="..\src\Recast\Recast\RecastAlloc.h" />
+    <ClInclude Include="..\src\Recast\Recast\RecastAssert.h" />
+    <ClInclude Include="..\src\Recast\Sample.h" />
+    <ClInclude Include="..\src\Recast\SampleInterfaces.h" />
+    <ClInclude Include="..\src\Recast\ValueHistory.h" />
+    <ClInclude Include="..\src\stream_version.h" />
+    <ClInclude Include="..\src\version.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\src\bloodmap.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\src\bloodmap.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\changelog.q3map2.txt" />
+    <Text Include="..\changelog.q3map2_fs.txt" />
+    <Text Include="compile_notes.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\README" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

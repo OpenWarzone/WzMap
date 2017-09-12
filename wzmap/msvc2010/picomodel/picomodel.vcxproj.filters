@@ -1,0 +1,101 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Source Files\lwo">
+      <UniqueIdentifier>{c914e843-d8cc-4936-821e-4a9deda5f731}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\src\libs\picomodel\picointernal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\picomodel.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\picomodules.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_3ds.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_ase.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_fm.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_lwo.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_md2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_md3.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_mdc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_ms3d.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_obj.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_terrain.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\lwo\clip.c">
+      <Filter>Source Files\lwo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\lwo\envelope.c">
+      <Filter>Source Files\lwo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\lwo\list.c">
+      <Filter>Source Files\lwo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\lwo\lwio.c">
+      <Filter>Source Files\lwo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\lwo\lwo2.c">
+      <Filter>Source Files\lwo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\lwo\lwob.c">
+      <Filter>Source Files\lwo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\lwo\pntspols.c">
+      <Filter>Source Files\lwo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\lwo\surface.c">
+      <Filter>Source Files\lwo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\lwo\vecmath.c">
+      <Filter>Source Files\lwo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\lwo\vmap.c">
+      <Filter>Source Files\lwo</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\src\libs\picomodel\lwo\lwo2.h">
+      <Filter>Source Files\lwo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\libs\picomodel\picointernal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\libs\picomodel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\libs\picomodel\pm_fm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
