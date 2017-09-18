@@ -407,6 +407,7 @@ int MapPlaneFromPoints( vec3_t *p )
 SetBrushContents()
 the content flags and compile flags on all sides of a brush should be the same
 */
+extern qboolean FORCED_STRUCTURAL;
 
 void SetBrushContents( brush_t *b )
 {
@@ -436,6 +437,13 @@ void SetBrushContents( brush_t *b )
 			mixed = qtrue;
 		if( s->shaderInfo->noBSP == qfalse )
 			nobsp = qfalse;
+	}
+
+	if (s && s->shaderInfo && FORCED_STRUCTURAL && (compileFlags & C_SOLID) /*&& !(compileFlags & C_NODRAW)*/)
+	{// Forced structural option is set, force anything solid to also be structural and not detail...
+		compileFlags &= ~C_DETAIL;
+		compileFlags |= C_STRUCTURAL;
+		//Sys_Printf("%s was forced structural.\n", s->shaderInfo->shader);
 	}
 
 	/* ydnar: getting rid of this stupid warning */

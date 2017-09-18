@@ -45,6 +45,8 @@ vec3_t	colorModRandom[COLORMOD_RANDOM_GRIDSIZE];
 
 //#define __MATERIAL_TYPES__
 
+extern qboolean FORCED_STRUCTURAL;
+
 #ifdef __MATERIAL_TYPES__
 /*
 =================
@@ -2978,6 +2980,13 @@ static void ParseShaderFile( const char *filename )
 		/* finish shader */
 		if( minVertexLightUsed == qfalse )
 			VectorCopy( si->minlight, si->minvertexlight );
+	}
+
+	if (si && FORCED_STRUCTURAL && (si->compileFlags & C_SOLID) /*&& !(si->compileFlags & C_NODRAW)*/)
+	{// Forced structural option is set, force anything solid to also be structural and not detail...
+		si->compileFlags &= ~C_DETAIL;
+		si->compileFlags |= C_STRUCTURAL;
+		//Sys_Printf("%s was forced structural.\n", si->shader);
 	}
 }
 

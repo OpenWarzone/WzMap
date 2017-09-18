@@ -34,10 +34,10 @@ several games based on the Quake III Arena engine, in the form of "Q3Map2."
 
 //#define __MODEL_SIMPLIFICATION__
 
-
 /* dependencies */
 #include "q3map2.h"
 
+extern qboolean FORCED_STRUCTURAL;
 
 extern qboolean StringContainsWord(const char *haystack, const char *needle);
 extern qboolean RemoveDuplicateBrushPlanes(brush_t *b);
@@ -1346,7 +1346,22 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 								buildBrush->compileFlags = si->compileFlags;
 								buildBrush->contentFlags = si->contentFlags;
 
-								if (si->isTreeSolid || si->isMapObjectSolid || (si->compileFlags & C_DETAIL))
+								if (si && FORCED_STRUCTURAL && (si->compileFlags & C_SOLID) /*&& !(compileFlags & C_NODRAW)*/)
+								{// Forced structural option is set, force anything solid to also be structural and not detail...
+									si->compileFlags &= ~C_DETAIL;
+									si->compileFlags |= C_STRUCTURAL;
+
+									buildBrush->detail = qfalse;
+
+									// only allow EXACT matches when snapping for these (this is mostly for caulk brushes inside a model)
+									if (normalEpsilon > 0)
+										normalEpsilon = 0;
+									if (distanceEpsilon > 0)
+										distanceEpsilon = 0;
+
+									//Sys_Printf("%s was forced structural.\n", si->shader);
+								}
+								else if (si->isTreeSolid || si->isMapObjectSolid || (si->compileFlags & C_DETAIL))
 								{
 									buildBrush->detail = qtrue;
 								}
@@ -1707,48 +1722,74 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 
 #ifdef CULL_BY_LOWEST_NEAR_POINT
 	/* walk the entity list */
+	int numDone = 0;
+
 	for (num = 1; num < numEntities; num++)
 	{
 		shaderInfo_t *overrideShader = NULL;
+		
+		/* get e3 */
+		entity_t *e3 = &entities[num];
 
-		if (!quiet) printLabelledProgress("FindLowestPoints", num, numEntities);
+		numDone++;
 
-		/* get e2 */
-		e2 = &entities[num];
+		qboolean skip = qfalse;
 
-		/* convert misc_models into raw geometry  */
-		if (Q_stricmp("misc_model", ValueForKey(e2, "classname")))
+#pragma omp critical
 		{
-			//Sys_Printf( "Failed Classname\n" );
-			continue;
+			if (!quiet) printLabelledProgress("FindLowestPoints", numDone, numEntities);
+
+			/* convert misc_models into raw geometry  */
+			if (Q_stricmp("misc_model", ValueForKey(e3, "classname")))
+			{
+				//Sys_Printf( "Failed Classname\n" );
+				//continue;
+				skip = qtrue;
+			}
+
+			/* ydnar: added support for md3 models on non-worldspawn models */
+			if (!skip)
+			{
+				target = ValueForKey(e3, "target");
+				if (strcmp(target, targetName))
+				{
+					//Sys_Printf( "Failed Target\n" );
+					//continue;
+					skip = qtrue;
+				}
+			}
+
+			/* get model name */
+			/* vortex: add _model synonim */
+			if (!skip)
+			{
+				model = ValueForKey(e3, "_model");
+				if (model[0] == '\0')
+					model = ValueForKey(e3, "model");
+				if (model[0] == '\0')
+				{
+					Sys_Warning(e3->mapEntityNum, "misc_model at %i %i %i without a model key", (int)origin[0], (int)origin[1], (int)origin[2]);
+					//Sys_Printf( "Failed Model\n" );
+					//continue;
+					skip = qtrue;
+				}
+			}
+
+			/* get origin */
+			if (!skip)
+			{
+				GetVectorForKey(e3, "origin", origin);
+			}
 		}
 
-		/* ydnar: added support for md3 models on non-worldspawn models */
-		target = ValueForKey(e2, "target");
-		if (strcmp(target, targetName))
-		{
-			//Sys_Printf( "Failed Target\n" );
-			continue;
-		}
+		if (skip) continue; // cant continue inside omp critical
 
-		/* get model name */
-		/* vortex: add _model synonim */
-		model = ValueForKey(e2, "_model");
-		if (model[0] == '\0')
-			model = ValueForKey(e2, "model");
-		if (model[0] == '\0')
-		{
-			Sys_Warning(e2->mapEntityNum, "misc_model at %i %i %i without a model key", (int)origin[0], (int)origin[1], (int)origin[2]);
-			//Sys_Printf( "Failed Model\n" );
-			continue;
-		}
-
-		/* get origin */
-		GetVectorForKey(e2, "origin", origin);
 		VectorSubtract(origin, e->origin, origin);	/* offset by parent */
 
-		e2->lowestPointNear = LowestMapPointNear(origin);
+		e3->lowestPointNear = LowestMapPointNear(origin);
 	}
+
+	if (!quiet) printLabelledProgress("FindLowestPoints", numEntities, numEntities);
 #endif //CULL_BY_LOWEST_NEAR_POINT
 
 	/* walk the entity list */

@@ -37,6 +37,8 @@ several games based on the Quake III Arena engine, in the form of "Q3Map2."
 #include "q3map2.h"
 
 
+extern qboolean FORCED_STRUCTURAL;
+
 extern void GenerateCliffFaces ( void );
 extern void GenerateLedgeFaces(void);
 extern void GenerateMapCity(void);
@@ -546,6 +548,16 @@ void ProcessWorldModel( void )
 	/* generate bsp brushes from map brushes */
 	EmitBrushes( e->brushes, &e->firstBrush, &e->numBrushes );
 	
+	if (FORCED_STRUCTURAL)
+	{
+		extern void CullSidesStats(void);
+		extern void CullSides(entity_t *e);
+		FilterStructuralBrushesIntoTree(e, tree, qfalse);
+		CullSides(e);
+		CullSidesStats();
+		WritePortalFile(tree);
+	}
+
 	/* add references to the detail brushes */
 	FilterDetailBrushesIntoTree( e, tree );
 

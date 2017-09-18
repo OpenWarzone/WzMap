@@ -88,6 +88,7 @@ int irand(int min, int max)
 
 float			MAP_WATER_LEVEL = -999999.9;
 
+qboolean		FORCED_STRUCTURAL = qfalse;
 qboolean		FORCED_MODEL_META = qfalse;
 qboolean		CAULKIFY_CRAP = qfalse;
 qboolean		CULLSIDES_AFTER_MODEL_ADITION = qfalse;
@@ -199,6 +200,13 @@ void FOLIAGE_LoadClimateData( char *filename )
 	int i = 0;
 
 	Sys_PrintHeading("--- LoadClimateData ---\n");
+
+	FORCED_STRUCTURAL = (qboolean)atoi(IniRead(filename, "GENERAL", "forcedStructural", "0"));
+
+	if (FORCED_STRUCTURAL)
+	{
+		Sys_Printf("Forcing all solid surfaces to structural brushwork.\n");
+	}
 
 	FORCED_MODEL_META = (qboolean)atoi(IniRead(filename, "GENERAL", "forcedModelMeta", "0"));
 
@@ -1743,13 +1751,20 @@ void ReassignTreeModels ( void )
 	// Now add other options...
 	if (NUM_POSSIBLES > 0)
 	{
+		int numDone = 0;
+
+#pragma omp parallel for num_threads(numthreads)
 		for (i = 0; i < FOLIAGE_NUM_POSITIONS; i++)
 		{
 			qboolean bad = qfalse;
 			int tries = 0;
 			int j;
 
-			printLabelledProgress("RandomizeModels", i, FOLIAGE_NUM_POSITIONS);
+			numDone++;
+#pragma omp critical
+			{
+				printLabelledProgress("RandomizeModels", numDone, FOLIAGE_NUM_POSITIONS);
+			}
 
 			if (FOLIAGE_ASSIGNED[i])
 			{
@@ -1878,17 +1893,23 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
-			FOLIAGE_TREE_SELECTION[i] = POSSIBLES[selected];
-			FOLIAGE_TREE_BUFFER[i] = BUFFER_RANGES[i] = POSSIBLES_BUFFERS[selected];
-			SAME_RANGES[i] = POSSIBLES_SAME_RANGES[selected];
-			FOLIAGE_ASSIGNED[i] = qtrue;
-			NUM_PLACED[POSSIBLES[selected]]++;
+			if (irand(0, 100) <= TREE_PERCENTAGE)
+			{
+				FOLIAGE_TREE_SELECTION[i] = POSSIBLES[selected];
+				FOLIAGE_TREE_BUFFER[i] = BUFFER_RANGES[i] = POSSIBLES_BUFFERS[selected];
+				SAME_RANGES[i] = POSSIBLES_SAME_RANGES[selected];
+				FOLIAGE_ASSIGNED[i] = qtrue;
+				NUM_PLACED[POSSIBLES[selected]]++;
+			}
 		}
+
+		printLabelledProgress("RandomizeModels", FOLIAGE_NUM_POSITIONS, FOLIAGE_NUM_POSITIONS);
 	}
 
 	free(BUFFER_RANGES);
 	free(SAME_RANGES);
 
+	/*
 	for (i = 0; i < FOLIAGE_NUM_POSITIONS; i++)
 	{// Now check our percentage of how many we should actually use... Disable extras...
 		if (FOLIAGE_ASSIGNED[i])
@@ -1901,6 +1922,7 @@ void ReassignTreeModels ( void )
 			}
 		}
 	}
+	*/
 
 	int count = 0;
 
@@ -2713,13 +2735,20 @@ void ReassignCityModels(void)
 	// Now add other options...
 	if (NUM_POSSIBLES > 0)
 	{
+		int numDone = 0;
+
+#pragma omp parallel for num_threads(numthreads)
 		for (i = 0; i < FOLIAGE_NUM_POSITIONS; i++)
 		{
 			qboolean bad = qfalse;
 			int tries = 0;
 			int j;
 
-			printLabelledProgress("RandomizeModels", i, FOLIAGE_NUM_POSITIONS);
+			numDone++;
+#pragma omp critical
+			{
+				printLabelledProgress("RandomizeModels", numDone, FOLIAGE_NUM_POSITIONS);
+			}
 
 			if (BUILDING_ASSIGNED[i])
 			{
@@ -2794,6 +2823,8 @@ void ReassignCityModels(void)
 			FOLIAGE_TREE_SCALE[i] = 1.0; // City models always use exact size stated.
 			NUM_PLACED[POSSIBLES[selected]]++;
 		}
+
+		printLabelledProgress("RandomizeModels", FOLIAGE_NUM_POSITIONS, FOLIAGE_NUM_POSITIONS);
 	}
 
 	free(BUILDING_BUFFER_RANGES);
