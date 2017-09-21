@@ -353,6 +353,158 @@ void ShowDetailedStats ( void )
 	Sys_Printf( "%9d areaportals\n", c_areaportals);
 }
 
+#ifdef USE_OPENGL
+extern void Draw_Scene(void(*drawFunc)(void));
+extern void Draw_Winding(winding_t* w, float r, float g, float b, float a);
+extern void Draw_AABB(const vec3_t origin, const vec3_t mins, const vec3_t maxs, vec4_t color);
+
+int PortalVisibleSides(portal_t* p)
+{
+	int             fcon, bcon;
+
+	if (!p->onnode)
+		return 0;				// outside
+
+	fcon = p->nodes[0]->opaque;
+	bcon = p->nodes[1]->opaque;
+
+	// same contents never create a face
+	if (fcon == bcon)
+		return 0;
+
+	if (!fcon)
+		return 1;
+	if (!bcon)
+		return 2;
+	return 0;
+}
+
+static void DrawPortal(portal_t* p, qboolean areaportal)
+{
+	winding_t*      w;
+	int             sides;
+
+	sides = PortalVisibleSides(p);
+	if (!sides)
+		return;
+
+	w = p->winding;
+
+	if (sides == 2)				// back side
+		w = ReverseWinding(w);
+
+	if (areaportal)
+	{
+		Draw_Winding(w, 1, 0, 0, 0.3);
+	}
+	else
+	{
+		Draw_Winding(w, 0, 0, 1, 0.3);
+	}
+
+	if (sides == 2)
+		FreeWinding(w);
+}
+
+static void DrawTreePortals_r(node_t* node)
+{
+	int             s;
+	portal_t*       p, *nextp;
+	winding_t*      w;
+
+	if (node->planenum != PLANENUM_LEAF)
+	{
+		DrawTreePortals_r(node->children[0]);
+		DrawTreePortals_r(node->children[1]);
+		return;
+	}
+
+	// draw all the portals
+	for (p = node->portals; p; p = p->next[s])
+	{
+		w = p->winding;
+		s = (p->nodes[1] == node);
+
+		if (w)					// && p->nodes[0] == node)
+		{
+			//if(PortalPassable(p))
+			//	continue;
+
+			DrawPortal(p, node->areaportal);
+		}
+	}
+}
+
+static tree_t*  drawTree = NULL;
+static int		drawTreeNodesNum;
+static void DrawTreePortals(void)
+{
+	DrawTreePortals_r(drawTree->headnode);
+}
+
+
+static void DrawTreeNodes_r(node_t* node)
+{
+	int             i, s;
+	brush_t*        b;
+	winding_t*      w;
+	vec4_t			nodeColor = { 1, 1, 0, 0.3 };
+	vec4_t			leafColor = { 0, 0, 1, 0.3 };
+
+	if (!node)
+		return;
+
+	drawTreeNodesNum++;
+
+	if (node->planenum == PLANENUM_LEAF)
+	{
+		//VectorCopy(debugColors[drawTreeNodesNum % 12], leafColor);
+
+		Draw_AABB(vec3_origin, node->mins, node->maxs, leafColor);
+
+		for (b = node->brushlist; b != NULL; b = b->next)
+		{
+			for (i = 0; i < b->numsides; i++)
+			{
+				w = b->sides[i].winding;
+				if (!w)
+					continue;
+
+				if (node->areaportal)
+				{
+					Draw_Winding(w, 1, 0, 0, 0.3);
+				}
+				else if (b->detail)
+				{
+					Draw_Winding(w, 0, 1, 0, 0.3);
+				}
+				else
+				{
+					// opaque
+					Draw_Winding(w, 0, 0, 0, 0.1);
+				}
+			}
+		}
+		return;
+	}
+
+	//Draw_AABB(vec3_origin, node->mins, node->maxs, nodeColor);
+
+	DrawTreeNodes_r(node->children[0]);
+	DrawTreeNodes_r(node->children[1]);
+}
+static void DrawNodes(void)
+{
+	drawTreeNodesNum = 0;
+	DrawTreeNodes_r(drawTree->headnode);
+}
+
+static void DrawTree(void)
+{
+	DrawNodes();
+}
+#endif //USE_OPENGL
+
 /*
 ProcessWorldModel()
 creates a full bsp + surfaces for the worldspawn entity
@@ -494,6 +646,18 @@ void ProcessWorldModel( void )
 		/* chop the sides to the convex hull of their visible fragments, giving us the smallest polygons */
 		ClipSidesIntoTree( e, tree, qfalse );
 	}
+
+#ifdef USE_OPENGL
+	if (drawBSP)
+	{
+		Sys_PrintHeading("--- DrawBSP ---\n");
+		drawTree = tree;
+		Sys_Printf("Drawing nodes. Hit ESC to exit.\n");
+		Draw_Scene(DrawNodes);
+		Sys_Printf("Drawing Tree Portals. Hit ESC to exit.\n");
+		Draw_Scene(DrawTreePortals);
+	}
+#endif //USE_OPENGL
 	
 	/* save out information for visibility processing */
 	NumberClusters( tree );
@@ -550,12 +714,12 @@ void ProcessWorldModel( void )
 	
 	if (FORCED_STRUCTURAL)
 	{
-		extern void CullSidesStats(void);
-		extern void CullSides(entity_t *e);
 		FilterStructuralBrushesIntoTree(e, tree, qfalse);
-		CullSides(e);
-		CullSidesStats();
-		WritePortalFile(tree);
+		//extern void CullSidesStats(void);
+		//extern void CullSides(entity_t *e);
+		//CullSides(e);
+		//CullSidesStats();
+		WritePortalFile(tree); // Write final portals file including the new procedural addition changes...
 	}
 
 	/* add references to the detail brushes */
@@ -677,6 +841,18 @@ void ProcessWorldModel( void )
 	
 	/* finish */
 	EndModel( e, tree->headnode );
+
+#ifdef USE_OPENGL
+	if (drawBSP)
+	{
+		// draw unoptimized portals in new window
+		drawTree = tree;
+		Sys_PrintHeading("--- DrawBSP ---\n");
+		Sys_Printf("Drawing nodes. Hit ESC to exit.\n");
+		Draw_Scene(DrawNodes);
+	}
+#endif //USE_OPENGL
+
 	FreeTree( tree );
 
 	/* UQ1: merge test */
@@ -1480,6 +1656,11 @@ int BSPMain( int argc, char **argv )
 			Sys_Printf( "Default texture colorspace: linear\n" );
 			colorsRGB = qfalse;
 			Sys_Printf( "Entity _color keys colorspace: linear\n" );
+		}
+		else if (!strcmp(argv[i], "-draw"))
+		{
+			Sys_Printf("SDL BSP tree viewer enabled\n");
+			drawBSP = qtrue;
 		}
 		else if( !strcmp( argv[ i ], "-bsp" ) )
 			Sys_Printf( " -bsp argument unnecessary\n" );

@@ -75,8 +75,8 @@
     <OutDir>build\release\x64\</OutDir>
     <IntDir>build\release\x64\</IntDir>
     <LinkIncremental>false</LinkIncremental>
-    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64;build\release\x64\ddslib;build\release\x64\jpeg6;build\release\x64\l_net;build\release\x64\mathlib;build\release\x64\picomodel</LibraryPath>
-    <IncludePath>$(IncludePath)</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64;build\release\x64\ddslib;build\release\x64\jpeg6;build\release\x64\l_net;build\release\x64\mathlib;build\release\x64\picomodel;.\..\dependencies\x64\libsdl\libs</LibraryPath>
+    <IncludePath>$(IncludePath);.\..\dependencies\x64\libsdl\include</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <BuildLog>
@@ -171,6 +171,7 @@
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <OpenMPSupport>true</OpenMPSupport>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/D "USE_OPENGL" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -178,10 +179,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalOptions>/NODEFAULTLIB:LIBCMT %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>glib-2.0.lib;wsock32.lib;libxml2.lib;libpng.lib;ddslib.lib;jpeg6.lib;l_net.lib;mathlib.lib;picomodel.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glib-2.0.lib;wsock32.lib;libxml2.lib;libpng.lib;ddslib.lib;jpeg6.lib;l_net.lib;mathlib.lib;picomodel.lib;%(AdditionalDependencies);dxguid.lib;opengl32.lib;SDL.lib;SDLmain.lib;GlU32.lib</AdditionalDependencies>
       <OutputFile>.\..\win64\WzMap.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>.\..\dependencies\x64\libxml\lib;.\..\dependencies\x64\gtk2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>.\..\dependencies\x64\libsdl\libs\x64;.\..\dependencies\x64\glew\lib;.\..\dependencies\x64\libxml\lib;.\..\dependencies\x64\gtk2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\..\win64\bloodmap.pdb</ProgramDatabaseFile>
       <GenerateMapFile>true</GenerateMapFile>
@@ -220,6 +221,7 @@
     <ClCompile Include="..\src\facebsp.c" />
     <ClCompile Include="..\src\fog.c" />
     <ClCompile Include="..\src\forest.c" />
+    <ClCompile Include="..\src\gldraw.c" />
     <ClCompile Include="..\src\image.c" />
     <ClCompile Include="..\src\inifile.cpp" />
     <ClCompile Include="..\src\leakfile.c" />

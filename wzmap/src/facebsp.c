@@ -186,6 +186,83 @@ int	CountFaceList( face_t *list )
 }
 
 
+#ifdef USE_OPENGL
+extern void Draw_Scene(void(*drawFunc)(void));
+extern void Draw_Winding(winding_t* w, float r, float g, float b, float a);
+extern void Draw_AABB(const vec3_t origin, const vec3_t mins, const vec3_t maxs, vec4_t color);
+
+extern winding_t	*BaseWindingForNode(node_t *node);
+extern void ChopWindingByBounds(winding_t** w, vec3_t mins, vec3_t maxs, vec_t boxEpsilon);
+
+static tree_t*  drawTree = NULL;
+
+static void DrawTreeNodes_r(node_t* node)
+{
+	int             s;
+	portal_t*       p, *nextp;
+	winding_t*      w;
+	vec4_t			nodeColor = { 1, 1, 0, 0.3 };
+	vec4_t			leafColor = { 0, 0, 1, 0.3 };
+
+	if (!node)
+		return;
+
+	if (node->planenum == PLANENUM_LEAF)
+	{
+		Draw_AABB(vec3_origin, node->mins, node->maxs, leafColor);
+		return;
+	}
+
+	Draw_AABB(vec3_origin, node->mins, node->maxs, nodeColor);
+
+	DrawTreeNodes_r(node->children[0]);
+	DrawTreeNodes_r(node->children[1]);
+}
+static void DrawNodes()
+{
+	DrawTreeNodes_r(drawTree->headnode);
+}
+
+static face_t*  drawChildLists[2];
+static node_t*  drawSplitNode;
+static void DrawPartitions()
+{
+	face_t*         face;
+	winding_t*      w;
+
+	// create temporary winding to draw the split plane
+	w = BaseWindingForNode(drawSplitNode);
+
+	ChopWindingByBounds(&w, drawSplitNode->mins, drawSplitNode->maxs, 32);
+
+	if (w != NULL)
+	{
+		Draw_Winding(w, 0, 0, 1, 0.3);
+		FreeWinding(w);
+	}
+
+	for (face = drawChildLists[0]; face != NULL; face = face->next)
+	{
+		w = face->w;
+
+		Draw_Winding(w, 0, 1, 0, 0.3);
+	}
+
+	for (face = drawChildLists[1]; face != NULL; face = face->next)
+	{
+		w = face->w;
+
+		Draw_Winding(w, 1, 0, 0, 0.3);
+	}
+}
+
+static void DrawAll(void)
+{
+	DrawPartitions();
+	DrawNodes();
+}
+#endif //USE_OPENGL
+
 
 /*
 BuildFaceTree_r()
@@ -289,6 +366,16 @@ void BuildFaceTree_r( node_t *node, face_t *list )
 			break;
 		}
 	}
+
+#ifdef USE_OPENGL
+	if (drawBSP && drawTree)
+	{
+		drawChildLists[0] = childLists[0];
+		drawChildLists[1] = childLists[1];
+		drawSplitNode = node;
+		Draw_Scene(DrawAll);
+	}
+#endif //USE_OPENGL
 
 	for ( i = 0 ; i < 2 ; i++ ) {
 		BuildFaceTree_r ( node->children[i], childLists[i]);

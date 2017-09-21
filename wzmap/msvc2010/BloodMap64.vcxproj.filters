@@ -345,6 +345,9 @@
     <ClCompile Include="..\src\Recast\Detour\RecastDump.cpp">
       <Filter>Recast\Detour</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\gldraw.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\games\darkplaces.h">
