@@ -32,8 +32,6 @@ several games based on the Quake III Arena engine, in the form of "Q3Map2."
 #define MODEL_C
 
 
-//#define __MODEL_SIMPLIFICATION__
-
 /* dependencies */
 #include "q3map2.h"
 
@@ -1449,6 +1447,129 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 	}
 }
 
+void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels)
+{
+	picoModel_t		*picoModel = NULL;
+	qboolean		loaded = qfalse;
+	char			tempCollisionModel[512] = { 0 };
+	char			collisionModel[512] = { 0 };
+	char			collisionModelObj[512] = { 0 };
+	char			tempCollisionModelExt[32] = { 0 };
+	
+	sprintf(tempCollisionModel, "%s", model);
+	ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
+	StripExtension(tempCollisionModel);
+	sprintf(collisionModel, "%s_collision.%s", tempCollisionModel, tempCollisionModelExt);
+	sprintf(collisionModelObj, "%s_collision.%s", tempCollisionModel, "obj");
+
+	/* load the model */
+	loaded = PreloadModel((char*)model, frame);
+
+	if (loaded)
+	{
+		*numLoadedModels++;
+	}
+
+	/* warn about missing models */
+	picoModel = FindModel((char*)model, frame);
+
+	if (!picoModel || picoModel->numSurfaces == 0)
+	{
+		Sys_Warning("Failed to load model '%s' frame %i", model, frame);
+		return;
+	}
+	else
+	{
+		/* debug */
+		//if( loaded && picoModel && picoModel->numSurfaces != 0  )
+		//	Sys_Printf("loaded %s: %i vertexes %i triangles\n", PicoGetModelFileName( picoModel ), PicoGetModelTotalVertexes( picoModel ), PicoGetModelTotalIndexes( picoModel ) / 3 );
+
+		qboolean loaded2 = PreloadModel((char*)collisionModel, frame);
+
+		/* warn about missing models */
+		picoModel_t *picoModel2 = FindModel((char*)collisionModel, frame);
+
+		if (loaded2 && picoModel2)
+		{
+			Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModel);
+			*numLoadedModels++;
+		}
+		else if (!loaded2 && picoModel2)
+		{
+			Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModel);
+		}
+		else
+		{
+			picoModel2 = FindModel((char*)collisionModelObj, frame);
+
+			loaded2 = PreloadModel((char*)collisionModelObj, frame);
+
+			/* warn about missing models */
+			picoModel2 = FindModel((char*)collisionModelObj, frame);
+
+			if (loaded2 && picoModel2)
+			{
+				Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModelObj);
+				*numLoadedModels++;
+			}
+			else if (!loaded2 && picoModel2)
+			{
+				Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModelObj);
+			}
+			else
+			{
+				int		numSurfaces = PicoGetModelNumSurfaces(picoModel);
+
+				for (int s = 0; s < numSurfaces; s++)
+				{
+					int				skin = 0;
+
+					/* get surface */
+					picoSurface_t	*surface = PicoGetModelSurface(picoModel, s);
+
+					if (StringContainsWord(surface->name, "collision")) {
+						Sys_Printf("loaded model %s contains collision geometry (surface name: collision).\n", model);
+						return; // Collision is built into this model...
+					}
+
+					if (surface == NULL)
+						continue;
+
+					/* only handle triangle surfaces initially (fixme: support patches) */
+					if (PicoGetSurfaceType(surface) != PICO_TRIANGLES)
+						continue;
+
+					char			*picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
+
+					if (StringContainsWord(picoShaderName, "system/nodraw_solid")) {
+						Sys_Printf("loaded model %s contains collision geometry (shader name: system/nodraw_solid).\n", model);
+						return; // Collision is built into this model...
+					}
+				}
+
+#ifdef __MODEL_CONVEX_HULL__
+				// UQ1: Testing... Mesh convex hull for collision planes...
+				Sys_Printf("Generating convex hull collision model for model %s.\n", model);
+
+				extern void ConvexHull(picoModel_t *model, char *fileNameOut);
+				ConvexHull(picoModel, collisionModelObj);
+
+				loaded2 = PreloadModel((char*)collisionModelObj, 0);
+
+				if (loaded2) {
+					Sys_Printf("Loaded model %s.\n", collisionModelObj);
+					*numLoadedModels++;
+				}
+
+				picoModel2 = FindModel((char*)collisionModelObj, 0);
+#else //!__MODEL_CONVEX_HULL__
+				Sys_Printf("loaded model %s. collision model %s. Suggestion: Create a <modelname>_collision.%s\n", model, "none", tempCollisionModelExt);
+#endif //__MODEL_CONVEX_HULL__
+			}
+		}
+	}
+}
+
 /*
 LoadTriangleModels()
 preload triangle models map is using
@@ -1465,11 +1586,9 @@ void LoadTriangleModels(void)
 
 	/* load */
 	start = I_FloatTime();
+	
 	for (num = 1; num < numEntities; num++)
 	{
-		picoModel_t *picoModel;
-		qboolean loaded;
-
 		//printLabelledProgress("LoadTriangleModels", num, numEntities);
 
 		/* get ent */
@@ -1487,14 +1606,6 @@ void LoadTriangleModels(void)
 		if (model[0] == '\0')
 			continue;
 
-		char tempCollisionModel[512] = { 0 };
-		char collisionModel[512] = { 0 };
-		char tempCollisionModelExt[32] = { 0 };
-		sprintf(tempCollisionModel, "%s", model);
-		ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
-		StripExtension(tempCollisionModel);
-		sprintf(collisionModel, "%s_collision.%s", tempCollisionModel, tempCollisionModelExt);
-
 		/* get model frame */
 		if (KeyExists(e, "_frame"))
 			frame = IntForKey(e, "_frame");
@@ -1503,141 +1614,7 @@ void LoadTriangleModels(void)
 		else
 			frame = 0;
 
-		/* load the model */
-		loaded = PreloadModel((char*)model, frame);
-		if (loaded)
-			numLoadedModels++;
-
-		/* warn about missing models */
-		picoModel = FindModel((char*)model, frame);
-
-		if (!picoModel || picoModel->numSurfaces == 0)
-			Sys_Warning(e->mapEntityNum, "Failed to load model '%s' frame %i", model, frame);
-
-		/* debug */
-		//if( loaded && picoModel && picoModel->numSurfaces != 0  )
-		//	Sys_Printf("loaded %s: %i vertexes %i triangles\n", PicoGetModelFileName( picoModel ), PicoGetModelTotalVertexes( picoModel ), PicoGetModelTotalIndexes( picoModel ) / 3 );
-
-		loaded = PreloadModel((char*)collisionModel, frame);
-
-		/* warn about missing models */
-		picoModel = FindModel((char*)collisionModel, frame);
-
-		if (loaded && picoModel)
-		{
-			Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModel);
-			numLoadedModels++;
-		}
-		else if (!loaded && picoModel)
-		{
-			Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModel);
-		}
-		else
-		{
-			Sys_Printf("loaded model %s. collision model %s. Suggestion: Create a <modelname>_collision.%s\n", model, "none", tempCollisionModelExt);
-		}
-
-#ifdef __MODEL_SIMPLIFICATION__
-		//
-		// Count the verts... Skip lod for anything too big for memory...
-		//
-
-		int	numVerts = 0;
-		int numIndexes = 0;
-		int numSurfaces = PicoGetModelNumSurfaces( picoModel );
-
-		for( int s = 0; s < numSurfaces; s++ )
-		{
-			int					i;
-			picoVec_t			*xyz;
-			picoSurface_t		*surface;
-
-			/* get surface */
-			surface = PicoGetModelSurface( picoModel, s );
-
-			if( surface == NULL )
-				continue;
-
-			/* only handle triangle surfaces initially (fixme: support patches) */
-			if( PicoGetSurfaceType( surface ) != PICO_TRIANGLES )
-				continue;
-
-			char				*picoShaderName = PicoGetSurfaceShaderNameForSkin( surface, 0 );
-
-			shaderInfo_t		*si = ShaderInfoForShader( picoShaderName );
-
-			LoadShaderImages( si );
-
-			if(!si->clipModel)
-			{
-				continue;
-			}
-
-			if ((si->compileFlags & C_TRANSLUCENT) || (si->compileFlags & C_SKIP) || (si->compileFlags & C_FOG) || (si->compileFlags & C_NODRAW) || (si->compileFlags & C_HINT))
-			{
-				continue;
-			}
-
-			if( !si->clipModel
-				&& ((si->compileFlags & C_TRANSLUCENT) || !(si->compileFlags & C_SOLID)) )
-			{
-				continue;
-			}
-
-			numVerts += PicoGetSurfaceNumVertexes(surface);
-			numIndexes += PicoGetSurfaceNumIndexes(surface);
-		}
-
-		// if (FindModel( name, frame ))
-
-		if (picoModel && picoModel->numSurfaces > 0 /*&& numVerts < 50000*/)
-		{// UQ1: Testing... Mesh decimation for collision planes...
-			picoModel_t *picoModel2 = NULL;
-			qboolean loaded2 = qfalse;
-			char fileNameIn[128] = { 0 };
-			char fileNameOut[128] = { 0 };
-			char tempfileNameOut[128] = { 0 };
-
-			strcpy(tempfileNameOut, model);
-			StripExtension(tempfileNameOut);
-			sprintf(fileNameOut, "%s/base/%s_lod.obj", basePaths[0], tempfileNameOut);
-			sprintf(fileNameIn, "%s_lod.obj", tempfileNameOut);
-
-			//Sys_Printf("File path is %s.\n", fileNameOut);
-
-			if (FileExists(fileNameOut))
-			{// Try to load _lod version...
-				//Sys_Printf("Exists: %s.\n", fileNameOut);
-
-				loaded2 = PreloadModel((char*)fileNameIn, 0);
-				if (loaded2)
-					numLoadedModels++;
-
-				picoModel2 = FindModel((char*)fileNameIn, 0);
-			}
-
-			if (!picoModel2 || picoModel2->numSurfaces == 0)
-			{// No _lod version found to load, or it failed to load... Generate a new one...
-				Sys_Printf("Simplifying model %s. %i surfaces. %i verts. %i indexes.\n", model, PicoGetModelNumSurfaces(picoModel), numVerts, numIndexes);
-
-				Decimate(picoModel, fileNameOut);
-
-				loaded2 = PreloadModel((char*)fileNameIn, 0);
-				if (loaded2) {
-					//Sys_Printf("Loaded model %s.\n", fileNameOut);
-					numLoadedModels++;
-				}
-
-				picoModel2 = FindModel((char*)fileNameIn, 0);
-				//if (picoModel2) Sys_Printf("Found model %s.\n", fileNameOut);
-			}
-			else
-			{// All good... _lod loaded and is OK!
-				//Sys_Printf("Already have lod %s for model %s.\n", fileNameIn, model);
-			}
-
-		}
-#endif //__MODEL_SIMPLIFICATION__
+		WzMap_PreloadModel(name, frame, &numLoadedModels);
 	}
 
 	/* print overall time */
@@ -1841,16 +1818,26 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 		bool HAVE_COLLISION_MODEL = false;
 		char tempCollisionModel[512] = { 0 };
 		char collisionModel[512] = { 0 };
+		char collisionModelObj[512] = { 0 };
 		char tempCollisionModelExt[32] = { 0 };
 		sprintf(tempCollisionModel, "%s", model);
 		ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
 		StripExtension(tempCollisionModel);
 		sprintf(collisionModel, "%s_collision.%s", tempCollisionModel, tempCollisionModelExt);
+		sprintf(collisionModelObj, "%s_collision.%s", tempCollisionModel, ".obj");
+		
 		picoModel_t *picoModel = FindModel((char*)collisionModel, frame);
+		
 		if (!picoModel)
 		{
 			picoModel = LoadModel((char*)collisionModel, frame);
 			picoModel = FindModel((char*)collisionModel, frame);
+		}
+
+		if (!picoModel)
+		{
+			picoModel = LoadModel((char*)collisionModelObj, frame);
+			picoModel = FindModel((char*)collisionModelObj, frame);
 		}
 
 		if (picoModel)

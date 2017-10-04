@@ -78,7 +78,7 @@ typedef struct
 
 static GSList*  g_unzFiles;
 static GSList*  g_pakFiles;
-static char     g_strDirs[VFS_MAXDIRS][PATH_MAX];
+/*static*/ char     g_strDirs[VFS_MAXDIRS][PATH_MAX];
 static int      g_numDirs;
 static gboolean g_bUsePak = TRUE;
 

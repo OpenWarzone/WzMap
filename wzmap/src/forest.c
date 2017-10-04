@@ -7,6 +7,7 @@
 #include "q3map2.h"
 #include "inifile.h"
 
+extern void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels);
 extern void SetEntityBounds( entity_t *e );
 extern void LoadEntityIndexMap( entity_t *e );
 extern void AdjustBrushesForOrigin( entity_t *ent );
@@ -422,6 +423,46 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 		if (strcmp(STATIC_MODEL[i], ""))
 			Sys_Printf("Static %i. Model %s. Origin %i %i %i. Angle %f. Scale %f.\n", i, STATIC_MODEL[i], (int)STATIC_ORIGIN[i][0], (int)STATIC_ORIGIN[i][1], (int)STATIC_ORIGIN[i][2], (float)STATIC_ANGLE[i], (float)STATIC_SCALE[i]);
+	}
+
+	//
+	// Pre-load all models, and generate/load convex hull collision meshes...
+	//
+
+	int numLoadedModels = 0;
+
+	for (i = 1; i <= 5; i++)
+	{
+		WzMap_PreloadModel(va("models/warzone/rocks/cliffface0%i.md3", i), 0, &numLoadedModels);
+	}
+
+	for (i = 1; i <= 4; i++)
+	{
+		WzMap_PreloadModel(va("models/warzone/rocks/ledge0%i.md3", i), 0, &numLoadedModels);
+	}
+
+	for (i = 0; i < MAX_FOREST_MODELS; i++)
+	{
+		if (strlen(TREE_MODELS[i]) > 0)
+		{
+			WzMap_PreloadModel(TREE_MODELS[i], 0, &numLoadedModels);
+		}
+	}
+
+	for (i = 0; i < MAX_FOREST_MODELS; i++)
+	{
+		if (strlen(CITY_MODELS[i]) > 0)
+		{
+			WzMap_PreloadModel(CITY_MODELS[i], 0, &numLoadedModels);
+		}
+	}
+
+	for (i = 0; i < MAX_STATIC_ENTITY_MODELS; i++)
+	{
+		if (strlen(STATIC_MODEL[i]) > 0)
+		{
+			WzMap_PreloadModel(STATIC_MODEL[i], 0, &numLoadedModels);
+		}
 	}
 }
 

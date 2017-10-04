@@ -348,6 +348,12 @@
     <ClCompile Include="..\src\gldraw.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ch3d.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\modelConvexHull.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\games\darkplaces.h">
@@ -580,6 +586,9 @@
     </ClInclude>
     <ClInclude Include="..\src\Recast\Detour\RecastDump.h">
       <Filter>Recast\Detour</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ch3d.h">
+      <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

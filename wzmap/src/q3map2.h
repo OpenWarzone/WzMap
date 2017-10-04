@@ -27,8 +27,16 @@ several games based on the Quake III Arena engine, in the form of "Q3Map2."
 ------------------------------------------------------------------------------- */
 
 
+/* -------------------------------------------------------------------------------
+
+WzMap feature defines...
+
+------------------------------------------------------------------------------- */
+
 #define __BASEJKA_LIGHTGRID__
 
+//#define __MODEL_SIMPLIFICATION__
+//#define __MODEL_CONVEX_HULL__
 
 /* marker */
 #ifndef Q3MAP2_H
