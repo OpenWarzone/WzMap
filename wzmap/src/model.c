@@ -41,6 +41,7 @@ extern qboolean StringContainsWord(const char *haystack, const char *needle);
 extern qboolean RemoveDuplicateBrushPlanes(brush_t *b);
 extern void CullSides(entity_t *e);
 extern void CullSidesStats(void);
+extern void ConvexHull(picoModel_t *model, char *fileNameOut);
 
 extern int g_numHiddenFaces, g_numCoinFaces;
 
@@ -646,14 +647,25 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			if (bottom > xyz2[2]) bottom = xyz2[2];
 		}
 
-		char *picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
-
-		//Sys_Printf("surface name %s.\n", picoShaderName);
-		if (StringContainsWord(picoShaderName, "system/nodraw_solid"))
+		if (!forcedNoSolid)
 		{
-			//Sys_Printf("Found collision info in model!\n");
-			HAS_COLLISION_INFO = true;
-			break;
+			if (overrideShader || ledgeOverride)
+			{
+				HAS_COLLISION_INFO = true;
+				break;
+			}
+			else
+			{
+				char *picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
+
+				//Sys_Printf("surface name %s.\n", picoShaderName);
+				if (StringContainsWord(picoShaderName, "system/nodraw_solid"))
+				{
+					//Sys_Printf("Found collision info in model!\n");
+					HAS_COLLISION_INFO = true;
+					break;
+				}
+			}
 		}
 	}
 
@@ -711,10 +723,15 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			*added_surfaces += 1;
 
 #pragma omp critical
+		if (!(overrideShader && !surface->shader))
 		{
 			/* get shader name */
 			/* vortex: support .skin files */
 			picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
+		}
+		else
+		{
+			picoShaderName = overrideShader->shader;
 		}
 
 		/* handle shader remapping */
@@ -1551,8 +1568,21 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels)
 				// UQ1: Testing... Mesh convex hull for collision planes...
 				Sys_Printf("Generating convex hull collision model for model %s.\n", model);
 
-				extern void ConvexHull(picoModel_t *model, char *fileNameOut);
-				ConvexHull(picoModel, collisionModelObj);
+				ConvexHull(picoModel, collisionModelObj); // Falls back to simplify/decimate method on fail if __MODEL_SIMPLIFY__ is also defined...
+
+				loaded2 = PreloadModel((char*)collisionModelObj, 0);
+
+				if (loaded2) {
+					Sys_Printf("Loaded model %s.\n", collisionModelObj);
+					*numLoadedModels++;
+				}
+
+				picoModel2 = FindModel((char*)collisionModelObj, 0);
+#elif defined(__MODEL_SIMPLIFY__)
+				// UQ1: Testing... Mesh simplification for collision planes...
+				Sys_Printf("Generating simplified collision model for model %s.\n", model);
+
+				Decimate(picoModel, collisionModelObj);
 
 				loaded2 = PreloadModel((char*)collisionModelObj, 0);
 
@@ -1815,39 +1845,50 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 		if (KeyExists(e2, "_frame"))
 			frame = IntForKey(e2, "_frame");
 
-		bool HAVE_COLLISION_MODEL = false;
+		char *COLLISION_MODEL = NULL;
 		char tempCollisionModel[512] = { 0 };
 		char collisionModel[512] = { 0 };
 		char collisionModelObj[512] = { 0 };
 		char tempCollisionModelExt[32] = { 0 };
+		
 		sprintf(tempCollisionModel, "%s", model);
 		ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
 		StripExtension(tempCollisionModel);
+
 		sprintf(collisionModel, "%s_collision.%s", tempCollisionModel, tempCollisionModelExt);
-		sprintf(collisionModelObj, "%s_collision.%s", tempCollisionModel, ".obj");
+		sprintf(collisionModelObj, "%s_collision.obj", tempCollisionModel);
 		
 		picoModel_t *picoModel = FindModel((char*)collisionModel, frame);
-		
+
 		if (!picoModel)
 		{
 			picoModel = LoadModel((char*)collisionModel, frame);
 			picoModel = FindModel((char*)collisionModel, frame);
 		}
 
-		if (!picoModel)
-		{
-			picoModel = LoadModel((char*)collisionModelObj, frame);
-			picoModel = FindModel((char*)collisionModelObj, frame);
-		}
-
 		if (picoModel)
 		{
-			//printf("collision model %s exists!\n", collisionModel);
-			HAVE_COLLISION_MODEL = true;
+			COLLISION_MODEL = collisionModel;
 		}
 		else
 		{
-			//printf("collision model %s does not exist!\n", collisionModel);
+			picoModel = FindModel((char*)collisionModelObj, frame);
+
+			if (!picoModel)
+			{
+				picoModel = LoadModel((char*)collisionModelObj, frame);
+				picoModel = FindModel((char*)collisionModelObj, frame);
+			}
+
+			if (picoModel)
+			{
+				COLLISION_MODEL = collisionModelObj;
+				//Sys_Printf("Found collision model %s.\n", COLLISION_MODEL);
+			}
+			else
+			{
+				//Sys_Printf("Did not find collision models %s or %s.\n", collisionModel, collisionModelObj);
+			}
 		}
 
 		/* get model skin */
@@ -2027,27 +2068,27 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 
 		/* insert the model */
 #ifdef CULL_BY_LOWEST_NEAR_POINT
-		if (HAVE_COLLISION_MODEL)
+		if (COLLISION_MODEL && strlen(COLLISION_MODEL) > 0)
 		{
 			// Add the actual model...
 			InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, qfalse, qfalse, qtrue, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear);
 			// Add the collision planes...
 			overrideShader = ShaderInfoForShader("textures/system/nodraw_solid");
-			//Sys_Printf("Adding collision model %s surfaces.\n", collisionModel);
-			InsertModel((char*)collisionModel, frame, NULL, transform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear);
+			//Sys_Printf("Adding collision model %s surfaces.\n", COLLISION_MODEL);
+			InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear);
 		}
 		else
 		{
 			InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear);
 		}
 #else //!CULL_BY_LOWEST_NEAR_POINT
-		if (HAVE_COLLISION_MODEL)
+		if (COLLISION_MODEL && strlen(COLLISION_MODEL) > 0)
 		{
 			// Add the actual model...
 			InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, qfalse, qfalse, qtrue, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, 999999.0f);
 			// Add the collision planes...
 			overrideShader = ShaderInfoForShader("textures/system/nodraw_solid");
-			InsertModel((char*)collisionModel, frame, NULL, transform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, 999999.0f);
+			InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, 999999.0f);
 		}
 		else
 		{

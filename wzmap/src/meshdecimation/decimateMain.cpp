@@ -211,39 +211,6 @@ void Decimate ( picoModel_t *model, char *fileNameOut )
 
 	Sys_Printf("POST-DECIMATE: model %s. verts %i. indexes %i.\n", model->fileName, (int)decimatedPoints.size(), (int)decimatedtriangles.size());
 
-	char fileNameOut[128] = { 0 };
-	char tempfileNameOut[128] = { 0 };
-
-	strcpy(tempfileNameOut, model->fileName);
-	StripFilename(tempfileNameOut);
-	StripFilename(tempfileNameOut);
-	StripFilename(tempfileNameOut);
-	if (strlen(tempfileNameOut) > 0)
-	{
-		//Sys_Printf("Create %s.\n", tempfileNameOut);
-		Q_mkdir( tempfileNameOut );
-	}
-
-	strcpy(tempfileNameOut, model->fileName);
-	StripFilename(tempfileNameOut);
-	StripFilename(tempfileNameOut);
-	if (strlen(tempfileNameOut) > 0)
-	{
-		//Sys_Printf("Create %s.\n", tempfileNameOut);
-		Q_mkdir( tempfileNameOut );
-	}
-
-	strcpy(tempfileNameOut, model->fileName);
-	StripFilename(tempfileNameOut);
-	if (strlen(tempfileNameOut) > 0)
-	{
-		//Sys_Printf("Create %s.\n", tempfileNameOut);
-		Q_mkdir( tempfileNameOut );
-	}
-
-	strcpy(tempfileNameOut, model->fileName);
-	StripExtension( tempfileNameOut );
-	sprintf(fileNameOut, "%s_lod.obj", tempfileNameOut);
     SaveOBJ(fileNameOut, decimatedPoints, decimatedtriangles);
 #else //__SIMPLIFY_METHOD__
 	Simplify::UsePicoModel(model);
@@ -251,58 +218,38 @@ void Decimate ( picoModel_t *model, char *fileNameOut )
 	if ((Simplify::triangles.size() < 3) || (Simplify::vertices.size() < 3))
 		return;
 
-	//int target_count =  Simplify::triangles.size() >> 1;
-	int target_count =  Simplify::triangles.size() * 0.3;
-    double agressiveness = 3.0;
+	int target_count =  Simplify::triangles.size() >> 1;
+	//int target_count =  Simplify::triangles.size() * 0.3;
+	//int target_count = Simplify::triangles.size() / 2.5;
+	//int target_count = Simplify::triangles.size() / 4;
+	//int target_count = Simplify::triangles.size() / 2.0;
+    
+	//double agressiveness = 7.0; // this is default
+	double agressiveness = 3.0; // seems to make no diff????
 
 	clock_t start = clock();
 
-	Sys_Printf("Input: vertices: %i. triangles %i. reduction target %i.\n", (int)Simplify::vertices.size(), (int)Simplify::triangles.size(), target_count);
+	Sys_Printf("ORIGINAL: vertices: %i. triangles %i. reduction target %i.\n", (int)Simplify::vertices.size(), (int)Simplify::triangles.size(), target_count);
 
 	int startSize = (int)Simplify::triangles.size();
 
 	
-	//Simplify::simplify_mesh(target_count, agressiveness, false);
-	Simplify::simplify_mesh_lossless( false );
+	Simplify::simplify_mesh(target_count, agressiveness, false);
+	//Simplify::simplify_mesh_lossless( false );
 
 	if ( Simplify::triangles.size() >= startSize) {
-		printf("Unable to reduce mesh.\n");
+		Sys_Printf("Unable to reduce mesh.\n");
+		Simplify::triangles.clear();
+		Simplify::vertices.clear();
     	return;
 	}
+
+	Sys_Printf("COLLISION: vertices: %i. triangles %i. (%.2f reduction; %i sec)\n", (int)Simplify::vertices.size(), (int)Simplify::triangles.size()
+		, (float)((float)Simplify::triangles.size() / (float)startSize)*100.0, ((int)(clock() - start)) / CLOCKS_PER_SEC);
 	
-
-	char tempfileNameOut[128] = { 0 };
-
-	strcpy(tempfileNameOut, fileNameOut);
-	StripFilename(tempfileNameOut);
-	StripFilename(tempfileNameOut);
-	StripFilename(tempfileNameOut);
-	if (strlen(tempfileNameOut) > 0)
-	{
-		//Sys_Printf("Create %s.\n", tempfileNameOut);
-		Q_mkdir( tempfileNameOut );
-	}
-
-	strcpy(tempfileNameOut, fileNameOut);
-	StripFilename(tempfileNameOut);
-	StripFilename(tempfileNameOut);
-	if (strlen(tempfileNameOut) > 0)
-	{
-		//Sys_Printf("Create %s.\n", tempfileNameOut);
-		Q_mkdir( tempfileNameOut );
-	}
-
-	strcpy(tempfileNameOut, fileNameOut);
-	StripFilename(tempfileNameOut);
-	if (strlen(tempfileNameOut) > 0)
-	{
-		//Sys_Printf("Create %s.\n", tempfileNameOut);
-		Q_mkdir( tempfileNameOut );
-	}
-
 	Simplify::write_obj(fileNameOut);
 
-	Sys_Printf("Output: vertices: %i. triangles %i. (%f reduction; %i sec)\n", (int)Simplify::vertices.size(), (int)Simplify::triangles.size()
-		, (float)((float)Simplify::triangles.size()/ (float)startSize)*100.0  , ((int)(clock()-start))/CLOCKS_PER_SEC );
+	Simplify::triangles.clear();
+	Simplify::vertices.clear();
 #endif //__DECIMATE_METHOD__
 }

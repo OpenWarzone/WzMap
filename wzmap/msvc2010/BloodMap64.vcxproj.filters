@@ -58,6 +58,9 @@
     <Filter Include="Recast\DetourCrowd">
       <UniqueIdentifier>{238a4227-83ab-4a28-b0eb-60e30c81cf59}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\modelMeshDecimation">
+      <UniqueIdentifier>{0b3c4b4f-735c-4128-9ab0-25524b2f76cb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\bspfile_abstract.c">
@@ -354,6 +357,12 @@
     <ClCompile Include="..\src\modelConvexHull.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\meshdecimation\decimateMain.cpp">
+      <Filter>src\modelMeshDecimation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\meshdecimation\mdMeshDecimator.cpp">
+      <Filter>src\modelMeshDecimation</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\games\darkplaces.h">
@@ -590,6 +599,18 @@
     <ClInclude Include="..\src\ch3d.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\meshdecimation\mdMeshDecimator.h">
+      <Filter>src\modelMeshDecimation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\meshdecimation\mdSArray.h">
+      <Filter>src\modelMeshDecimation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\meshdecimation\mdVector.h">
+      <Filter>src\modelMeshDecimation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\meshsimplification\simplify.h">
+      <Filter>src\modelMeshDecimation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\src\bloodmap.ico">
@@ -615,6 +636,9 @@
   <ItemGroup>
     <None Include="..\README">
       <Filter>doc</Filter>
+    </None>
+    <None Include="..\src\meshdecimation\mdVector.inl">
+      <Filter>src\modelMeshDecimation</Filter>
     </None>
   </ItemGroup>
 </Project>

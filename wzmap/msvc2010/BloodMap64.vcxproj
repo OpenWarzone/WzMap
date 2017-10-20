@@ -340,6 +340,8 @@
     <ClCompile Include="..\src\main.c" />
     <ClCompile Include="..\src\map.c" />
     <ClCompile Include="..\src\mesh.c" />
+    <ClCompile Include="..\src\meshdecimation\decimateMain.cpp" />
+    <ClCompile Include="..\src\meshdecimation\mdMeshDecimator.cpp" />
     <ClCompile Include="..\src\model.c" />
     <ClCompile Include="..\src\modelConvexHull.cpp" />
     <ClCompile Include="..\src\nav.c" />
@@ -439,6 +441,10 @@
     <ClInclude Include="..\src\libs\l_net\l_net.h" />
     <ClInclude Include="..\src\libs\mathlib.h" />
     <ClInclude Include="..\src\libs\picomodel.h" />
+    <ClInclude Include="..\src\meshdecimation\mdMeshDecimator.h" />
+    <ClInclude Include="..\src\meshdecimation\mdSArray.h" />
+    <ClInclude Include="..\src\meshdecimation\mdVector.h" />
+    <ClInclude Include="..\src\meshsimplification\simplify.h" />
     <ClInclude Include="..\src\nav.h" />
     <ClInclude Include="..\src\navgen.h" />
     <ClInclude Include="..\src\q3map2.h" />
@@ -495,6 +501,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\README" />
+    <None Include="..\src\meshdecimation\mdVector.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

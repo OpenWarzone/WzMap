@@ -35,8 +35,10 @@ WzMap feature defines...
 
 #define __BASEJKA_LIGHTGRID__
 
-//#define __MODEL_SIMPLIFICATION__
-//#define __MODEL_CONVEX_HULL__
+// Collision model generation... TODO: Possibly add .climate ini option per model to select best method manually per model???
+#define __MODEL_SIMPLIFY__			// Primary method. Simplification/Decimation.... Fairly reliable... Can sometimes leave some small holes though.
+//#define __MODEL_CONVEX_HULL__		// Secondary method. Convex hulls. Not reliable enough. Fails on some models (stuff that isn't a basic shape or has empty walkable areas inside).
+									// Generates smaller collision models. Falls back to __MODEL_SIMPLIFY__ method if it is defined as well...
 
 /* marker */
 #ifndef Q3MAP2_H
@@ -140,6 +142,9 @@ port-related hacks
 /* macro version */
 #define VectorMA( a, s, b, c )	((c)[ 0 ] = (a)[ 0 ] + (s) * (b)[ 0 ], (c)[ 1 ] = (a)[ 1 ] + (s) * (b)[ 1 ], (c)[ 2 ] = (a)[ 2 ] + (s) * (b)[ 2 ])
 
+
+#define PATH_MAX 260
+extern char     g_strDirs[VFS_MAXDIRS][PATH_MAX];
 
 
 /* -------------------------------------------------------------------------------

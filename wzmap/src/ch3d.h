@@ -19,7 +19,9 @@
 
 #define PI 3.14159
 
-#define EPSILON 1e-3
+#define CH3D_EPSILON 1e-3
+//#define CH3D_EPSILON 1e-2
+//#define CH3D_EPSILON 1e-1
 
 #define TRUE  1
 #define FALSE 0
