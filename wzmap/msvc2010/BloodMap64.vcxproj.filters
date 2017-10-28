@@ -213,9 +213,6 @@
     <ClCompile Include="..\src\common\vfs.c">
       <Filter>src\common</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\forest.c">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\inifile.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -362,6 +359,9 @@
     </ClCompile>
     <ClCompile Include="..\src\meshdecimation\mdMeshDecimator.cpp">
       <Filter>src\modelMeshDecimation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\proceduralGeneration.c">
+      <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

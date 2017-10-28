@@ -121,6 +121,7 @@ float			TREE_FORCED_BUFFER_DISTANCE[MAX_FOREST_MODELS] = { 0.0 };
 float			TREE_FORCED_DISTANCE_FROM_SAME[MAX_FOREST_MODELS] = { 0.0 };
 char			TREE_FORCED_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 qboolean		TREE_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { qfalse };
+qboolean		ADD_CITY_ROADS = qfalse;
 float			CITY_SCALE_MULTIPLIER = 2.5;
 float			CITY_CLIFF_CULL_RADIUS = 1.0;
 vec3_t			CITY_LOCATION = { 0 };
@@ -335,6 +336,10 @@ void FOLIAGE_LoadClimateData( char *filename )
 	}
 
 	// Read all the tree info from the new .climate ini files...
+#if 0
+	ADD_CITY_ROADS = (qboolean)atoi(IniRead(filename, "CITY", "addCityRoads", "0"));
+#endif
+
 	CITY_SCALE_MULTIPLIER = atof(IniRead(filename, "CITY", "cityScaleMultiplier", "1.0"));
 	float CITY_LOCATION_X = atof(IniRead(filename, "CITY", "cityLocationX", "0"));
 	float CITY_LOCATION_Y = atof(IniRead(filename, "CITY", "cityLocationY", "0"));
@@ -464,6 +469,14 @@ void FOLIAGE_LoadClimateData( char *filename )
 			WzMap_PreloadModel(STATIC_MODEL[i], 0, &numLoadedModels);
 		}
 	}
+
+#if 0
+	if (ADD_CITY_ROADS)
+	{
+		//WzMap_PreloadModel("models/warzone/roads/road01.md3", 0, &numLoadedModels);
+		WzMap_PreloadModel("models/warzone/roads/road02.md3", 0, &numLoadedModels);
+	}
+#endif
 }
 
 
@@ -1081,13 +1094,429 @@ void GenerateCliffFaces(void)
 			AdjustBrushesForOrigin(mapEnt);
 
 
-#if defined(__ADD_TREES_EARLY__)
+#if defined(__ADD_PROCEDURALS_EARLY__)
 		AddTriangleModels(0, qtrue, qtrue);
 		EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 		//MoveBrushesToWorld( mapEnt );
 		numEntities--;
 #endif
 	}
+}
+
+int			numRoads = 0;
+vec3_t		roadPositions[65536];
+vec3_t		roadAngles[65536];
+float		roadScale[65536];
+int			roadIsLowAngle[65536];
+
+void GenerateCityRoads(void)
+{
+	if (!ADD_CITY_ROADS) return;
+
+#if 0
+	Sys_PrintHeading("--- GenerateRoads ---\n");
+
+	numRoads = 0;
+
+	//Sys_Printf("%i map draw surfs.\n", numMapDrawSurfs);
+
+	for (int s = 0; s < numMapDrawSurfs; s++)
+	{
+		printLabelledProgress("AddRoads", s, numMapDrawSurfs);
+
+		/* get drawsurf */
+		mapDrawSurface_t *ds = &mapDrawSurfs[s];
+		shaderInfo_t *si = ds->shaderInfo;
+		int isLowAngle = 0;
+
+		if ((si->compileFlags & C_TRANSLUCENT) || (si->compileFlags & C_SKIP) || (si->compileFlags & C_FOG) || (si->compileFlags & C_NODRAW) || (si->compileFlags & C_HINT))
+		{
+			continue;
+		}
+
+		if (!(si->compileFlags & C_SOLID))
+		{
+			continue;
+		}
+
+		if (ds->maxs[2] < MAP_WATER_LEVEL)
+		{// Don't add roads under water...
+			continue;
+		}
+
+		/*if (ROAD_CHECK_SHADER[0] != '\0')
+		{
+		if (strcmp(si->shader, ROAD_CHECK_SHADER))
+		{// Not the mapper specified shader to apply ledges to, skip...
+		continue;
+		}
+		}*/
+
+		//Sys_Printf("drawsurf %i. %i indexes. %i verts.\n", s, ds->numIndexes, ds->numVerts);
+
+		if (ds->numIndexes == 0 && ds->numVerts == 3)
+		{
+			qboolean	isRoad = qfalse;
+			vec3_t		mins, maxs;
+			vec3_t		angles[3];
+
+			VectorSet(mins, 999999, 999999, 999999);
+			VectorSet(maxs, -999999, -999999, -999999);
+
+			for (int j = 0; j < 3; j++)
+			{
+				/* get vertex */
+				bspDrawVert_t		*dv = &ds->verts[j];
+
+				if (dv->xyz[0] < mins[0]) mins[0] = dv->xyz[0];
+				if (dv->xyz[1] < mins[1]) mins[1] = dv->xyz[1];
+				if (dv->xyz[2] < mins[2]) mins[2] = dv->xyz[2];
+
+				if (dv->xyz[0] > maxs[0]) maxs[0] = dv->xyz[0];
+				if (dv->xyz[1] > maxs[1]) maxs[1] = dv->xyz[1];
+				if (dv->xyz[2] > maxs[2]) maxs[2] = dv->xyz[2];
+			}
+
+			if (mins[0] == 999999 || mins[1] == 999999 || mins[2] == 999999 || maxs[0] == -999999 || maxs[1] == -999999 || maxs[2] == -999999)
+			{
+				continue;
+			}
+
+			if (!BoundsWithinPlayableArea(mins, maxs))
+			{
+				continue;
+			}
+
+			for (int j = 0; j < 3; j++)
+			{
+				/* get vertex */
+				bspDrawVert_t		*dv = &ds->verts[j];
+
+				vectoangles(dv->normal, angles[j]);
+
+				float pitch = angles[j][0];
+
+				if (pitch > 180)
+					pitch -= 360;
+
+				if (pitch < -180)
+					pitch += 360;
+
+				pitch += 90.0f;
+
+				//if ((pitch > 80.0 && pitch < 100.0) || (pitch < -80.0 && pitch > -100.0))
+				//	Sys_Printf("pitch %f.\n", pitch);
+
+				if (pitch == 180.0 || pitch == -180.0)
+				{// Horrible hack to skip the surfaces created under the map by q3map2 code... Why are boxes needed for triangles?
+					continue;
+				}
+				else if (pitch <= 16 && pitch >= -16)
+				{
+					isRoad = qtrue;
+				}
+				else
+				{
+					continue;
+				}
+			}
+
+			if (!isRoad)
+			{
+				continue;
+			}
+
+			vec3_t center;
+			vec3_t size;
+			float smallestSize;
+
+			center[0] = (mins[0] + maxs[0]) * 0.5f;
+			center[1] = (mins[1] + maxs[1]) * 0.5f;
+			center[2] = (mins[2] + maxs[2]) * 0.5f;
+
+			qboolean bad = qtrue;
+
+			if (VectorLength(CITY_LOCATION) != 0.0)
+			{
+				if (Distance(center, CITY_LOCATION) <= CITY_RADIUS)
+				{
+					bad = qfalse;
+				}
+			}
+
+			if (VectorLength(CITY2_LOCATION) != 0.0)
+			{
+				if (Distance(center, CITY2_LOCATION) <= CITY2_RADIUS)
+				{
+					bad = qfalse;
+				}
+			}
+
+			if (VectorLength(CITY3_LOCATION) != 0.0)
+			{
+				if (Distance(center, CITY3_LOCATION) <= CITY3_RADIUS)
+				{
+					bad = qfalse;
+				}
+			}
+
+			if (VectorLength(CITY4_LOCATION) != 0.0)
+			{
+				if (Distance(center, CITY4_LOCATION) <= CITY4_RADIUS)
+				{
+					bad = qfalse;
+				}
+			}
+
+			if (VectorLength(CITY5_LOCATION) != 0.0)
+			{
+				if (Distance(center, CITY5_LOCATION) <= CITY5_RADIUS)
+				{
+					bad = qfalse;
+				}
+			}
+
+			if (bad)
+			{// Not in range of a city... Skip...
+				continue;
+			}
+
+			//
+			// ok, seems this position is in range of a city area...
+			//
+			size[0] = (maxs[0] - mins[0]);
+			size[1] = (maxs[1] - mins[1]);
+			size[2] = (maxs[2] - mins[2]);
+
+			smallestSize = size[0];
+			if (size[1] < smallestSize) smallestSize = size[1];
+			if (size[2] < smallestSize) smallestSize = size[2];
+
+			//Sys_Printf("road found at %f %f %f. angles0 %f %f %f. angles1 %f %f %f. angles2 %f %f %f.\n", center[0], center[1], center[2], angles[0][0], angles[0][1], angles[0][2], angles[1][0], angles[1][1], angles[1][2], angles[2][0], angles[2][1], angles[2][2]);
+
+			roadScale[numRoads] = 2.0;//(smallestSize * CITY_ROADS_SCALE) / 64.0;
+			VectorCopy(center, roadPositions[numRoads]);
+			VectorCopy(angles[0], roadAngles[numRoads]);
+			roadAngles[numRoads][0] += 90.0;
+			numRoads++;
+
+			for (int j = 0; j < 3; j++)
+			{
+				/* get vertex */
+				bspDrawVert_t		*dv = &ds->verts[j];
+
+				roadScale[numRoads] = 2.0;//(smallestSize * CITY_ROADS_SCALE) / 64.0;
+				VectorCopy(dv->xyz, roadPositions[numRoads]);
+				VectorCopy(angles[0], roadAngles[numRoads]);
+				roadAngles[numRoads][0] += 90.0;
+				numRoads++;
+			}
+		}
+	}
+
+	Sys_Printf("Found %i road surfaces.\n", numRoads);
+
+	for (int i = 0; i < numRoads; i++)
+	{
+		printLabelledProgress("GenerateRoads", i, numRoads);
+
+		const char		*classname, *value;
+		float			lightmapScale;
+		vec3_t          lightmapAxis;
+		int			    smoothNormals;
+		int				vertTexProj;
+		char			shader[MAX_QPATH];
+		shaderInfo_t	*celShader = NULL;
+		brush_t			*brush;
+		parseMesh_t		*patch;
+		qboolean		funcGroup;
+		char			castShadows, recvShadows;
+		qboolean		forceNonSolid, forceNoClip, forceNoTJunc, forceMeta;
+		vec3_t          minlight, minvertexlight, ambient, colormod;
+		float           patchQuality, patchSubdivision;
+
+		/* setup */
+		entitySourceBrushes = 0;
+		mapEnt = &entities[numEntities];
+		numEntities++;
+		memset(mapEnt, 0, sizeof(*mapEnt));
+
+		mapEnt->mapEntityNum = 0;
+
+		VectorCopy(roadPositions[i], mapEnt->origin);
+
+		{
+			char str[32];
+			sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]+4.0);
+			SetKeyValue(mapEnt, "origin", str);
+		}
+
+		{
+			char str[32];
+			sprintf(str, "%f", roadScale[i]);
+			SetKeyValue(mapEnt, "modelscale", str);
+		}
+
+		{
+			//char str[32];
+			//sprintf(str, "%f", roadAngles[i][1] - 180.0);
+			//SetKeyValue(mapEnt, "angle", str);
+
+			char str[32];
+			sprintf(str, "%f %f %f", roadAngles[i][0], roadAngles[i][1]/* - 180.0*/, roadAngles[i][2]);
+			SetKeyValue(mapEnt, "angles", str);
+		}
+
+		/* ydnar: get classname */
+		SetKeyValue(mapEnt, "classname", "misc_model");
+		classname = ValueForKey(mapEnt, "classname");
+
+		int choice = irand(1, 2);
+		//SetKeyValue(mapEnt, "model", va("models/warzone/roads/road0%i.md3", choice));
+		SetKeyValue(mapEnt, "model", "models/warzone/roads/road01.md3");
+		//if (ROAD_SHADER[0] != '\0')
+		//{// Override the whole model's shader...
+		//	SetKeyValue(mapEnt, "_overrideShader", ROAD_SHADER);
+		//}
+
+		//Sys_Printf( "Generated cliff face at %f %f %f. Angle %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], roadAngles[i][1] );
+
+		funcGroup = qfalse;
+
+		/* get explicit shadow flags */
+		GetEntityShadowFlags(mapEnt, NULL, &castShadows, &recvShadows, (funcGroup || mapEnt->mapEntityNum == 0) ? qtrue : qfalse);
+
+		/* vortex: get lightmap scaling value for this entity */
+		GetEntityLightmapScale(mapEnt, &lightmapScale, 0);
+
+		/* vortex: get lightmap axis for this entity */
+		GetEntityLightmapAxis(mapEnt, lightmapAxis, NULL);
+
+		/* vortex: per-entity normal smoothing */
+		GetEntityNormalSmoothing(mapEnt, &smoothNormals, 0);
+
+		/* vortex: per-entity _minlight, _ambient, _color, _colormod  */
+		GetEntityMinlightAmbientColor(mapEnt, NULL, minlight, minvertexlight, ambient, colormod, qtrue);
+		if (mapEnt == &entities[0])
+		{
+			/* worldspawn have it empty, since it's keys sets global parms */
+			VectorSet(minlight, 0, 0, 0);
+			VectorSet(minvertexlight, 0, 0, 0);
+			VectorSet(ambient, 0, 0, 0);
+			VectorSet(colormod, 1, 1, 1);
+		}
+
+		/* vortex: _patchMeta, _patchQuality, _patchSubdivide support */
+		GetEntityPatchMeta(mapEnt, &forceMeta, &patchQuality, &patchSubdivision, 1.0, patchSubdivisions);
+
+		/* vortex: vertical texture projection */
+		if (strcmp("", ValueForKey(mapEnt, "_vtcproj")) || strcmp("", ValueForKey(mapEnt, "_vp")))
+		{
+			vertTexProj = IntForKey(mapEnt, "_vtcproj");
+			if (vertTexProj <= 0.0f)
+				vertTexProj = IntForKey(mapEnt, "_vp");
+		}
+		else
+			vertTexProj = 0;
+
+		/* ydnar: get cel shader :) for this entity */
+		value = ValueForKey(mapEnt, "_celshader");
+
+		if (value[0] == '\0')
+			value = ValueForKey(&entities[0], "_celshader");
+
+		if (value[0] != '\0')
+		{
+			sprintf(shader, "textures/%s", value);
+			celShader = ShaderInfoForShader(shader);
+			//Sys_FPrintf (SYS_VRB, "Entity %d (%s) has cel shader %s\n", mapEnt->mapEntityNum, classname, celShader->shader );
+		}
+		else
+			celShader = NULL;
+
+		/* vortex: _nonsolid forces detail non-solid brush */
+		forceNonSolid = ((IntForKey(mapEnt, "_nonsolid") > 0) || (IntForKey(mapEnt, "_ns") > 0)) ? qtrue : qfalse;
+
+		/* vortex: preserve original face winding, don't clip by bsp tree */
+		forceNoClip = ((IntForKey(mapEnt, "_noclip") > 0) || (IntForKey(mapEnt, "_nc") > 0)) ? qtrue : qfalse;
+
+		/* vortex: do not apply t-junction fixing (preserve original face winding) */
+		forceNoTJunc = ((IntForKey(mapEnt, "_notjunc") > 0) || (IntForKey(mapEnt, "_ntj") > 0)) ? qtrue : qfalse;
+
+		/* attach stuff to everything in the entity */
+		for (brush = mapEnt->brushes; brush != NULL; brush = brush->next)
+		{
+			brush->entityNum = mapEnt->mapEntityNum;
+			brush->mapEntityNum = mapEnt->mapEntityNum;
+			brush->castShadows = castShadows;
+			brush->recvShadows = recvShadows;
+			brush->lightmapScale = lightmapScale;
+			VectorCopy(lightmapAxis, brush->lightmapAxis); /* vortex */
+			brush->smoothNormals = smoothNormals; /* vortex */
+			brush->noclip = forceNoClip; /* vortex */
+			brush->noTJunc = forceNoTJunc; /* vortex */
+			brush->vertTexProj = vertTexProj; /* vortex */
+			VectorCopy(minlight, brush->minlight); /* vortex */
+			VectorCopy(minvertexlight, brush->minvertexlight); /* vortex */
+			VectorCopy(ambient, brush->ambient); /* vortex */
+			VectorCopy(colormod, brush->colormod); /* vortex */
+			brush->celShader = celShader;
+			if (forceNonSolid == qtrue)
+			{
+				brush->detail = qtrue;
+				brush->nonsolid = qtrue;
+				brush->noclip = qtrue;
+			}
+		}
+
+		for (patch = mapEnt->patches; patch != NULL; patch = patch->next)
+		{
+			patch->entityNum = mapEnt->mapEntityNum;
+			patch->mapEntityNum = mapEnt->mapEntityNum;
+			patch->castShadows = castShadows;
+			patch->recvShadows = recvShadows;
+			patch->lightmapScale = lightmapScale;
+			VectorCopy(lightmapAxis, patch->lightmapAxis); /* vortex */
+			patch->smoothNormals = smoothNormals; /* vortex */
+			patch->vertTexProj = vertTexProj; /* vortex */
+			patch->celShader = celShader;
+			patch->patchMeta = forceMeta; /* vortex */
+			patch->patchQuality = patchQuality; /* vortex */
+			patch->patchSubdivisions = patchSubdivision; /* vortex */
+			VectorCopy(minlight, patch->minlight); /* vortex */
+			VectorCopy(minvertexlight, patch->minvertexlight); /* vortex */
+			VectorCopy(ambient, patch->ambient); /* vortex */
+			VectorCopy(colormod, patch->colormod); /* vortex */
+			patch->nonsolid = forceNonSolid;
+		}
+
+		/* vortex: store map entity num */
+		{
+			char buf[32];
+			sprintf(buf, "%i", mapEnt->mapEntityNum);
+			SetKeyValue(mapEnt, "_mapEntityNum", buf);
+		}
+
+		/* ydnar: gs mods: set entity bounds */
+		SetEntityBounds(mapEnt);
+
+		/* ydnar: gs mods: load shader index map (equivalent to old terrain alphamap) */
+		LoadEntityIndexMap(mapEnt);
+
+		/* get entity origin and adjust brushes */
+		GetVectorForKey(mapEnt, "origin", mapEnt->origin);
+		if (mapEnt->originbrush_origin[0] || mapEnt->originbrush_origin[1] || mapEnt->originbrush_origin[2])
+			AdjustBrushesForOrigin(mapEnt);
+
+
+#if defined(__ADD_PROCEDURALS_EARLY__)
+		AddTriangleModels(0, qtrue, qtrue);
+		EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
+		//MoveBrushesToWorld( mapEnt );
+		numEntities--;
+#endif
+	}
+#endif
 }
 
 int			numLedges = 0;
@@ -1542,7 +1971,7 @@ void GenerateLedgeFaces(void)
 			AdjustBrushesForOrigin(mapEnt);
 
 
-#if defined(__ADD_TREES_EARLY__)
+#if defined(__ADD_PROCEDURALS_EARLY__)
 		AddTriangleModels(0, qtrue, qtrue);
 		EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 		//MoveBrushesToWorld( mapEnt );
@@ -1995,7 +2424,7 @@ void ReassignTreeModels ( void )
 	Sys_Printf("%9d positions ignored due to closeness to a cliff.\n", NUM_CLOSE_CLIFFS);
 }
 
-//#define __ADD_TREES_EARLY__ // Add trees to map's brush list instanty...
+//#define __ADD_PROCEDURALS_EARLY__ // Add trees to map's brush list instanty...
 
 extern void MoveBrushesToWorld( entity_t *ent );
 extern qboolean StringContainsWord(const char *haystack, const char *needle);
@@ -2004,13 +2433,13 @@ void GenerateMapForest ( void )
 {
 	if (generateforest)
 	{
-		if (FOLIAGE_NUM_POSITIONS > 0)
+		if (FOLIAGE_NUM_POSITIONS > 0 && TREE_PERCENTAGE > 0)
 		{// First re-assign model types based on buffer ranges and instance type ranges...
 			int i;
 
 			Sys_PrintHeading("--- GenerateMapForest ---\n");
 
-#if defined(__ADD_TREES_EARLY__)
+#if defined(__ADD_PROCEDURALS_EARLY__)
 			Sys_Printf( "Adding %i trees to bsp.\n", FOLIAGE_NUM_POSITIONS );
 #endif
 
@@ -2243,7 +2672,7 @@ void GenerateMapForest ( void )
 					AdjustBrushesForOrigin( mapEnt );
 
 
-#if defined(__ADD_TREES_EARLY__)
+#if defined(__ADD_PROCEDURALS_EARLY__)
 				AddTriangleModels( 0, qtrue, qtrue );
 				EmitBrushes( mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes );
 				//MoveBrushesToWorld( mapEnt );
@@ -2253,7 +2682,7 @@ void GenerateMapForest ( void )
 
 			free(FOLIAGE_ASSIGNED);
 
-#if defined(__ADD_TREES_EARLY__)
+#if defined(__ADD_PROCEDURALS_EARLY__)
 			Sys_Printf( "Finished adding trees.\n" );
 #endif
 		}
@@ -2906,7 +3335,7 @@ void GenerateMapCity(void)
 
 			Sys_PrintHeading("--- GenerateMapCities ---\n");
 
-#if defined(__ADD_TREES_EARLY__)
+#if defined(__ADD_PROCEDURALS_EARLY__)
 			Sys_Printf("Adding %i buildings to bsp.\n", FOLIAGE_NUM_POSITIONS);
 #endif
 
@@ -3152,7 +3581,7 @@ void GenerateMapCity(void)
 					AdjustBrushesForOrigin(mapEnt);
 
 
-#if defined(__ADD_TREES_EARLY__)
+#if defined(__ADD_PROCEDURALS_EARLY__)
 				AddTriangleModels(0, qtrue, qtrue);
 				EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 				//MoveBrushesToWorld( mapEnt );
@@ -3162,7 +3591,7 @@ void GenerateMapCity(void)
 
 			free(BUILDING_ASSIGNED);
 
-#if defined(__ADD_TREES_EARLY__)
+#if defined(__ADD_PROCEDURALS_EARLY__)
 			Sys_Printf("Finished adding city.\n");
 #endif
 		}

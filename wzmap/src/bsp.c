@@ -41,6 +41,7 @@ extern qboolean FORCED_STRUCTURAL;
 
 extern void GenerateCliffFaces ( void );
 extern void GenerateLedgeFaces(void);
+extern void GenerateCityRoads(void);
 extern void GenerateMapCity(void);
 extern void GenerateMapForest ( void );
 extern void GenerateStaticEntities(void);
@@ -681,19 +682,22 @@ void ProcessWorldModel( void )
 	/* UQ1: Find water level so that we can skip adding procedural crap underwater */
 	FindWaterLevel();
 
-	/* UQ1: Generate experimental procedural cliff faces */
+	/* UQ1: Generate procedural cliff faces */
 	GenerateCliffFaces();
 
-	/* UQ1: Generate experimental procedural ledge faces */
+	/* UQ1: Generate procedural ledge faces */
 	GenerateLedgeFaces();
 
 	/* UQ1: Generate static entities from ini */
 	GenerateStaticEntities();
 
-	/* UQ1: Generate experimental procedural city */
+	/* UQ1: Generate procedural city roads */
+	GenerateCityRoads();
+
+	/* UQ1: Generate procedural city objects */
 	GenerateMapCity();
 
-	/* UQ1: Generate experimental procedural trees/etc */
+	/* UQ1: Generate procedural trees/etc */
 	GenerateMapForest();
 	
 	/* create drawsurfs for triangle models */

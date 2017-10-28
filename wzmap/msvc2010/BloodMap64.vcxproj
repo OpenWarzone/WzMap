@@ -326,7 +326,7 @@
     <ClCompile Include="..\src\decorations.c" />
     <ClCompile Include="..\src\facebsp.c" />
     <ClCompile Include="..\src\fog.c" />
-    <ClCompile Include="..\src\forest.c" />
+    <ClCompile Include="..\src\proceduralGeneration.c" />
     <ClCompile Include="..\src\gldraw.c" />
     <ClCompile Include="..\src\image.c" />
     <ClCompile Include="..\src\inifile.cpp" />
