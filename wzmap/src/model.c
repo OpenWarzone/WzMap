@@ -1464,7 +1464,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 	}
 }
 
-void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels)
+void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowSimplify)
 {
 	picoModel_t		*picoModel = NULL;
 	qboolean		loaded = qfalse;
@@ -1564,37 +1564,56 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels)
 					}
 				}
 
+				// allowSimplify : 0 = allow none. 1 = allow convex hull. 2 = allow simplify. 3 = allow both.
 #ifdef __MODEL_CONVEX_HULL__
-				// UQ1: Testing... Mesh convex hull for collision planes...
-				Sys_Printf("Generating convex hull collision model for model %s.\n", model);
+				if (allowSimplify == 1 || allowSimplify == 3)
+				{
+					// UQ1: Testing... Mesh convex hull for collision planes...
+					Sys_Printf("Generating convex hull collision model for model %s.\n", model);
 
-				ConvexHull(picoModel, collisionModelObj); // Falls back to simplify/decimate method on fail if __MODEL_SIMPLIFY__ is also defined...
+					ConvexHull(picoModel, collisionModelObj); // Falls back to simplify/decimate method on fail if __MODEL_SIMPLIFY__ is also defined...
 
-				loaded2 = PreloadModel((char*)collisionModelObj, 0);
+					loaded2 = PreloadModel((char*)collisionModelObj, 0);
 
-				if (loaded2) {
-					Sys_Printf("Loaded model %s.\n", collisionModelObj);
-					*numLoadedModels++;
+					if (loaded2) {
+						Sys_Printf("Loaded model %s.\n", collisionModelObj);
+						*numLoadedModels++;
+					}
+
+					picoModel2 = FindModel((char*)collisionModelObj, 0);
+
+					if (loaded2)
+					{
+						return;
+					}
 				}
-
-				picoModel2 = FindModel((char*)collisionModelObj, 0);
-#elif defined(__MODEL_SIMPLIFY__)
-				// UQ1: Testing... Mesh simplification for collision planes...
-				Sys_Printf("Generating simplified collision model for model %s.\n", model);
-
-				Decimate(picoModel, collisionModelObj);
-
-				loaded2 = PreloadModel((char*)collisionModelObj, 0);
-
-				if (loaded2) {
-					Sys_Printf("Loaded model %s.\n", collisionModelObj);
-					*numLoadedModels++;
-				}
-
-				picoModel2 = FindModel((char*)collisionModelObj, 0);
-#else //!__MODEL_CONVEX_HULL__
-				Sys_Printf("loaded model %s. collision model %s. Suggestion: Create a <modelname>_collision.%s\n", model, "none", tempCollisionModelExt);
 #endif //__MODEL_CONVEX_HULL__
+
+#ifdef __MODEL_SIMPLIFY__
+				if (allowSimplify == 2 || allowSimplify == 3)
+				{
+					// UQ1: Testing... Mesh simplification for collision planes...
+					Sys_Printf("Generating simplified collision model for model %s.\n", model);
+
+					Decimate(picoModel, collisionModelObj);
+
+					loaded2 = PreloadModel((char*)collisionModelObj, 0);
+
+					if (loaded2) {
+						Sys_Printf("Loaded model %s.\n", collisionModelObj);
+						*numLoadedModels++;
+					}
+
+					picoModel2 = FindModel((char*)collisionModelObj, 0);
+
+					if (loaded2)
+					{
+						return;
+					}
+				}
+#endif //__MODEL_SIMPLIFY__
+
+				Sys_Printf("loaded model %s. collision model %s. Suggestion: Create a <modelname>_collision.%s\n", model, "none", tempCollisionModelExt);
 			}
 		}
 	}
@@ -1644,7 +1663,7 @@ void LoadTriangleModels(void)
 		else
 			frame = 0;
 
-		WzMap_PreloadModel(name, frame, &numLoadedModels);
+		WzMap_PreloadModel(name, frame, &numLoadedModels, 0);
 	}
 
 	/* print overall time */

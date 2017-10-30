@@ -7,7 +7,7 @@
 #include "q3map2.h"
 #include "inifile.h"
 
-extern void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels);
+extern void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowSimplify);
 extern void SetEntityBounds( entity_t *e );
 extern void LoadEntityIndexMap( entity_t *e );
 extern void AdjustBrushesForOrigin( entity_t *ent );
@@ -121,6 +121,7 @@ float			TREE_FORCED_BUFFER_DISTANCE[MAX_FOREST_MODELS] = { 0.0 };
 float			TREE_FORCED_DISTANCE_FROM_SAME[MAX_FOREST_MODELS] = { 0.0 };
 char			TREE_FORCED_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 qboolean		TREE_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { qfalse };
+int				TREE_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 2 };
 qboolean		ADD_CITY_ROADS = qfalse;
 float			CITY_SCALE_MULTIPLIER = 2.5;
 float			CITY_CLIFF_CULL_RADIUS = 1.0;
@@ -144,11 +145,285 @@ float			CITY_FORCED_BUFFER_DISTANCE[MAX_FOREST_MODELS] = { 0.0 };
 float			CITY_FORCED_DISTANCE_FROM_SAME[MAX_FOREST_MODELS] = { 0.0 };
 char			CITY_FORCED_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 int				CITY_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { 0 };
+int				CITY_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 2 };
 
 char			STATIC_MODEL[MAX_STATIC_ENTITY_MODELS][128] = { 0 };
 vec3_t			STATIC_ORIGIN[MAX_STATIC_ENTITY_MODELS] = { 0 };
 float			STATIC_ANGLE[MAX_STATIC_ENTITY_MODELS] = { 0 };
 float			STATIC_SCALE[MAX_STATIC_ENTITY_MODELS] = { 0 };
+int				STATIC_ALLOW_SIMPLIFY[MAX_STATIC_ENTITY_MODELS] = { 2 };
+
+#define MAP_INFO_TRACEMAP_SIZE 2048
+
+char currentMapName[256] = { 0 };
+
+// =======================================================================================================================================
+//
+// Roads Map System...
+//
+// =======================================================================================================================================
+#include "TinyImageLoader/TinyImageLoader.h"
+#include <string>
+
+char *R_TIL_TextureFileExistsFull(const char *name)
+{
+	char texName[512] = { 0 };
+	sprintf(texName, "%s.png", name);
+
+	if (FileExists(texName))
+	{
+		return "png";
+	}
+	//else Sys_Printf("%s does not exist.\n", texName);
+
+	memset(&texName, 0, sizeof(char) * 512);
+	sprintf(texName, "%s.tga", name);
+
+	if (FileExists(texName))
+	{
+		return "tga";
+	}
+	//else Sys_Printf("%s does not exist.\n", texName);
+
+	memset(&texName, 0, sizeof(char) * 512);
+	sprintf(texName, "%s.jpg", name);
+
+	if (FileExists(texName))
+	{
+		return "jpg";
+	}
+	//else Sys_Printf("%s does not exist.\n", texName);
+
+	memset(&texName, 0, sizeof(char) * 512);
+	sprintf(texName, "%s.dds", name);
+
+	if (FileExists(texName))
+	{
+		return "dds";
+	}
+	//else Sys_Printf("%s does not exist.\n", texName);
+
+	memset(&texName, 0, sizeof(char) * 512);
+	sprintf(texName, "%s.gif", name);
+
+	if (FileExists(texName))
+	{
+		return "gif";
+	}
+	//else Sys_Printf("%s does not exist.\n", texName);
+
+	memset(&texName, 0, sizeof(char) * 512);
+	sprintf(texName, "%s.bmp", name);
+
+	if (FileExists(texName))
+	{
+		return "bmp";
+	}
+	//else Sys_Printf("%s does not exist.\n", texName);
+
+	memset(&texName, 0, sizeof(char) * 512);
+	sprintf(texName, "%s.ico", name);
+
+	if (FileExists(texName))
+	{
+		return "ico";
+	}
+	//else Sys_Printf("%s does not exist.\n", texName);
+
+	return NULL;
+}
+
+#define PixelCopy(a,b) ((b)[0]=(a)[0],(b)[1]=(a)[1],(b)[2]=(a)[2])
+#define srgb_to_linear(c) (((c) <= 0.04045) ? (c) * (1.0 / 12.92) : pow(((c) + 0.055f)*(1.0/1.055), 2.4))
+
+qboolean SampleRoadImage(uint8_t *pixels, int width, int height, float st[2], float color[4])
+{
+	qboolean texturesRGB = qfalse;
+	float	sto[2];
+	int		x, y;
+
+	/* clear color first */
+	color[0] = color[1] = color[2] = color[3] = 0;
+
+	/* dummy check */
+	if (pixels == NULL || width < 1 || height < 1)
+		return qfalse;
+
+	/* bias st */
+	sto[0] = st[0];
+	while (sto[0] < 0.0f)
+		sto[0] += 1.0f;
+	sto[1] = st[1];
+	while (sto[1] < 0.0f)
+		sto[1] += 1.0f;
+
+	/* get offsets */
+	x = ((float)width * sto[0]);// +0.5f;
+	x %= width;
+	y = ((float)height * sto[1]);// +0.5f;
+	y %= height;
+
+	/* get pixel */
+	pixels += (y * width * 4) + (x * 4);
+	PixelCopy(pixels, color);
+	color[3] = pixels[3];
+
+	return qtrue;
+}
+
+qboolean TIL_INITIALIZED = qfalse;
+
+qboolean ROAD_MAP_INITIALIZED = qfalse;
+til::Image *ROAD_MAP = NULL;
+
+void StripPath(char *path)
+{
+	size_t length;
+
+	length = strlen(path) - 1;
+	while (length > 0 && path[length] != '/' && path[length] != '\\')
+	{
+		length--;
+	}
+	if (length)
+	{
+		std::string temp = path;
+		temp = temp.substr(length + 1, strlen(path) - length);
+		sprintf(path, temp.c_str());
+	}
+}
+
+void LoadRoadMapImage(void)
+{
+	char fileName[255];
+	strcpy(fileName, currentMapName);
+	StripPath(fileName);
+
+	if (!ROAD_MAP && !ROAD_MAP_INITIALIZED)
+	{
+		ROAD_MAP_INITIALIZED = qtrue;
+
+		char name[512] = { 0 };
+		strcpy(name, va("%smaps/%s_roads", g_strDirs[0], fileName));
+		char *ext = R_TIL_TextureFileExistsFull(name);
+
+		if (ext)
+		{
+			if (!TIL_INITIALIZED)
+			{
+				til::TIL_Init();
+				TIL_INITIALIZED = qtrue;
+			}
+
+			char fullPath[1024] = { 0 };
+			sprintf_s(fullPath, "%s.%s", name, ext);
+			ROAD_MAP = til::TIL_Load(fullPath/*, TIL_FILE_ADDWORKINGDIR*/);
+
+			if (ROAD_MAP && ROAD_MAP->GetHeight() > 0 && ROAD_MAP->GetWidth() > 0)
+			{
+				Sys_Printf(va("Road map loaded from %s. Size %ix%i.\n", fullPath, ROAD_MAP->GetWidth(), ROAD_MAP->GetHeight()));
+			}
+			else
+			{
+				Sys_Printf(va("Road map failed to load from %s.\n", fullPath));
+				til::TIL_Release(ROAD_MAP);
+				ROAD_MAP = NULL;
+			}
+		}
+		else
+		{
+			Sys_Printf(va("Road map not found at %s.\n", name));
+		}
+	}
+}
+
+qboolean ROAD_BOUNDS_INITIALIZED = qfalse;
+
+vec3_t ROADS_MINS;
+vec3_t ROADS_MAXS;
+
+void SetupRoadmapBounds(void)
+{
+	/*
+	ClearBounds(ROADS_MINS, ROADS_MAXS);
+
+	for (int s = 0; s < numMapDrawSurfs; s++)
+	{
+		mapDrawSurface_t *ds = &mapDrawSurfs[s];
+
+		for (int i = 0; i < ds->numVerts; i++)
+			AddPointToBounds(ds->verts[i].xyz, ROADS_MINS, ROADS_MAXS);
+	}
+	*/
+
+	VectorCopy(mapPlayableMins, ROADS_MINS);
+	VectorCopy(mapPlayableMaxs, ROADS_MAXS);
+
+	ROAD_BOUNDS_INITIALIZED = qtrue;
+}
+
+qboolean RoadExistsAtPoint(vec3_t point, int scanWidth)
+{
+	if (!ROAD_MAP)
+	{
+		LoadRoadMapImage();
+
+		if (!ROAD_MAP)
+		{
+			return qfalse;
+		}
+	}
+
+	if (!ROAD_BOUNDS_INITIALIZED)
+	{
+		SetupRoadmapBounds();
+	}
+
+	float mapSize[2];
+	float pixel[2];
+
+	mapSize[0] = ROADS_MAXS[0] - ROADS_MINS[0];
+	mapSize[1] = ROADS_MAXS[1] - ROADS_MINS[1];
+	pixel[0] = (point[0] - ROADS_MINS[0]) / mapSize[0];
+	pixel[1] = (point[1] - ROADS_MINS[1]) / mapSize[1];
+
+	vec4_t color;
+	RadSampleImage((uint8_t *)ROAD_MAP->GetPixels(), ROAD_MAP->GetWidth(), ROAD_MAP->GetHeight(), pixel, color);
+	float road = color[2];
+
+	if (road > 0)
+	{
+		return qtrue;
+	}
+
+#if 1
+	// Also scan pixels around this position...
+	for (int x = -scanWidth; x <= scanWidth; x++)
+	{
+		for (int y = -scanWidth; y <= scanWidth; y++)
+		{
+			if (x == 0 && y == 0) continue; // Already checked this one...
+
+			float pixel2[2];
+			pixel2[0] = pixel[0] + (x / (float)ROAD_MAP->GetWidth());
+			pixel2[1] = pixel[1] + (y / (float)ROAD_MAP->GetHeight());
+
+			if (pixel2[0] >= 0 && pixel2[0] <= 1.0 && pixel2[1] >= 0 && pixel2[1] <= 1.0)
+			{
+				RadSampleImage((uint8_t *)ROAD_MAP->GetPixels(), ROAD_MAP->GetWidth(), ROAD_MAP->GetHeight(), pixel2, color);
+				float road2 = color[2];
+
+				if (road2 > 0)
+				{
+					return qtrue;
+				}
+			}
+		}
+	}
+#endif
+	
+	return qfalse;
+}
 
 void FindWaterLevel(void)
 {
@@ -329,6 +604,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 		TREE_FORCED_BUFFER_DISTANCE[i] = atof(IniRead(filename, "TREES", va("treeForcedBufferDistance%i", i), "0.0"));
 		TREE_FORCED_DISTANCE_FROM_SAME[i] = atof(IniRead(filename, "TREES", va("treeForcedDistanceFromSame%i", i), "0.0"));
 		TREE_FORCED_FULLSOLID[i] = (qboolean)atoi(IniRead(filename, "TREES", va("treeForcedFullSolid%i", i), "0"));
+		TREE_ALLOW_SIMPLIFY[i] = atoi(IniRead(filename, "TREES", va("treeAllowSimplify%i", i), "2"));
 		strcpy(TREE_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "TREES", va("overrideShader%i", i), ""));
 
 		if (strcmp(TREE_MODELS[i], ""))
@@ -365,6 +641,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 			CITY_FORCED_BUFFER_DISTANCE[i] = atof(IniRead(filename, "CITY", va("cityForcedBufferDistance%i", i), "0.0"));
 			CITY_FORCED_DISTANCE_FROM_SAME[i] = atof(IniRead(filename, "CITY", va("cityForcedDistanceFromSame%i", i), "0.0"));
 			CITY_FORCED_FULLSOLID[i] = atoi(IniRead(filename, "CITY", va("cityForcedFullSolid%i", i), "0"));
+			CITY_ALLOW_SIMPLIFY[i] = atoi(IniRead(filename, "CITY", va("cityAllowSimplify%i", i), "2"));
 			strcpy(CITY_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "CITY", va("overrideShader%i", i), ""));
 
 			if (strcmp(CITY_MODELS[i], ""))
@@ -425,6 +702,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 		STATIC_ORIGIN[i][2] = atof(IniRead(filename, "STATIC", va("staticOriginZ%i", i), "0.0"));
 		STATIC_SCALE[i] = atof(IniRead(filename, "STATIC", va("staticScale%i", i), "1.0"));
 		STATIC_ANGLE[i] = atof(IniRead(filename, "STATIC", va("staticAngle%i", i), "0.0"));
+		STATIC_ALLOW_SIMPLIFY[i] = (qboolean)atoi(IniRead(filename, "STATIC", va("staticAllowSimplify%i", i), "2"));
 
 		if (strcmp(STATIC_MODEL[i], ""))
 			Sys_Printf("Static %i. Model %s. Origin %i %i %i. Angle %f. Scale %f.\n", i, STATIC_MODEL[i], (int)STATIC_ORIGIN[i][0], (int)STATIC_ORIGIN[i][1], (int)STATIC_ORIGIN[i][2], (float)STATIC_ANGLE[i], (float)STATIC_SCALE[i]);
@@ -438,35 +716,35 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	for (i = 1; i <= 5; i++)
 	{
-		WzMap_PreloadModel(va("models/warzone/rocks/cliffface0%i.md3", i), 0, &numLoadedModels);
+		WzMap_PreloadModel(va("models/warzone/rocks/cliffface0%i.md3", i), 0, &numLoadedModels, 3);
 	}
 
 	for (i = 1; i <= 4; i++)
 	{
-		WzMap_PreloadModel(va("models/warzone/rocks/ledge0%i.md3", i), 0, &numLoadedModels);
+		WzMap_PreloadModel(va("models/warzone/rocks/ledge0%i.md3", i), 0, &numLoadedModels, 3);
 	}
 
 	for (i = 0; i < MAX_FOREST_MODELS; i++)
 	{
-		if (strlen(TREE_MODELS[i]) > 0)
+		if (strlen(TREE_MODELS[i]) > 0 && TREE_ALLOW_SIMPLIFY[i])
 		{
-			WzMap_PreloadModel(TREE_MODELS[i], 0, &numLoadedModels);
+			WzMap_PreloadModel(TREE_MODELS[i], 0, &numLoadedModels, TREE_ALLOW_SIMPLIFY[i]);
 		}
 	}
 
 	for (i = 0; i < MAX_FOREST_MODELS; i++)
 	{
-		if (strlen(CITY_MODELS[i]) > 0)
+		if (strlen(CITY_MODELS[i]) > 0 && CITY_ALLOW_SIMPLIFY[i])
 		{
-			WzMap_PreloadModel(CITY_MODELS[i], 0, &numLoadedModels);
+			WzMap_PreloadModel(CITY_MODELS[i], 0, &numLoadedModels, CITY_ALLOW_SIMPLIFY[i]);
 		}
 	}
 
 	for (i = 0; i < MAX_STATIC_ENTITY_MODELS; i++)
 	{
-		if (strlen(STATIC_MODEL[i]) > 0)
+		if (strlen(STATIC_MODEL[i]) > 0 && STATIC_ALLOW_SIMPLIFY[i])
 		{
-			WzMap_PreloadModel(STATIC_MODEL[i], 0, &numLoadedModels);
+			WzMap_PreloadModel(STATIC_MODEL[i], 0, &numLoadedModels, STATIC_ALLOW_SIMPLIFY[i]);
 		}
 	}
 
@@ -622,6 +900,8 @@ qboolean FOLIAGE_LoadFoliagePositions( char *filename )
 
 	Sys_PrintHeading("--- LoadFoliagePositions ---\n");
 
+	LoadRoadMapImage();
+
 	f = fopen (filename, "rb");
 
 	if ( !f )
@@ -655,6 +935,8 @@ qboolean FOLIAGE_LoadFoliagePositions( char *filename )
 	FOLIAGE_NUM_POSITIONS = treeCount;
 
 	fclose(f);
+
+	Sys_Printf("%d positions loaded from %s.\n", FOLIAGE_NUM_POSITIONS, filename);
 
 	return qtrue;
 }
@@ -1520,6 +1802,7 @@ void GenerateCityRoads(void)
 }
 
 int			numLedges = 0;
+int			numLedgesRoadCulled = 0;
 int			numLedgesDistanceCulled = 0;
 vec3_t		ledgePositions[65536];
 vec3_t		ledgeAngles[65536];
@@ -1534,6 +1817,7 @@ void GenerateLedgeFaces(void)
 	Sys_PrintHeading("--- GenerateLedges ---\n");
 
 	numLedges = 0;
+	numLedgesRoadCulled = 0;
 	numLedgesDistanceCulled = 0;
 	
 	int numLowAngleLedges = 0;
@@ -1584,6 +1868,12 @@ void GenerateLedgeFaces(void)
 
 			VectorSet(mins, 999999, 999999, 999999);
 			VectorSet(maxs, -999999, -999999, -999999);
+
+			if (RoadExistsAtPoint(ds->verts[0].xyz, 8) || RoadExistsAtPoint(ds->verts[1].xyz, 8) || RoadExistsAtPoint(ds->verts[2].xyz, 8))
+			{// There's a road here...
+				numLedgesRoadCulled++;
+				continue;
+			}
 
 			for (int j = 0; j < 3; j++)
 			{
@@ -1670,6 +1960,12 @@ void GenerateLedgeFaces(void)
 			center[1] = (mins[1] + maxs[1]) * 0.5f;
 			center[2] = (mins[2] + maxs[2]) * 0.5f;
 
+			if (RoadExistsAtPoint(center, 8))
+			{// There's a road here...
+				numLedgesRoadCulled++;
+				continue;
+			}
+
 			qboolean bad = qfalse;
 
 			for (int k = 0; k < MAX_STATIC_ENTITY_MODELS; k++)
@@ -1744,6 +2040,7 @@ void GenerateLedgeFaces(void)
 	Sys_Printf("Found %i ledge surfaces.\n", numLedges);
 	Sys_Printf("%i ledge slopes are low angles.\n", numLowAngleLedges);
 	Sys_Printf("%i ledge slopes are very low angles.\n", numVeryLowAngleLedges);
+	Sys_Printf("%i ledge objects were culled by closeness to roads.\n", numLedgesRoadCulled);
 	Sys_Printf("%i ledge objects were culled by distance.\n", numLedgesDistanceCulled);
 
 	for (int i = 0; i < numLedges; i++)
@@ -1992,6 +2289,7 @@ void ReassignTreeModels ( void )
 	float			POSSIBLES_MAX_ANGLE[MAX_FOREST_MODELS] = { 0.0 };
 	int				NUM_POSSIBLES = 0;
 	int				NUM_CLOSE_CLIFFS = 0;
+	int				NUM_CLOSE_ROADS = 0;
 
 	FOLIAGE_ASSIGNED = (qboolean*)malloc(sizeof(qboolean)*FOLIAGE_MAX_FOLIAGES);
 	BUFFER_RANGES = (float*)malloc(sizeof(float)*FOLIAGE_MAX_FOLIAGES);
@@ -2046,6 +2344,12 @@ void ReassignTreeModels ( void )
 
 			if (FOLIAGE_ASSIGNED[i])
 			{
+				continue;
+			}
+
+			if (RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4))
+			{// There's a road here...
+				NUM_CLOSE_ROADS++;
 				continue;
 			}
 
@@ -2241,6 +2545,12 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
+			if (RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4))
+			{// There's a road here...
+				NUM_CLOSE_ROADS++;
+				continue;
+			}
+
 			for (int k = 0; k < MAX_STATIC_ENTITY_MODELS; k++)
 			{// Check if this position is too close to a static model location...
 				if (STATIC_MODEL[k][0] == 0 || strlen(STATIC_MODEL[k]) <= 0)
@@ -2421,6 +2731,7 @@ void ReassignTreeModels ( void )
 		Sys_Printf("%9d placements of model %s.\n", NUM_PLACED[i], TREE_MODELS[i]);
 	}
 
+	Sys_Printf("%9d positions ignored due to closeness to a road.\n", NUM_CLOSE_ROADS);
 	Sys_Printf("%9d positions ignored due to closeness to a cliff.\n", NUM_CLOSE_CLIFFS);
 }
 

@@ -398,6 +398,17 @@
     <ClCompile Include="..\src\surface_foliage.c" />
     <ClCompile Include="..\src\surface_fur.c" />
     <ClCompile Include="..\src\surface_meta.c" />
+    <ClCompile Include="..\src\TinyImageLoader\TILFileStream.cpp" />
+    <ClCompile Include="..\src\TinyImageLoader\TILFileStreamStd.cpp" />
+    <ClCompile Include="..\src\TinyImageLoader\TILImage.cpp" />
+    <ClCompile Include="..\src\TinyImageLoader\TILImageBMP.cpp" />
+    <ClCompile Include="..\src\TinyImageLoader\TILImageDDS.cpp" />
+    <ClCompile Include="..\src\TinyImageLoader\TILImageGIF.cpp" />
+    <ClCompile Include="..\src\TinyImageLoader\TILImageICO.cpp" />
+    <ClCompile Include="..\src\TinyImageLoader\TILImagePNG.cpp" />
+    <ClCompile Include="..\src\TinyImageLoader\TILImageTemplate.cpp" />
+    <ClCompile Include="..\src\TinyImageLoader\TILImageTGA.cpp" />
+    <ClCompile Include="..\src\TinyImageLoader\TinyImageLoader.cpp" />
     <ClCompile Include="..\src\tjunction.c" />
     <ClCompile Include="..\src\tree.c" />
     <ClCompile Include="..\src\vis.c" />
@@ -486,6 +497,20 @@
     <ClInclude Include="..\src\Recast\SampleInterfaces.h" />
     <ClInclude Include="..\src\Recast\ValueHistory.h" />
     <ClInclude Include="..\src\stream_version.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILColors.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILFileStream.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILFileStreamStd.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILImage.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILImageBMP.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILImageDDS.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILImageGIF.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILImageICO.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILImagePNG.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILImageTemplate.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILImageTGA.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILInternal.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TILSettings.h" />
+    <ClInclude Include="..\src\TinyImageLoader\TinyImageLoader.h" />
     <ClInclude Include="..\src\version.h" />
   </ItemGroup>
   <ItemGroup>

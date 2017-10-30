@@ -61,6 +61,9 @@
     <Filter Include="src\modelMeshDecimation">
       <UniqueIdentifier>{0b3c4b4f-735c-4128-9ab0-25524b2f76cb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="TinyImageLoader">
+      <UniqueIdentifier>{b6a466b7-fcee-472b-ae9c-0a1e784e156b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\bspfile_abstract.c">
@@ -363,6 +366,39 @@
     <ClCompile Include="..\src\proceduralGeneration.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TILFileStream.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TILFileStreamStd.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TILImage.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TILImageBMP.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TILImageDDS.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TILImageGIF.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TILImageICO.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TILImagePNG.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TILImageTemplate.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TILImageTGA.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TinyImageLoader\TinyImageLoader.cpp">
+      <Filter>TinyImageLoader</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\games\darkplaces.h">
@@ -610,6 +646,48 @@
     </ClInclude>
     <ClInclude Include="..\src\meshsimplification\simplify.h">
       <Filter>src\modelMeshDecimation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILColors.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILFileStream.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILFileStreamStd.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILImage.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILImageBMP.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILImageDDS.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILImageGIF.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILImageICO.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILImagePNG.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILImageTemplate.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILImageTGA.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILInternal.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TILSettings.h">
+      <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\TinyImageLoader\TinyImageLoader.h">
+      <Filter>TinyImageLoader</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

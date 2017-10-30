@@ -37,7 +37,7 @@ WzMap feature defines...
 
 // Collision model generation... TODO: Possibly add .climate ini option per model to select best method manually per model???
 #define __MODEL_SIMPLIFY__			// Primary method. Simplification/Decimation.... Fairly reliable... Can sometimes leave some small holes though.
-//#define __MODEL_CONVEX_HULL__		// Secondary method. Convex hulls. Not reliable enough. Fails on some models (stuff that isn't a basic shape or has empty walkable areas inside).
+#define __MODEL_CONVEX_HULL__		// Secondary method. Convex hulls. Not reliable enough. Fails on some models (stuff that isn't a basic shape or has empty walkable areas inside).
 									// Generates smaller collision models. Falls back to __MODEL_SIMPLIFY__ method if it is defined as well...
 
 /* marker */

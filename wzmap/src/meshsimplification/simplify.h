@@ -867,7 +867,7 @@ namespace Simplify
 		if (strlen(tempfileNameOut) > 0)
 		{
 			//Sys_Printf("Create %s.\n", tempfileNameOut);
-			Q_mkdir(tempfileNameOut);
+			Q_mkdir(va("%s%s", g_strDirs[0], tempfileNameOut));
 		}
 
 		strcpy(tempfileNameOut, fileName.c_str());
@@ -876,7 +876,7 @@ namespace Simplify
 		if (strlen(tempfileNameOut) > 0)
 		{
 			//Sys_Printf("Create %s.\n", tempfileNameOut);
-			Q_mkdir(tempfileNameOut);
+			Q_mkdir(va("%s%s", g_strDirs[0], tempfileNameOut));
 		}
 
 		strcpy(tempfileNameOut, fileName.c_str());
@@ -884,7 +884,7 @@ namespace Simplify
 		if (strlen(tempfileNameOut) > 0)
 		{
 			//Sys_Printf("Create %s.\n", tempfileNameOut);
-			Q_mkdir(tempfileNameOut);
+			Q_mkdir(va("%s%s", g_strDirs[0], tempfileNameOut));
 		}
 
 		FILE *file=fopen(va("%s%s", g_strDirs[0], fileName.c_str()), "w");

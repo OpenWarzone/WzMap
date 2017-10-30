@@ -1318,6 +1318,7 @@ BSPMain() - ydnar
 handles creation of a bsp from a map file
 */
 
+extern char currentMapName[256];
 extern int FOLIAGE_NUM_POSITIONS;
 extern void FOLIAGE_LoadClimateData( char *filename );
 extern qboolean FOLIAGE_LoadFoliagePositions( char *filename );
@@ -1691,6 +1692,8 @@ int BSPMain( int argc, char **argv )
 	/* copy source name */
 	strcpy( source, ExpandArg( argv[ i ] ) );
 	StripExtension( source );
+
+	strcpy(currentMapName, source);
 	
 	/* UQ1: generateforest */
 	//else if( !strcmp( argv[ i ], "-generateforest" ) )
