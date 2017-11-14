@@ -1464,20 +1464,12 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 	}
 }
 
+extern qboolean USE_CONVEX_HULL_MODELS;
+
 void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowSimplify)
 {
 	picoModel_t		*picoModel = NULL;
 	qboolean		loaded = qfalse;
-	char			tempCollisionModel[512] = { 0 };
-	char			collisionModel[512] = { 0 };
-	char			collisionModelObj[512] = { 0 };
-	char			tempCollisionModelExt[32] = { 0 };
-	
-	sprintf(tempCollisionModel, "%s", model);
-	ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
-	StripExtension(tempCollisionModel);
-	sprintf(collisionModel, "%s_collision.%s", tempCollisionModel, tempCollisionModelExt);
-	sprintf(collisionModelObj, "%s_collision.%s", tempCollisionModel, "obj");
 
 	/* load the model */
 	loaded = PreloadModel((char*)model, frame);
@@ -1501,6 +1493,48 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 		//if( loaded && picoModel && picoModel->numSurfaces != 0  )
 		//	Sys_Printf("loaded %s: %i vertexes %i triangles\n", PicoGetModelFileName( picoModel ), PicoGetModelTotalVertexes( picoModel ), PicoGetModelTotalIndexes( picoModel ) / 3 );
 
+		if (USE_CONVEX_HULL_MODELS)
+		{// Check if there is a convex hull collision model first...
+			char			tempCollisionModel[512] = { 0 };
+			char			collisionModel[512] = { 0 };
+			char			collisionModelObj[512] = { 0 };
+			char			tempCollisionModelExt[32] = { 0 };
+
+			sprintf(tempCollisionModel, "%s", model);
+			ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
+			StripExtension(tempCollisionModel);
+			sprintf(collisionModel, "%s_collision_convex.%s", tempCollisionModel, tempCollisionModelExt);
+			sprintf(collisionModelObj, "%s_collision_convex.%s", tempCollisionModel, "obj");
+
+			qboolean loaded2 = PreloadModel((char*)collisionModel, frame);
+
+			/* warn about missing models */
+			picoModel_t *picoModel2 = FindModel((char*)collisionModel, frame);
+
+			if (loaded2 && picoModel2)
+			{
+				Sys_Printf("loaded model %s. convex collision model %s.\n", model, collisionModel);
+				*numLoadedModels++;
+				return;
+			}
+			else if (!loaded2 && picoModel2)
+			{
+				Sys_Printf("loaded model %s. convex collision model %s.\n", model, collisionModel);
+				return;
+			}
+		}
+
+		char			tempCollisionModel[512] = { 0 };
+		char			collisionModel[512] = { 0 };
+		char			collisionModelObj[512] = { 0 };
+		char			tempCollisionModelExt[32] = { 0 };
+
+		sprintf(tempCollisionModel, "%s", model);
+		ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
+		StripExtension(tempCollisionModel);
+		sprintf(collisionModel, "%s_collision.%s", tempCollisionModel, tempCollisionModelExt);
+		sprintf(collisionModelObj, "%s_collision.%s", tempCollisionModel, "obj");
+
 		qboolean loaded2 = PreloadModel((char*)collisionModel, frame);
 
 		/* warn about missing models */
@@ -1510,13 +1544,17 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 		{
 			Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModel);
 			*numLoadedModels++;
+			return;
 		}
 		else if (!loaded2 && picoModel2)
 		{
 			Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModel);
+			return;
 		}
 		else
 		{
+			//Sys_Printf("loaded model %s. collision model none.\n", model);
+
 			picoModel2 = FindModel((char*)collisionModelObj, frame);
 
 			loaded2 = PreloadModel((char*)collisionModelObj, frame);
@@ -1566,7 +1604,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 				// allowSimplify : 0 = allow none. 1 = allow convex hull. 2 = allow simplify. 3 = allow both.
 #ifdef __MODEL_CONVEX_HULL__
-				if (allowSimplify == 1 || allowSimplify == 3)
+				if (USE_CONVEX_HULL_MODELS && allowSimplify == 1 || allowSimplify == 3)
 				{
 					// UQ1: Testing... Mesh convex hull for collision planes...
 					Sys_Printf("Generating convex hull collision model for model %s.\n", model);
@@ -1865,48 +1903,100 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			frame = IntForKey(e2, "_frame");
 
 		char *COLLISION_MODEL = NULL;
-		char tempCollisionModel[512] = { 0 };
-		char collisionModel[512] = { 0 };
-		char collisionModelObj[512] = { 0 };
-		char tempCollisionModelExt[32] = { 0 };
-		
-		sprintf(tempCollisionModel, "%s", model);
-		ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
-		StripExtension(tempCollisionModel);
 
-		sprintf(collisionModel, "%s_collision.%s", tempCollisionModel, tempCollisionModelExt);
-		sprintf(collisionModelObj, "%s_collision.obj", tempCollisionModel);
-		
-		picoModel_t *picoModel = FindModel((char*)collisionModel, frame);
+		if (USE_CONVEX_HULL_MODELS)
+		{// Check if there is a convex hull collision model first...
+			char tempCollisionModel[512] = { 0 };
+			char collisionModel[512] = { 0 };
+			char collisionModelObj[512] = { 0 };
+			char tempCollisionModelExt[32] = { 0 };
 
-		if (!picoModel)
-		{
-			picoModel = LoadModel((char*)collisionModel, frame);
-			picoModel = FindModel((char*)collisionModel, frame);
-		}
+			sprintf(tempCollisionModel, "%s", model);
+			ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
+			StripExtension(tempCollisionModel);
 
-		if (picoModel)
-		{
-			COLLISION_MODEL = collisionModel;
-		}
-		else
-		{
-			picoModel = FindModel((char*)collisionModelObj, frame);
+			sprintf(collisionModel, "%s_collision_convex.%s", tempCollisionModel, tempCollisionModelExt);
+			sprintf(collisionModelObj, "%s_collision_convex.obj", tempCollisionModel);
+
+			picoModel_t *picoModel = FindModel((char*)collisionModel, frame);
 
 			if (!picoModel)
 			{
-				picoModel = LoadModel((char*)collisionModelObj, frame);
-				picoModel = FindModel((char*)collisionModelObj, frame);
+				picoModel = LoadModel((char*)collisionModel, frame);
+				picoModel = FindModel((char*)collisionModel, frame);
 			}
 
 			if (picoModel)
 			{
-				COLLISION_MODEL = collisionModelObj;
-				//Sys_Printf("Found collision model %s.\n", COLLISION_MODEL);
+				COLLISION_MODEL = collisionModel;
 			}
 			else
 			{
-				//Sys_Printf("Did not find collision models %s or %s.\n", collisionModel, collisionModelObj);
+				picoModel = FindModel((char*)collisionModelObj, frame);
+
+				if (!picoModel)
+				{
+					picoModel = LoadModel((char*)collisionModelObj, frame);
+					picoModel = FindModel((char*)collisionModelObj, frame);
+				}
+
+				if (picoModel)
+				{
+					COLLISION_MODEL = collisionModelObj;
+					//Sys_Printf("Found collision model %s.\n", COLLISION_MODEL);
+				}
+				else
+				{
+					//Sys_Printf("Did not find collision models %s or %s.\n", collisionModel, collisionModelObj);
+				}
+			}
+		}
+
+		if (COLLISION_MODEL != NULL)
+		{// Since we didn't find a convex hull collision model, look for a normal collision model...
+			char tempCollisionModel[512] = { 0 };
+			char collisionModel[512] = { 0 };
+			char collisionModelObj[512] = { 0 };
+			char tempCollisionModelExt[32] = { 0 };
+
+			sprintf(tempCollisionModel, "%s", model);
+			ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
+			StripExtension(tempCollisionModel);
+
+			sprintf(collisionModel, "%s_collision.%s", tempCollisionModel, tempCollisionModelExt);
+			sprintf(collisionModelObj, "%s_collision.obj", tempCollisionModel);
+
+			picoModel_t *picoModel = FindModel((char*)collisionModel, frame);
+
+			if (!picoModel)
+			{
+				picoModel = LoadModel((char*)collisionModel, frame);
+				picoModel = FindModel((char*)collisionModel, frame);
+			}
+
+			if (picoModel)
+			{
+				COLLISION_MODEL = collisionModel;
+			}
+			else
+			{
+				picoModel = FindModel((char*)collisionModelObj, frame);
+
+				if (!picoModel)
+				{
+					picoModel = LoadModel((char*)collisionModelObj, frame);
+					picoModel = FindModel((char*)collisionModelObj, frame);
+				}
+
+				if (picoModel)
+				{
+					COLLISION_MODEL = collisionModelObj;
+					//Sys_Printf("Found collision model %s.\n", COLLISION_MODEL);
+				}
+				else
+				{
+					//Sys_Printf("Did not find collision models %s or %s.\n", collisionModel, collisionModelObj);
+				}
 			}
 		}
 

@@ -93,6 +93,7 @@ qboolean		FORCED_STRUCTURAL = qfalse;
 qboolean		FORCED_MODEL_META = qfalse;
 qboolean		CAULKIFY_CRAP = qfalse;
 qboolean		CULLSIDES_AFTER_MODEL_ADITION = qfalse;
+qboolean		USE_CONVEX_HULL_MODELS = qfalse;
 
 qboolean		ADD_CLIFF_FACES = qfalse;
 float			CLIFF_FACES_SCALE = 1.0;
@@ -506,6 +507,17 @@ void FOLIAGE_LoadClimateData( char *filename )
 		Sys_Printf("Cullsides will be run again after adding models.\n");
 	}
 
+	USE_CONVEX_HULL_MODELS = (qboolean)atoi(IniRead(filename, "GENERAL", "useConvexHullModels", "0"));
+
+	if (USE_CONVEX_HULL_MODELS)
+	{
+		Sys_Printf("Allowed to use convex hull collision models.\n");
+	}
+	else
+	{
+		Sys_Printf("Convex hull collision models will not be used.\n");
+	}
+
 	//
 	// Cliffs...
 	//
@@ -726,7 +738,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	for (i = 0; i < MAX_FOREST_MODELS; i++)
 	{
-		if (strlen(TREE_MODELS[i]) > 0 && TREE_ALLOW_SIMPLIFY[i])
+		if (strlen(TREE_MODELS[i]) > 0)
 		{
 			WzMap_PreloadModel(TREE_MODELS[i], 0, &numLoadedModels, TREE_ALLOW_SIMPLIFY[i]);
 		}
@@ -734,7 +746,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	for (i = 0; i < MAX_FOREST_MODELS; i++)
 	{
-		if (strlen(CITY_MODELS[i]) > 0 && CITY_ALLOW_SIMPLIFY[i])
+		if (strlen(CITY_MODELS[i]) > 0)
 		{
 			WzMap_PreloadModel(CITY_MODELS[i], 0, &numLoadedModels, CITY_ALLOW_SIMPLIFY[i]);
 		}
@@ -742,7 +754,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	for (i = 0; i < MAX_STATIC_ENTITY_MODELS; i++)
 	{
-		if (strlen(STATIC_MODEL[i]) > 0 && STATIC_ALLOW_SIMPLIFY[i])
+		if (strlen(STATIC_MODEL[i]) > 0)
 		{
 			WzMap_PreloadModel(STATIC_MODEL[i], 0, &numLoadedModels, STATIC_ALLOW_SIMPLIFY[i]);
 		}
