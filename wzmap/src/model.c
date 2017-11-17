@@ -1517,11 +1517,6 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 				*numLoadedModels++;
 				return;
 			}
-			else if (!loaded2 && picoModel2)
-			{
-				Sys_Printf("loaded model %s. convex collision model %s.\n", model, collisionModel);
-				return;
-			}
 		}
 
 		char			tempCollisionModel[512] = { 0 };
@@ -1943,16 +1938,16 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 				if (picoModel)
 				{
 					COLLISION_MODEL = collisionModelObj;
-					//Sys_Printf("Found collision model %s.\n", COLLISION_MODEL);
+					//Sys_Printf("Found convex hull model %s.\n", COLLISION_MODEL);
 				}
 				else
 				{
-					//Sys_Printf("Did not find collision models %s or %s.\n", collisionModel, collisionModelObj);
+					//Sys_Printf("Did not find convex hull models %s or %s.\n", collisionModel, collisionModelObj);
 				}
 			}
 		}
 
-		if (COLLISION_MODEL != NULL)
+		if (COLLISION_MODEL == NULL)
 		{// Since we didn't find a convex hull collision model, look for a normal collision model...
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };
