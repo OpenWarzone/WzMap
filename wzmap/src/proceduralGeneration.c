@@ -122,6 +122,7 @@ float			TREE_FORCED_BUFFER_DISTANCE[MAX_FOREST_MODELS] = { 0.0 };
 float			TREE_FORCED_DISTANCE_FROM_SAME[MAX_FOREST_MODELS] = { 0.0 };
 char			TREE_FORCED_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 qboolean		TREE_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { qfalse };
+qboolean		TREE_USE_ORIGIN_AS_LOWPOINT[MAX_FOREST_MODELS] = { qfalse };
 int				TREE_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 2 };
 qboolean		ADD_CITY_ROADS = qfalse;
 float			CITY_SCALE_MULTIPLIER = 2.5;
@@ -617,6 +618,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 		TREE_FORCED_DISTANCE_FROM_SAME[i] = atof(IniRead(filename, "TREES", va("treeForcedDistanceFromSame%i", i), "0.0"));
 		TREE_FORCED_FULLSOLID[i] = (qboolean)atoi(IniRead(filename, "TREES", va("treeForcedFullSolid%i", i), "0"));
 		TREE_ALLOW_SIMPLIFY[i] = atoi(IniRead(filename, "TREES", va("treeAllowSimplify%i", i), "2"));
+		TREE_USE_ORIGIN_AS_LOWPOINT[i] = (qboolean)atoi(IniRead(filename, "TREES", va("treeUseOriginAsLowPoint%i", i), "0"));
 		strcpy(TREE_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "TREES", va("overrideShader%i", i), ""));
 
 		if (strcmp(TREE_MODELS[i], ""))
@@ -2495,11 +2497,14 @@ void ReassignTreeModels ( void )
 
 			//Sys_Printf("Position %i angles OK! (%f).\n", i, pitch);
 
-			FOLIAGE_TREE_SELECTION[i] = POSSIBLES[selected];
-			FOLIAGE_TREE_BUFFER[i] = BUFFER_RANGES[i] = POSSIBLES_BUFFERS[selected];
-			SAME_RANGES[i] = POSSIBLES_SAME_RANGES[selected];
-			FOLIAGE_ASSIGNED[i] = qtrue;
-			NUM_PLACED[POSSIBLES[selected]]++;
+			if (irand(0, 100) <= TREE_PERCENTAGE)
+			{
+				FOLIAGE_TREE_SELECTION[i] = POSSIBLES[selected];
+				FOLIAGE_TREE_BUFFER[i] = BUFFER_RANGES[i] = POSSIBLES_BUFFERS[selected];
+				SAME_RANGES[i] = POSSIBLES_SAME_RANGES[selected];
+				FOLIAGE_ASSIGNED[i] = qtrue;
+				NUM_PLACED[POSSIBLES[selected]]++;
+			}
 		}
 	}
 
@@ -2840,6 +2845,15 @@ void GenerateMapForest ( void )
 				if (TREE_FORCED_OVERRIDE_SHADER[FOLIAGE_TREE_SELECTION[i]] != '\0')
 				{
 					SetKeyValue(mapEnt, "_overrideShader", TREE_FORCED_OVERRIDE_SHADER[FOLIAGE_TREE_SELECTION[i]]);
+				}
+
+				if (TREE_USE_ORIGIN_AS_LOWPOINT[i])
+				{
+					SetKeyValue(mapEnt, "_originAsLowPoint", "1");
+				}
+				else
+				{
+					SetKeyValue(mapEnt, "_originAsLowPoint", "0");
 				}
 
 				/*{
