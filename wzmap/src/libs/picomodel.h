@@ -179,6 +179,8 @@ struct picoModel_s
 	picoSkin_t                  **skin;
 	
 	const picoModule_t			*module;		/* sea */
+
+	int							isCollisionModel;
 };
 
 

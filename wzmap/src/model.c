@@ -1466,7 +1466,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 extern qboolean USE_CONVEX_HULL_MODELS;
 
-void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowSimplify)
+void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowSimplify, qboolean loadCollision)
 {
 	picoModel_t		*picoModel = NULL;
 	qboolean		loaded = qfalse;
@@ -1486,6 +1486,14 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 	{
 		Sys_Warning("Failed to load model '%s' frame %i", model, frame);
 		return;
+	}
+	else if (picoModel->isCollisionModel)
+	{// Skip the collision model loading, this is a collision model...
+
+	}
+	else if (!loadCollision)
+	{// Skip the collision model loading, this is a collision model...
+
 	}
 	else
 	{
@@ -1511,8 +1519,9 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 			/* warn about missing models */
 			picoModel_t *picoModel2 = FindModel((char*)collisionModel, frame);
 
-			if (loaded2 && picoModel2)
+			if (/*loaded2 &&*/ picoModel2)
 			{
+				picoModel2->isCollisionModel = qtrue;
 				Sys_Printf("loaded model %s. convex collision model %s.\n", model, collisionModel);
 				*numLoadedModels++;
 				return;
@@ -1535,17 +1544,19 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 		/* warn about missing models */
 		picoModel_t *picoModel2 = FindModel((char*)collisionModel, frame);
 
-		if (loaded2 && picoModel2)
+		if (/*loaded2 &&*/ picoModel2)
 		{
+			picoModel2->isCollisionModel = qtrue;
 			Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModel);
 			*numLoadedModels++;
 			return;
 		}
-		else if (!loaded2 && picoModel2)
+		/*else if (!loaded2 && picoModel2)
 		{
+			picoModel2->isCollisionModel = qtrue;
 			Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModel);
 			return;
-		}
+		}*/
 		else
 		{
 			//Sys_Printf("loaded model %s. collision model none.\n", model);
@@ -1557,15 +1568,17 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 			/* warn about missing models */
 			picoModel2 = FindModel((char*)collisionModelObj, frame);
 
-			if (loaded2 && picoModel2)
+			if (/*loaded2 &&*/ picoModel2)
 			{
+				picoModel2->isCollisionModel = qtrue;
 				Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModelObj);
 				*numLoadedModels++;
 			}
-			else if (!loaded2 && picoModel2)
+			/*else if (!loaded2 && picoModel2)
 			{
+				picoModel2->isCollisionModel = qtrue;
 				Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModelObj);
-			}
+			}*/
 			else
 			{
 				int		numSurfaces = PicoGetModelNumSurfaces(picoModel);
@@ -1609,14 +1622,15 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 					loaded2 = PreloadModel((char*)collisionModelObj, 0);
 
 					if (loaded2) {
-						Sys_Printf("Loaded model %s.\n", collisionModelObj);
+						Sys_Printf("Loaded new convex collision model %s.\n", collisionModelObj);
 						*numLoadedModels++;
 					}
 
 					picoModel2 = FindModel((char*)collisionModelObj, 0);
 
-					if (loaded2)
+					if (picoModel2)
 					{
+						picoModel2->isCollisionModel = qtrue;
 						return;
 					}
 				}
@@ -1633,14 +1647,15 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 					loaded2 = PreloadModel((char*)collisionModelObj, 0);
 
 					if (loaded2) {
-						Sys_Printf("Loaded model %s.\n", collisionModelObj);
+						Sys_Printf("Loaded new simplified collision model %s.\n", collisionModelObj);
 						*numLoadedModels++;
 					}
 
 					picoModel2 = FindModel((char*)collisionModelObj, 0);
 
-					if (loaded2)
+					if (picoModel2)
 					{
+						picoModel2->isCollisionModel = qtrue;
 						return;
 					}
 				}
@@ -1696,7 +1711,10 @@ void LoadTriangleModels(void)
 		else
 			frame = 0;
 
-		WzMap_PreloadModel(name, frame, &numLoadedModels, 0);
+		if (StringContainsWord(name, "_collision"))
+			WzMap_PreloadModel(name, frame, &numLoadedModels, 0, qfalse);
+		else
+			WzMap_PreloadModel(name, frame, &numLoadedModels, 0, qtrue);
 	}
 
 	/* print overall time */

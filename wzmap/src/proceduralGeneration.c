@@ -7,7 +7,7 @@
 #include "q3map2.h"
 #include "inifile.h"
 
-extern void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowSimplify);
+extern void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowSimplify, qboolean loadCollision);
 extern void SetEntityBounds( entity_t *e );
 extern void LoadEntityIndexMap( entity_t *e );
 extern void AdjustBrushesForOrigin( entity_t *ent );
@@ -730,19 +730,19 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	for (i = 1; i <= 5; i++)
 	{
-		WzMap_PreloadModel(va("models/warzone/rocks/cliffface0%i.md3", i), 0, &numLoadedModels, 3);
+		WzMap_PreloadModel(va("models/warzone/rocks/cliffface0%i.md3", i), 0, &numLoadedModels, 3, qtrue);
 	}
 
 	for (i = 1; i <= 4; i++)
 	{
-		WzMap_PreloadModel(va("models/warzone/rocks/ledge0%i.md3", i), 0, &numLoadedModels, 3);
+		WzMap_PreloadModel(va("models/warzone/rocks/ledge0%i.md3", i), 0, &numLoadedModels, 3, qtrue);
 	}
 
 	for (i = 0; i < MAX_FOREST_MODELS; i++)
 	{
 		if (strlen(TREE_MODELS[i]) > 0)
 		{
-			WzMap_PreloadModel(TREE_MODELS[i], 0, &numLoadedModels, TREE_ALLOW_SIMPLIFY[i]);
+			WzMap_PreloadModel(TREE_MODELS[i], 0, &numLoadedModels, TREE_ALLOW_SIMPLIFY[i], qtrue);
 		}
 	}
 
@@ -750,7 +750,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 	{
 		if (strlen(CITY_MODELS[i]) > 0)
 		{
-			WzMap_PreloadModel(CITY_MODELS[i], 0, &numLoadedModels, CITY_ALLOW_SIMPLIFY[i]);
+			WzMap_PreloadModel(CITY_MODELS[i], 0, &numLoadedModels, CITY_ALLOW_SIMPLIFY[i], qtrue);
 		}
 	}
 
@@ -758,7 +758,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 	{
 		if (strlen(STATIC_MODEL[i]) > 0)
 		{
-			WzMap_PreloadModel(STATIC_MODEL[i], 0, &numLoadedModels, STATIC_ALLOW_SIMPLIFY[i]);
+			WzMap_PreloadModel(STATIC_MODEL[i], 0, &numLoadedModels, STATIC_ALLOW_SIMPLIFY[i], qtrue);
 		}
 	}
 
@@ -766,7 +766,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 	if (ADD_CITY_ROADS)
 	{
 		//WzMap_PreloadModel("models/warzone/roads/road01.md3", 0, &numLoadedModels);
-		WzMap_PreloadModel("models/warzone/roads/road02.md3", 0, &numLoadedModels);
+		WzMap_PreloadModel("models/warzone/roads/road02.md3", 0, &numLoadedModels, 0, qtrue);
 	}
 #endif
 }
