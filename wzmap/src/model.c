@@ -1863,7 +1863,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 
 		VectorSubtract(origin, e->origin, origin);	/* offset by parent */
 
-		if (atoi(ValueForKey(e2, "_originAsLowPoint")) > 0)
+		if (atoi(ValueForKey(e3, "_originAsLowPoint")) > 0)
 		{// Marked by the generator and mapInfo to use the model origin (but down a little) as the lowest point near for culling...
 			e3->lowestPointNear = origin[2]-128.0;
 		}

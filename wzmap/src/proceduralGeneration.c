@@ -149,6 +149,8 @@ char			CITY_FORCED_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 int				CITY_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { 0 };
 int				CITY_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 2 };
 
+qboolean		ADD_SKYSCRAPERS = qfalse;
+
 char			STATIC_MODEL[MAX_STATIC_ENTITY_MODELS][128] = { 0 };
 vec3_t			STATIC_ORIGIN[MAX_STATIC_ENTITY_MODELS] = { 0 };
 float			STATIC_ANGLE[MAX_STATIC_ENTITY_MODELS] = { 0 };
@@ -462,7 +464,7 @@ void FindWaterLevel(void)
 		}
 	}
 
-	if (waterLevel == 999999.9)
+	if (waterLevel >= 999999.0)
 	{
 		waterLevel = -999999.9;// mapPlayableMins[2];
 	}
@@ -723,6 +725,12 @@ void FOLIAGE_LoadClimateData( char *filename )
 	}
 
 	//
+	// Experimental Skyscrapers.
+	//
+
+	ADD_SKYSCRAPERS = (qboolean)atoi(IniRead(filename, "SKYSCRAPERS", "addSkyscrapers", "0"));
+
+	//
 	// Pre-load all models, and generate/load convex hull collision meshes...
 	//
 
@@ -826,7 +834,7 @@ void CaulkifyStuff(qboolean findBounds)
 			continue;
 		}
 
-		if (StringContainsWord(si->shader, "sky"))
+		if (!StringContainsWord(si->shader, "skyscraper") && StringContainsWord(si->shader, "sky"))
 		{// Never on skies...
 			continue;
 		}
@@ -871,7 +879,7 @@ void CaulkifyStuff(qboolean findBounds)
 				&& !(si->compileFlags & C_SKIP)
 				&& !(si->compileFlags & C_HINT)
 				&& !(si->compileFlags & C_NODRAW)
-				&& !StringContainsWord(si->shader, "sky")
+				&& !(!StringContainsWord(si->shader, "skyscraper") && StringContainsWord(si->shader, "sky"))
 				&& !StringContainsWord(si->shader, "caulk")
 				&& !StringContainsWord(si->shader, "common/water"))
 			{
@@ -1814,6 +1822,673 @@ void GenerateCityRoads(void)
 	}
 #endif
 }
+
+int			numSkyscrapers = 0;
+vec3_t		skyscraperPositions[65536];
+vec3_t		skyscraperScale[65536];
+int			skyscraperLevels[65536];
+
+float		fLength(float x, float y)
+{
+	float diff = x - y;
+	if (diff < 0) diff *= -1.0;
+	return diff;
+}
+
+void GenerateSkyscrapers(void)
+{
+	if (!ADD_SKYSCRAPERS) return;
+
+	Sys_PrintHeading("--- GenerateSkyscrapers ---\n");
+
+	numSkyscrapers = 0;
+
+	//Sys_Printf("%i map draw surfs.\n", numMapDrawSurfs);
+
+	int totalCount = 0;
+	int thisCount = 0;
+
+	for (float x = mapPlayableMins[0]; x <= mapPlayableMaxs[0]; x += 2048.0)
+	{
+		for (float y = mapPlayableMins[1]; y <= mapPlayableMaxs[1]; y += 2048.0)
+		{
+			totalCount++;
+		}
+	}
+
+	for (float x = mapPlayableMins[0]; x <= mapPlayableMaxs[0]; x += 2048.0)
+	{
+		for (float y = mapPlayableMins[1]; y <= mapPlayableMaxs[1]; y += 2048.0)
+		{
+			qboolean isMapEdge = qfalse;
+
+			thisCount++;
+			printLabelledProgress("AddSkyscrapers", thisCount, totalCount);
+
+			if (fLength(x, mapPlayableMins[0]) < 128.0 || fLength(x, mapPlayableMaxs[0]) < 128.0 || fLength(y, mapPlayableMins[1]) < 128.0 || fLength(y, mapPlayableMaxs[1]) < 128.0)
+			{
+				isMapEdge = qtrue;
+			}
+
+			int		bestSurface = -1;
+			float	bestSurfaceDistance = 9999999.9;
+			vec3_t	thisPosition;
+
+			VectorSet(thisPosition, x, y, 0);
+
+			// Find the height at this position...
+			for (int s = 0; s < numMapDrawSurfs; s++)
+			{
+				/* get drawsurf */
+				mapDrawSurface_t *ds = &mapDrawSurfs[s];
+				shaderInfo_t *si = ds->shaderInfo;
+
+				if ((si->compileFlags & C_TRANSLUCENT) || (si->compileFlags & C_SKIP) || (si->compileFlags & C_FOG) || (si->compileFlags & C_NODRAW) || (si->compileFlags & C_HINT))
+				{
+					//Sys_Printf("Position %f %f is nodraw!\n", x, y);
+					continue;
+				}
+
+				if (!(si->compileFlags & C_SOLID))
+				{
+					//Sys_Printf("Position %f %f is not solid!\n", x, y);
+					continue;
+				}
+
+				if (MAP_WATER_LEVEL > -999999.0 && ds->maxs[2] < MAP_WATER_LEVEL)
+				{// Don't add skyscrapers under water...
+					//Sys_Printf("Position %f %f %f is under water!\n", x, y, ds->maxs[2]);
+					continue;
+				}
+
+				//Sys_Printf("drawsurf %i. %i indexes. %i verts.\n", s, ds->numIndexes, ds->numVerts);
+
+				if (ds->numIndexes == 0 && ds->numVerts == 3)
+				{
+					for (int j = 0; j < 3; j++)
+					{
+						/* get vertex */
+						bspDrawVert_t		*dv = &ds->verts[j];
+
+						float dist = DistanceHorizontal(dv->xyz, thisPosition);
+
+						if (dist < bestSurfaceDistance)
+						{
+							bestSurfaceDistance = dist;
+							bestSurface = s;
+							//Sys_Printf("Position %f %f best surface set to %i.\n", x, y, s);
+						}
+					}
+				}
+			}
+
+			if (bestSurface == -1)
+			{// No height found here...
+				//Sys_Printf("Position %f %f did no find a best surface.\n", x, y);
+				continue;
+			}
+
+			mapDrawSurface_t *ds = &mapDrawSurfs[bestSurface];
+			shaderInfo_t *si = ds->shaderInfo;
+			vec3_t angles[3];
+			qboolean isFlat = qfalse;
+
+			for (int j = 0; j < 3; j++)
+			{
+				/* get vertex */
+				bspDrawVert_t		*dv = &ds->verts[j];
+
+				vectoangles(dv->normal, angles[j]);
+
+				float pitch = angles[j][0];
+
+				if (pitch > 180)
+					pitch -= 360;
+
+				if (pitch < -180)
+					pitch += 360;
+
+				pitch += 90.0f;
+
+				//if ((pitch > 80.0 && pitch < 100.0) || (pitch < -80.0 && pitch > -100.0))
+				//	Sys_Printf("pitch %f.\n", pitch);
+
+				//if (pitch <= 8 && pitch >= -8)
+				if (pitch == 0.0 || pitch == 180.0)
+				{
+					thisPosition[2] = dv->xyz[2];
+					isFlat = qtrue;
+					break;
+				}
+				else
+				{
+					//Sys_Printf("Pitch is %f.\n", pitch);
+				}
+			}
+
+			if (!isFlat)
+			{// This position is not flat...
+				//Sys_Printf("Position %f %f is not flat.\n", x, y);
+				continue;
+			}
+			
+			// Ok, this position looks ok for a skyscraper...
+			if (isMapEdge)
+			{
+				skyscraperScale[numSkyscrapers][0] = 16.0;
+				skyscraperScale[numSkyscrapers][1] = 16.0;
+				skyscraperScale[numSkyscrapers][2] = irand(16, 32);
+				VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
+				//if (irand(0, 10) >= 8)
+				skyscraperLevels[numSkyscrapers] = irand(0, 2);
+				//else
+				//	skyscraperLevels[numSkyscrapers] = 0;
+			}
+			else
+			{
+				qboolean bigX = qfalse;
+				qboolean bigY = qfalse;
+				qboolean mergeY = qfalse;
+
+				if (irand(0, 6) == 6)
+				{
+					int choice = irand(0, 2);
+					
+					if (choice == 0)
+						mergeY = qtrue;
+					else if (choice == 1)
+						bigX = qtrue;
+					else if (choice == 2)
+						bigY = qtrue;
+				}
+
+				if (mergeY)
+				{
+					y += 1024.0;
+					skyscraperScale[numSkyscrapers][0] = irand(10.0, 11.0);
+					skyscraperScale[numSkyscrapers][1] = irand(22.0, 32.0);
+					skyscraperScale[numSkyscrapers][2] = irand(8, 32);
+					VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
+					//if (irand(0, 10) >= 8)
+					skyscraperLevels[numSkyscrapers] = irand(0, 2);
+					//else
+					//	skyscraperLevels[numSkyscrapers] = 0;
+
+					// Skip one, since we made this one double width...
+					y += 1024.0;
+					thisCount++;
+				}
+				else if (bigX)
+				{
+					skyscraperScale[numSkyscrapers][0] = 20.0; // Just take up the whole block.
+					skyscraperScale[numSkyscrapers][1] = irand(10.0, 11.0);
+					skyscraperScale[numSkyscrapers][2] = irand(8, 32);
+					VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
+					//if (irand(0, 10) >= 8)
+					skyscraperLevels[numSkyscrapers] = irand(0, 2);
+					//else
+					//	skyscraperLevels[numSkyscrapers] = 0;
+				}
+				else if (bigY)
+				{
+					skyscraperScale[numSkyscrapers][0] = irand(10.0, 11.0);
+					skyscraperScale[numSkyscrapers][1] = 20.0; // Just take up the whole block.
+					skyscraperScale[numSkyscrapers][2] = irand(8, 32);
+					VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
+					//if (irand(0, 10) >= 8)
+					skyscraperLevels[numSkyscrapers] = irand(0, 2);
+					//else
+					//	skyscraperLevels[numSkyscrapers] = 0;
+				}
+				else
+				{
+					skyscraperScale[numSkyscrapers][0] = irand(10.0, 11.0);
+					skyscraperScale[numSkyscrapers][1] = irand(10.0, 11.0);
+					skyscraperScale[numSkyscrapers][2] = irand(8, 32);
+					VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
+					//if (irand(0, 10) >= 8)
+					skyscraperLevels[numSkyscrapers] = irand(0, 2);
+					//else
+					//	skyscraperLevels[numSkyscrapers] = 0;
+				}
+				
+			}
+
+			numSkyscrapers++;
+		}
+	}
+
+	Sys_Printf("Found %i skyscraper positions.\n", numSkyscrapers);
+
+	int numAddedSections = 0;
+
+	for (int i = 0; i < numSkyscrapers; i++)
+	{
+		printLabelledProgress("GenerateSkyscrapers", i, numSkyscrapers);
+
+		float currentSkyscraperTop = 0;
+
+		char selectedTexture[256] = { 0 };
+
+		int textureChoice = irand(0, 19);
+
+		if (textureChoice < 10)
+			strcpy(selectedTexture, va("textures/city/building0%i", textureChoice));
+		else
+			strcpy(selectedTexture, va("textures/city/building%i", textureChoice));
+
+		{// Lowest level...
+			const char		*classname, *value;
+			float			lightmapScale;
+			vec3_t          lightmapAxis;
+			int			    smoothNormals;
+			int				vertTexProj;
+			char			shader[MAX_QPATH];
+			shaderInfo_t	*celShader = NULL;
+			brush_t			*brush;
+			parseMesh_t		*patch;
+			qboolean		funcGroup;
+			char			castShadows, recvShadows;
+			qboolean		forceNonSolid, forceNoClip, forceNoTJunc, forceMeta;
+			vec3_t          minlight, minvertexlight, ambient, colormod;
+			float           patchQuality, patchSubdivision;
+
+			/* setup */
+			entitySourceBrushes = 0;
+			mapEnt = &entities[numEntities];
+			numEntities++;
+			memset(mapEnt, 0, sizeof(*mapEnt));
+
+			mapEnt->mapEntityNum = 0;
+
+			VectorCopy(skyscraperPositions[i], mapEnt->origin);
+
+			{
+				char str[32];
+				sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] + 4.0);
+				SetKeyValue(mapEnt, "origin", str);
+			}
+
+			{
+				char str[32];
+				sprintf(str, "%f %f %f", skyscraperScale[i][0], skyscraperScale[i][1], skyscraperScale[i][2]);
+				SetKeyValue(mapEnt, "modelscale_vec", str);
+			}
+
+			{
+				char str[32];
+				sprintf(str, "%f", 0.0 - 180.0);
+				SetKeyValue(mapEnt, "angle", str);
+			}
+
+			SetKeyValue(mapEnt, "_forcedSolid", "1");
+
+			currentSkyscraperTop = (mapEnt->origin[2] + 4.0) + (128.0 * skyscraperScale[i][2]);
+
+			/* ydnar: get classname */
+			SetKeyValue(mapEnt, "classname", "misc_model");
+			classname = ValueForKey(mapEnt, "classname");
+
+			SetKeyValue(mapEnt, "model", "models/warzone/skyscraper/box.md3");
+
+			//Sys_Printf( "Generated skyscraper at %f %f %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+
+			SetKeyValue(mapEnt, "_overrideShader", selectedTexture);
+
+			funcGroup = qfalse;
+
+			/* get explicit shadow flags */
+			GetEntityShadowFlags(mapEnt, NULL, &castShadows, &recvShadows, (funcGroup || mapEnt->mapEntityNum == 0) ? qtrue : qfalse);
+
+			/* vortex: get lightmap scaling value for this entity */
+			GetEntityLightmapScale(mapEnt, &lightmapScale, 0);
+
+			/* vortex: get lightmap axis for this entity */
+			GetEntityLightmapAxis(mapEnt, lightmapAxis, NULL);
+
+			/* vortex: per-entity normal smoothing */
+			GetEntityNormalSmoothing(mapEnt, &smoothNormals, 0);
+
+			/* vortex: per-entity _minlight, _ambient, _color, _colormod  */
+			GetEntityMinlightAmbientColor(mapEnt, NULL, minlight, minvertexlight, ambient, colormod, qtrue);
+			if (mapEnt == &entities[0])
+			{
+				/* worldspawn have it empty, since it's keys sets global parms */
+				VectorSet(minlight, 0, 0, 0);
+				VectorSet(minvertexlight, 0, 0, 0);
+				VectorSet(ambient, 0, 0, 0);
+				VectorSet(colormod, 1, 1, 1);
+			}
+
+			/* vortex: _patchMeta, _patchQuality, _patchSubdivide support */
+			GetEntityPatchMeta(mapEnt, &forceMeta, &patchQuality, &patchSubdivision, 1.0, patchSubdivisions);
+
+			/* vortex: vertical texture projection */
+			if (strcmp("", ValueForKey(mapEnt, "_vtcproj")) || strcmp("", ValueForKey(mapEnt, "_vp")))
+			{
+				vertTexProj = IntForKey(mapEnt, "_vtcproj");
+				if (vertTexProj <= 0.0f)
+					vertTexProj = IntForKey(mapEnt, "_vp");
+			}
+			else
+				vertTexProj = 0;
+
+			/* ydnar: get cel shader :) for this entity */
+			value = ValueForKey(mapEnt, "_celshader");
+
+			if (value[0] == '\0')
+				value = ValueForKey(&entities[0], "_celshader");
+
+			if (value[0] != '\0')
+			{
+				sprintf(shader, "textures/%s", value);
+				celShader = ShaderInfoForShader(shader);
+				//Sys_FPrintf (SYS_VRB, "Entity %d (%s) has cel shader %s\n", mapEnt->mapEntityNum, classname, celShader->shader );
+			}
+			else
+				celShader = NULL;
+
+			/* vortex: _nonsolid forces detail non-solid brush */
+			forceNonSolid = ((IntForKey(mapEnt, "_nonsolid") > 0) || (IntForKey(mapEnt, "_ns") > 0)) ? qtrue : qfalse;
+
+			/* vortex: preserve original face winding, don't clip by bsp tree */
+			forceNoClip = ((IntForKey(mapEnt, "_noclip") > 0) || (IntForKey(mapEnt, "_nc") > 0)) ? qtrue : qfalse;
+
+			/* vortex: do not apply t-junction fixing (preserve original face winding) */
+			forceNoTJunc = ((IntForKey(mapEnt, "_notjunc") > 0) || (IntForKey(mapEnt, "_ntj") > 0)) ? qtrue : qfalse;
+
+			/* attach stuff to everything in the entity */
+			for (brush = mapEnt->brushes; brush != NULL; brush = brush->next)
+			{
+				brush->entityNum = mapEnt->mapEntityNum;
+				brush->mapEntityNum = mapEnt->mapEntityNum;
+				brush->castShadows = castShadows;
+				brush->recvShadows = recvShadows;
+				brush->lightmapScale = lightmapScale;
+				VectorCopy(lightmapAxis, brush->lightmapAxis); /* vortex */
+				brush->smoothNormals = smoothNormals; /* vortex */
+				brush->noclip = forceNoClip; /* vortex */
+				brush->noTJunc = forceNoTJunc; /* vortex */
+				brush->vertTexProj = vertTexProj; /* vortex */
+				VectorCopy(minlight, brush->minlight); /* vortex */
+				VectorCopy(minvertexlight, brush->minvertexlight); /* vortex */
+				VectorCopy(ambient, brush->ambient); /* vortex */
+				VectorCopy(colormod, brush->colormod); /* vortex */
+				brush->celShader = celShader;
+				if (forceNonSolid == qtrue)
+				{
+					brush->detail = qtrue;
+					brush->nonsolid = qtrue;
+					brush->noclip = qtrue;
+				}
+			}
+
+			for (patch = mapEnt->patches; patch != NULL; patch = patch->next)
+			{
+				patch->entityNum = mapEnt->mapEntityNum;
+				patch->mapEntityNum = mapEnt->mapEntityNum;
+				patch->castShadows = castShadows;
+				patch->recvShadows = recvShadows;
+				patch->lightmapScale = lightmapScale;
+				VectorCopy(lightmapAxis, patch->lightmapAxis); /* vortex */
+				patch->smoothNormals = smoothNormals; /* vortex */
+				patch->vertTexProj = vertTexProj; /* vortex */
+				patch->celShader = celShader;
+				patch->patchMeta = forceMeta; /* vortex */
+				patch->patchQuality = patchQuality; /* vortex */
+				patch->patchSubdivisions = patchSubdivision; /* vortex */
+				VectorCopy(minlight, patch->minlight); /* vortex */
+				VectorCopy(minvertexlight, patch->minvertexlight); /* vortex */
+				VectorCopy(ambient, patch->ambient); /* vortex */
+				VectorCopy(colormod, patch->colormod); /* vortex */
+				patch->nonsolid = forceNonSolid;
+			}
+
+			/* vortex: store map entity num */
+			{
+				char buf[32];
+				sprintf(buf, "%i", mapEnt->mapEntityNum);
+				SetKeyValue(mapEnt, "_mapEntityNum", buf);
+			}
+
+			/* ydnar: gs mods: set entity bounds */
+			SetEntityBounds(mapEnt);
+
+			/* ydnar: gs mods: load shader index map (equivalent to old terrain alphamap) */
+			LoadEntityIndexMap(mapEnt);
+
+			/* get entity origin and adjust brushes */
+			GetVectorForKey(mapEnt, "origin", mapEnt->origin);
+			if (mapEnt->originbrush_origin[0] || mapEnt->originbrush_origin[1] || mapEnt->originbrush_origin[2])
+				AdjustBrushesForOrigin(mapEnt);
+
+
+#if defined(__ADD_PROCEDURALS_EARLY__)
+			AddTriangleModels(0, qtrue, qtrue);
+			EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
+			//MoveBrushesToWorld( mapEnt );
+			numEntities--;
+#endif
+
+			numAddedSections++;
+		}
+
+#if 1
+		vec3_t currentSkyscraperScale;
+		VectorSet(currentSkyscraperScale, skyscraperScale[i][0], skyscraperScale[i][1], skyscraperScale[i][2]);
+
+		// Add the levels on top...
+		for (int level = 0; level < skyscraperLevels[i]; level++)
+		{
+			const char		*classname, *value;
+			float			lightmapScale;
+			vec3_t          lightmapAxis;
+			int			    smoothNormals;
+			int				vertTexProj;
+			char			shader[MAX_QPATH];
+			shaderInfo_t	*celShader = NULL;
+			brush_t			*brush;
+			parseMesh_t		*patch;
+			qboolean		funcGroup;
+			char			castShadows, recvShadows;
+			qboolean		forceNonSolid, forceNoClip, forceNoTJunc, forceMeta;
+			vec3_t          minlight, minvertexlight, ambient, colormod;
+			float           patchQuality, patchSubdivision;
+			vec3_t			thisLevelScale;
+			float			scaleXY = (float)irand(50, 80) / 100.0;
+			float			scaleZ = (float)irand(30, 70) / 100.0;
+			VectorSet(thisLevelScale, scaleXY, scaleXY, scaleZ);
+			thisLevelScale[0] *= currentSkyscraperScale[0];
+			thisLevelScale[1] *= currentSkyscraperScale[1];
+			thisLevelScale[2] *= currentSkyscraperScale[2];
+
+			/* setup */
+			entitySourceBrushes = 0;
+			mapEnt = &entities[numEntities];
+			numEntities++;
+			memset(mapEnt, 0, sizeof(*mapEnt));
+
+			mapEnt->mapEntityNum = 0;
+
+			VectorCopy(skyscraperPositions[i], mapEnt->origin);
+			mapEnt->origin[2] = currentSkyscraperTop;
+
+			{
+				char str[32];
+				sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+				SetKeyValue(mapEnt, "origin", str);
+			}
+
+			{
+				char str[32];
+				sprintf(str, "%f %f %f", thisLevelScale[0], thisLevelScale[1], thisLevelScale[2]);
+				SetKeyValue(mapEnt, "modelscale_vec", str);
+			}
+
+			{
+				char str[32];
+				sprintf(str, "%f", 0.0 - 180.0);
+				SetKeyValue(mapEnt, "angle", str);
+			}
+
+			SetKeyValue(mapEnt, "_forcedSolid", "1");
+
+			currentSkyscraperTop = currentSkyscraperTop + (128.0 * thisLevelScale[2]);
+			VectorCopy(thisLevelScale, currentSkyscraperScale);
+
+			/* ydnar: get classname */
+			SetKeyValue(mapEnt, "classname", "misc_model");
+			classname = ValueForKey(mapEnt, "classname");
+
+			SetKeyValue(mapEnt, "model", "models/warzone/skyscraper/box.md3");
+
+			//Sys_Printf( "Generated skyscraper at %f %f %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+
+			SetKeyValue(mapEnt, "_overrideShader", selectedTexture);
+
+			funcGroup = qfalse;
+
+			/* get explicit shadow flags */
+			GetEntityShadowFlags(mapEnt, NULL, &castShadows, &recvShadows, (funcGroup || mapEnt->mapEntityNum == 0) ? qtrue : qfalse);
+
+			/* vortex: get lightmap scaling value for this entity */
+			GetEntityLightmapScale(mapEnt, &lightmapScale, 0);
+
+			/* vortex: get lightmap axis for this entity */
+			GetEntityLightmapAxis(mapEnt, lightmapAxis, NULL);
+
+			/* vortex: per-entity normal smoothing */
+			GetEntityNormalSmoothing(mapEnt, &smoothNormals, 0);
+
+			/* vortex: per-entity _minlight, _ambient, _color, _colormod  */
+			GetEntityMinlightAmbientColor(mapEnt, NULL, minlight, minvertexlight, ambient, colormod, qtrue);
+			if (mapEnt == &entities[0])
+			{
+				/* worldspawn have it empty, since it's keys sets global parms */
+				VectorSet(minlight, 0, 0, 0);
+				VectorSet(minvertexlight, 0, 0, 0);
+				VectorSet(ambient, 0, 0, 0);
+				VectorSet(colormod, 1, 1, 1);
+			}
+
+			/* vortex: _patchMeta, _patchQuality, _patchSubdivide support */
+			GetEntityPatchMeta(mapEnt, &forceMeta, &patchQuality, &patchSubdivision, 1.0, patchSubdivisions);
+
+			/* vortex: vertical texture projection */
+			if (strcmp("", ValueForKey(mapEnt, "_vtcproj")) || strcmp("", ValueForKey(mapEnt, "_vp")))
+			{
+				vertTexProj = IntForKey(mapEnt, "_vtcproj");
+				if (vertTexProj <= 0.0f)
+					vertTexProj = IntForKey(mapEnt, "_vp");
+			}
+			else
+				vertTexProj = 0;
+
+			/* ydnar: get cel shader :) for this entity */
+			value = ValueForKey(mapEnt, "_celshader");
+
+			if (value[0] == '\0')
+				value = ValueForKey(&entities[0], "_celshader");
+
+			if (value[0] != '\0')
+			{
+				sprintf(shader, "textures/%s", value);
+				celShader = ShaderInfoForShader(shader);
+				//Sys_FPrintf (SYS_VRB, "Entity %d (%s) has cel shader %s\n", mapEnt->mapEntityNum, classname, celShader->shader );
+			}
+			else
+				celShader = NULL;
+
+			/* vortex: _nonsolid forces detail non-solid brush */
+			forceNonSolid = ((IntForKey(mapEnt, "_nonsolid") > 0) || (IntForKey(mapEnt, "_ns") > 0)) ? qtrue : qfalse;
+
+			/* vortex: preserve original face winding, don't clip by bsp tree */
+			forceNoClip = ((IntForKey(mapEnt, "_noclip") > 0) || (IntForKey(mapEnt, "_nc") > 0)) ? qtrue : qfalse;
+
+			/* vortex: do not apply t-junction fixing (preserve original face winding) */
+			forceNoTJunc = ((IntForKey(mapEnt, "_notjunc") > 0) || (IntForKey(mapEnt, "_ntj") > 0)) ? qtrue : qfalse;
+
+			/* attach stuff to everything in the entity */
+			for (brush = mapEnt->brushes; brush != NULL; brush = brush->next)
+			{
+				brush->entityNum = mapEnt->mapEntityNum;
+				brush->mapEntityNum = mapEnt->mapEntityNum;
+				brush->castShadows = castShadows;
+				brush->recvShadows = recvShadows;
+				brush->lightmapScale = lightmapScale;
+				VectorCopy(lightmapAxis, brush->lightmapAxis); /* vortex */
+				brush->smoothNormals = smoothNormals; /* vortex */
+				brush->noclip = forceNoClip; /* vortex */
+				brush->noTJunc = forceNoTJunc; /* vortex */
+				brush->vertTexProj = vertTexProj; /* vortex */
+				VectorCopy(minlight, brush->minlight); /* vortex */
+				VectorCopy(minvertexlight, brush->minvertexlight); /* vortex */
+				VectorCopy(ambient, brush->ambient); /* vortex */
+				VectorCopy(colormod, brush->colormod); /* vortex */
+				brush->celShader = celShader;
+				if (forceNonSolid == qtrue)
+				{
+					brush->detail = qtrue;
+					brush->nonsolid = qtrue;
+					brush->noclip = qtrue;
+				}
+			}
+
+			for (patch = mapEnt->patches; patch != NULL; patch = patch->next)
+			{
+				patch->entityNum = mapEnt->mapEntityNum;
+				patch->mapEntityNum = mapEnt->mapEntityNum;
+				patch->castShadows = castShadows;
+				patch->recvShadows = recvShadows;
+				patch->lightmapScale = lightmapScale;
+				VectorCopy(lightmapAxis, patch->lightmapAxis); /* vortex */
+				patch->smoothNormals = smoothNormals; /* vortex */
+				patch->vertTexProj = vertTexProj; /* vortex */
+				patch->celShader = celShader;
+				patch->patchMeta = forceMeta; /* vortex */
+				patch->patchQuality = patchQuality; /* vortex */
+				patch->patchSubdivisions = patchSubdivision; /* vortex */
+				VectorCopy(minlight, patch->minlight); /* vortex */
+				VectorCopy(minvertexlight, patch->minvertexlight); /* vortex */
+				VectorCopy(ambient, patch->ambient); /* vortex */
+				VectorCopy(colormod, patch->colormod); /* vortex */
+				patch->nonsolid = forceNonSolid;
+			}
+
+			/* vortex: store map entity num */
+			{
+				char buf[32];
+				sprintf(buf, "%i", mapEnt->mapEntityNum);
+				SetKeyValue(mapEnt, "_mapEntityNum", buf);
+			}
+
+			/* ydnar: gs mods: set entity bounds */
+			SetEntityBounds(mapEnt);
+
+			/* ydnar: gs mods: load shader index map (equivalent to old terrain alphamap) */
+			LoadEntityIndexMap(mapEnt);
+
+			/* get entity origin and adjust brushes */
+			GetVectorForKey(mapEnt, "origin", mapEnt->origin);
+			if (mapEnt->originbrush_origin[0] || mapEnt->originbrush_origin[1] || mapEnt->originbrush_origin[2])
+				AdjustBrushesForOrigin(mapEnt);
+
+
+#if defined(__ADD_PROCEDURALS_EARLY__)
+			AddTriangleModels(0, qtrue, qtrue);
+			EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
+			//MoveBrushesToWorld( mapEnt );
+			numEntities--;
+#endif
+		}
+
+		numAddedSections++;
+#endif
+	}
+
+	Sys_Printf("Created %i total skyscraper sections.\n", numAddedSections);
+}
+
 
 int			numLedges = 0;
 int			numLedgesRoadCulled = 0;

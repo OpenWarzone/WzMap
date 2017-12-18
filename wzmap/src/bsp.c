@@ -45,6 +45,7 @@ extern void GenerateCityRoads(void);
 extern void GenerateMapCity(void);
 extern void GenerateMapForest ( void );
 extern void GenerateStaticEntities(void);
+extern void GenerateSkyscrapers(void);
 
 
 /* -------------------------------------------------------------------------------
@@ -687,6 +688,9 @@ void ProcessWorldModel( void )
 
 	/* UQ1: Generate procedural ledge faces */
 	GenerateLedgeFaces();
+
+	/* UQ1: Generate procedural skyscrapers */
+	GenerateSkyscrapers();
 
 	/* UQ1: Generate static entities from ini */
 	GenerateStaticEntities();
