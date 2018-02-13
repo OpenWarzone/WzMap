@@ -1647,7 +1647,7 @@ static qboolean ParseMapEntity( qboolean onlyLights, qboolean onlyLightgridBrush
 	}
 
 	/* vortex: only foliage? */
-	if( onlyFoliage && Q_strncasecmp( classname, "misc_model", 10 ) )
+	if( onlyFoliage && Q_strncasecmp( classname, "misc_model", 10 ))
 	{
 		numEntities--;
 		return qtrue;

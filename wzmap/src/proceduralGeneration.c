@@ -89,6 +89,7 @@ int irand(int min, int max)
 
 float			MAP_WATER_LEVEL = -999999.9;
 
+qboolean		USE_LODMODEL = qfalse;
 qboolean		FORCED_STRUCTURAL = qfalse;
 qboolean		FORCED_MODEL_META = qfalse;
 qboolean		CAULKIFY_CRAP = qfalse;
@@ -150,6 +151,7 @@ int				CITY_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { 0 };
 int				CITY_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 2 };
 
 qboolean		ADD_SKYSCRAPERS = qfalse;
+vec3_t			CITY_CENTER = { 0 };
 
 char			STATIC_MODEL[MAX_STATIC_ENTITY_MODELS][128] = { 0 };
 vec3_t			STATIC_ORIGIN[MAX_STATIC_ENTITY_MODELS] = { 0 };
@@ -429,9 +431,18 @@ qboolean RoadExistsAtPoint(vec3_t point, int scanWidth)
 	return qfalse;
 }
 
+extern qboolean StringContainsWord(const char *haystack, const char *needle);
+
 void FindWaterLevel(void)
 {
+	if (MAP_WATER_LEVEL > -999999.0)
+	{// Forced by climate ini file...
+		Sys_Printf("Climate specified map water level at %f.\n", MAP_WATER_LEVEL);
+		return;
+	}
+
 	float waterLevel = 999999.9;
+	float waterLevel2 = 999999.9; // we actually want the second highest water level...
 
 	for (int s = 0; s < numMapDrawSurfs; s++)
 	{
@@ -451,17 +462,26 @@ void FindWaterLevel(void)
 
 			if (si->compileFlags & C_LIQUID)
 			{
+				//Sys_Printf("Water level set to %f. 2 set to %f.\n", ds->mins[2], waterLevel);
+				waterLevel2 = waterLevel;
 				waterLevel = ds->mins[2];
 				continue;
 			}
-			/*
+			
 			if (StringContainsWord(si->shader, "water"))
 			{
-			waterLevel = ds->mins[2];
-			continue;
+				//Sys_Printf("Water level set to %f. 2 set to %f.\n", ds->mins[2], waterLevel);
+				waterLevel2 = waterLevel;
+				waterLevel = ds->mins[2];
+				continue;
 			}
-			*/
+			
 		}
+	}
+
+	if (waterLevel2 < 999999.0 && waterLevel2 > waterLevel)
+	{
+		waterLevel = waterLevel2;
 	}
 
 	if (waterLevel >= 999999.0)
@@ -481,6 +501,20 @@ void FOLIAGE_LoadClimateData( char *filename )
 	int i = 0;
 
 	Sys_PrintHeading("--- LoadClimateData ---\n");
+
+	MAP_WATER_LEVEL = atof(IniRead(filename, "GENERAL", "forcedWaterLevel", "-999999.9"));
+
+	if (MAP_WATER_LEVEL > -999999.0)
+	{
+		Sys_Printf("Forcing map water level to %f.\n", MAP_WATER_LEVEL);
+	}
+
+	USE_LODMODEL = (qboolean)atoi(IniRead(filename, "GENERAL", "useLodModel", "0"));
+
+	if (USE_LODMODEL)
+	{
+		Sys_Printf("Using misc_lodmodel instead of misc_model.\n");
+	}
 
 	FORCED_STRUCTURAL = (qboolean)atoi(IniRead(filename, "GENERAL", "forcedStructural", "0"));
 
@@ -729,6 +763,11 @@ void FOLIAGE_LoadClimateData( char *filename )
 	//
 
 	ADD_SKYSCRAPERS = (qboolean)atoi(IniRead(filename, "SKYSCRAPERS", "addSkyscrapers", "0"));
+
+	float CITY_CENTER_X = atof(IniRead(filename, "SKYSCRAPERS", "cityCenterX", "0"));
+	float CITY_CENTER_Y = atof(IniRead(filename, "SKYSCRAPERS", "cityCenterY", "0"));
+
+	VectorSet(CITY_CENTER, CITY_CENTER_X, CITY_CENTER_Y, 0.0);
 
 	//
 	// Pre-load all models, and generate/load convex hull collision meshes...
@@ -1260,7 +1299,11 @@ void GenerateCliffFaces(void)
 		
 
 		/* ydnar: get classname */
-		SetKeyValue(mapEnt, "classname", "misc_model");
+		if (USE_LODMODEL)
+			SetKeyValue(mapEnt, "classname", "misc_lodmodel");
+		else
+			SetKeyValue(mapEnt, "classname", "misc_model");
+
 		classname = ValueForKey(mapEnt, "classname");
 
 		if (CLIFF_CHEAP)
@@ -1672,7 +1715,11 @@ void GenerateCityRoads(void)
 		}
 
 		/* ydnar: get classname */
-		SetKeyValue(mapEnt, "classname", "misc_model");
+		if (USE_LODMODEL)
+			SetKeyValue(mapEnt, "classname", "misc_lodmodel");
+		else
+			SetKeyValue(mapEnt, "classname", "misc_model");
+
 		classname = ValueForKey(mapEnt, "classname");
 
 		int choice = irand(1, 2);
@@ -1827,6 +1874,8 @@ int			numSkyscrapers = 0;
 vec3_t		skyscraperPositions[65536];
 vec3_t		skyscraperScale[65536];
 int			skyscraperLevels[65536];
+qboolean	skyscraperCBD[65536] = { qfalse };
+qboolean	skyscraperCentral[65536] = { qfalse };
 
 float		fLength(float x, float y)
 {
@@ -1895,9 +1944,14 @@ void GenerateSkyscrapers(void)
 					continue;
 				}
 
-				if (MAP_WATER_LEVEL > -999999.0 && ds->maxs[2] < MAP_WATER_LEVEL)
+				if (MAP_WATER_LEVEL > -999999.0 && ds->maxs[2] <= MAP_WATER_LEVEL + 256.0)
 				{// Don't add skyscrapers under water...
 					//Sys_Printf("Position %f %f %f is under water!\n", x, y, ds->maxs[2]);
+					continue;
+				}
+
+				if (si->compileFlags & C_LIQUID)
+				{
 					continue;
 				}
 
@@ -1909,6 +1963,12 @@ void GenerateSkyscrapers(void)
 					{
 						/* get vertex */
 						bspDrawVert_t		*dv = &ds->verts[j];
+
+						if (MAP_WATER_LEVEL > -999999.0 && dv->xyz[2] <= MAP_WATER_LEVEL + 256.0)
+						{// Don't add skyscrapers under water...
+						 //Sys_Printf("Position %f %f %f is under water!\n", x, y, ds->maxs[2]);
+							continue;
+						}
 
 						float dist = DistanceHorizontal(dv->xyz, thisPosition);
 
@@ -1953,8 +2013,8 @@ void GenerateSkyscrapers(void)
 				//if ((pitch > 80.0 && pitch < 100.0) || (pitch < -80.0 && pitch > -100.0))
 				//	Sys_Printf("pitch %f.\n", pitch);
 
-				//if (pitch <= 8 && pitch >= -8)
-				if (pitch == 0.0 || pitch == 180.0)
+				//if ((pitch <= 8 && pitch >= -8) || (pitch <= 188.0 && pitch >= 172.0))
+				if (pitch == 0 || pitch == 180)
 				{
 					thisPosition[2] = dv->xyz[2];
 					isFlat = qtrue;
@@ -1972,17 +2032,37 @@ void GenerateSkyscrapers(void)
 				continue;
 			}
 			
+			thisPosition[2] -= 256.0;
+
+			float CBD_DISTANCE = max(DistanceHorizontal(CITY_CENTER, thisPosition) - 6144.0, 0.0);
+			float CENTER_DISTANCE = max(DistanceHorizontal(CITY_CENTER, thisPosition) - 12288.0, 0.0);
+			qboolean isCBD = (CBD_DISTANCE <= 0.0) ? qtrue : qfalse;
+			qboolean isCentral = (!isCBD && CENTER_DISTANCE <= 0.0) ? qtrue : qfalse;
+			
 			// Ok, this position looks ok for a skyscraper...
 			if (isMapEdge)
 			{
+				VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
 				skyscraperScale[numSkyscrapers][0] = 16.0;
 				skyscraperScale[numSkyscrapers][1] = 16.0;
-				skyscraperScale[numSkyscrapers][2] = irand(16, 32);
-				VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
-				//if (irand(0, 10) >= 8)
-				skyscraperLevels[numSkyscrapers] = irand(0, 2);
-				//else
-				//	skyscraperLevels[numSkyscrapers] = 0;
+
+				if (isCBD)
+				{
+					skyscraperScale[numSkyscrapers][2] = irand(16, 32);
+					skyscraperLevels[numSkyscrapers] = irand(0, 2);
+					skyscraperCBD[numSkyscrapers] = qtrue;
+				}
+				else if (isCentral)
+				{
+					skyscraperScale[numSkyscrapers][2] = irand(8, 16);
+					skyscraperLevels[numSkyscrapers] = irand(0, 1);
+					skyscraperCentral[numSkyscrapers] = qtrue;
+				}
+				else
+				{
+					skyscraperScale[numSkyscrapers][2] = irand(6, 8);
+					skyscraperLevels[numSkyscrapers] = (irand(0, 5) == 0) ? irand(0, 1) : 0;
+				}
 			}
 			else
 			{
@@ -2005,14 +2085,28 @@ void GenerateSkyscrapers(void)
 				if (mergeY)
 				{
 					y += 1024.0;
+					VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
+
 					skyscraperScale[numSkyscrapers][0] = irand(10.0, 11.0);
 					skyscraperScale[numSkyscrapers][1] = irand(22.0, 32.0);
-					skyscraperScale[numSkyscrapers][2] = irand(8, 32);
-					VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
-					//if (irand(0, 10) >= 8)
-					skyscraperLevels[numSkyscrapers] = irand(0, 2);
-					//else
-					//	skyscraperLevels[numSkyscrapers] = 0;
+
+					if (isCBD)
+					{
+						skyscraperScale[numSkyscrapers][2] = irand(8, 32);
+						skyscraperLevels[numSkyscrapers] = irand(0, 2);
+						skyscraperCBD[numSkyscrapers] = qtrue;
+					}
+					else if (isCentral)
+					{
+						skyscraperScale[numSkyscrapers][2] = irand(8, 16);
+						skyscraperLevels[numSkyscrapers] = irand(0, 1);
+						skyscraperCentral[numSkyscrapers] = qtrue;
+					}
+					else
+					{
+						skyscraperScale[numSkyscrapers][2] = irand(6, 8);
+						skyscraperLevels[numSkyscrapers] = (irand(0, 5) == 0) ? irand(0, 1) : 0;
+					}
 
 					// Skip one, since we made this one double width...
 					y += 1024.0;
@@ -2020,38 +2114,85 @@ void GenerateSkyscrapers(void)
 				}
 				else if (bigX)
 				{
-					skyscraperScale[numSkyscrapers][0] = 20.0; // Just take up the whole block.
-					skyscraperScale[numSkyscrapers][1] = irand(10.0, 11.0);
-					skyscraperScale[numSkyscrapers][2] = irand(8, 32);
 					VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
-					//if (irand(0, 10) >= 8)
-					skyscraperLevels[numSkyscrapers] = irand(0, 2);
-					//else
-					//	skyscraperLevels[numSkyscrapers] = 0;
+
+					skyscraperScale[numSkyscrapers][0] = 16.0; // Just take up the whole block.
+					skyscraperScale[numSkyscrapers][1] = irand(10.0, 11.0);
+
+					if (isCBD)
+					{
+						skyscraperScale[numSkyscrapers][2] = irand(8, 32);
+						skyscraperLevels[numSkyscrapers] = irand(0, 2);
+						skyscraperCBD[numSkyscrapers] = qtrue;
+					}
+					else if (isCentral)
+					{
+						skyscraperScale[numSkyscrapers][2] = irand(8, 16);
+						skyscraperLevels[numSkyscrapers] = irand(0, 1);
+						skyscraperCentral[numSkyscrapers] = qtrue;
+					}
+					else
+					{
+						skyscraperScale[numSkyscrapers][0] = 10.0; // Just take up the whole block.
+						skyscraperScale[numSkyscrapers][1] = irand(7.0, 9.0);
+						skyscraperScale[numSkyscrapers][2] = irand(6, 8);
+						skyscraperLevels[numSkyscrapers] = (irand(0, 5) == 0) ? irand(0, 1) : 0;
+					}
 				}
 				else if (bigY)
 				{
-					skyscraperScale[numSkyscrapers][0] = irand(10.0, 11.0);
-					skyscraperScale[numSkyscrapers][1] = 20.0; // Just take up the whole block.
-					skyscraperScale[numSkyscrapers][2] = irand(8, 32);
 					VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
-					//if (irand(0, 10) >= 8)
-					skyscraperLevels[numSkyscrapers] = irand(0, 2);
-					//else
-					//	skyscraperLevels[numSkyscrapers] = 0;
+
+					skyscraperScale[numSkyscrapers][0] = irand(10.0, 11.0);
+					skyscraperScale[numSkyscrapers][1] = 16.0; // Just take up the whole block.
+
+					if (isCBD)
+					{
+						skyscraperScale[numSkyscrapers][2] = irand(8, 32);
+						skyscraperLevels[numSkyscrapers] = irand(0, 2);
+						skyscraperCBD[numSkyscrapers] = qtrue;
+					}
+					else if (isCentral)
+					{
+						skyscraperScale[numSkyscrapers][2] = irand(8, 16);
+						skyscraperLevels[numSkyscrapers] = irand(0, 1);
+						skyscraperCentral[numSkyscrapers] = qtrue;
+					}
+					else
+					{
+						skyscraperScale[numSkyscrapers][0] = irand(7.0, 9.0);
+						skyscraperScale[numSkyscrapers][1] = 10.0; // Just take up the whole block.
+						skyscraperScale[numSkyscrapers][2] = irand(6, 8);
+						skyscraperLevels[numSkyscrapers] = (irand(0, 5) == 0) ? irand(0, 1) : 0;
+					}
 				}
 				else
 				{
+					VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
+
 					skyscraperScale[numSkyscrapers][0] = irand(10.0, 11.0);
 					skyscraperScale[numSkyscrapers][1] = irand(10.0, 11.0);
-					skyscraperScale[numSkyscrapers][2] = irand(8, 32);
-					VectorCopy(thisPosition, skyscraperPositions[numSkyscrapers]);
-					//if (irand(0, 10) >= 8)
-					skyscraperLevels[numSkyscrapers] = irand(0, 2);
-					//else
-					//	skyscraperLevels[numSkyscrapers] = 0;
+
+					if (isCBD)
+					{
+						skyscraperScale[numSkyscrapers][2] = irand(8, 32);
+						skyscraperLevels[numSkyscrapers] = irand(0, 2);
+						skyscraperCBD[numSkyscrapers] = qtrue;
+					}
+					else if (isCentral)
+					{
+						skyscraperScale[numSkyscrapers][2] = irand(8, 16);
+						skyscraperLevels[numSkyscrapers] = irand(0, 1);
+						skyscraperCentral[numSkyscrapers] = qtrue;
+					}
+					else
+					{
+						skyscraperScale[numSkyscrapers][0] = irand(7.0, 9.0);
+						skyscraperScale[numSkyscrapers][1] = irand(7.0, 9.0);
+						skyscraperScale[numSkyscrapers][2] = irand(6, 8);
+						skyscraperLevels[numSkyscrapers] = (irand(0, 5) == 0) ? irand(0, 1) : 0;
+					}
 				}
-				
 			}
 
 			numSkyscrapers++;
@@ -2126,7 +2267,11 @@ void GenerateSkyscrapers(void)
 			currentSkyscraperTop = (mapEnt->origin[2] + 4.0) + (128.0 * skyscraperScale[i][2]);
 
 			/* ydnar: get classname */
-			SetKeyValue(mapEnt, "classname", "misc_model");
+			if (USE_LODMODEL)
+				SetKeyValue(mapEnt, "classname", "misc_lodmodel");
+			else
+				SetKeyValue(mapEnt, "classname", "misc_model");
+
 			classname = ValueForKey(mapEnt, "classname");
 
 			SetKeyValue(mapEnt, "model", "models/warzone/skyscraper/box.md3");
@@ -2295,8 +2440,8 @@ void GenerateSkyscrapers(void)
 			vec3_t          minlight, minvertexlight, ambient, colormod;
 			float           patchQuality, patchSubdivision;
 			vec3_t			thisLevelScale;
-			float			scaleXY = (float)irand(50, 80) / 100.0;
-			float			scaleZ = (float)irand(30, 70) / 100.0;
+			float			scaleXY = (float)irand(60, 90) / 100.0;
+			float			scaleZ = (skyscraperCBD[i] || skyscraperCentral[i]) ? (float)irand(40, 70) / 100.0 : (float)irand(10, 50) / 100.0;
 			VectorSet(thisLevelScale, scaleXY, scaleXY, scaleZ);
 			thisLevelScale[0] *= currentSkyscraperScale[0];
 			thisLevelScale[1] *= currentSkyscraperScale[1];
@@ -2337,7 +2482,11 @@ void GenerateSkyscrapers(void)
 			VectorCopy(thisLevelScale, currentSkyscraperScale);
 
 			/* ydnar: get classname */
-			SetKeyValue(mapEnt, "classname", "misc_model");
+			if (USE_LODMODEL)
+				SetKeyValue(mapEnt, "classname", "misc_lodmodel");
+			else
+				SetKeyValue(mapEnt, "classname", "misc_model");
+
 			classname = ValueForKey(mapEnt, "classname");
 
 			SetKeyValue(mapEnt, "model", "models/warzone/skyscraper/box.md3");
@@ -2801,7 +2950,11 @@ void GenerateLedgeFaces(void)
 
 
 		/* ydnar: get classname */
-		SetKeyValue(mapEnt, "classname", "misc_model");
+		if (USE_LODMODEL)
+			SetKeyValue(mapEnt, "classname", "misc_lodmodel");
+		else
+			SetKeyValue(mapEnt, "classname", "misc_model");
+
 		classname = ValueForKey(mapEnt, "classname");
 
 		if (ledgeIsLowAngle[i] > 1)
@@ -3551,7 +3704,11 @@ void GenerateMapForest ( void )
 
 
 				/* ydnar: get classname */
-				SetKeyValue( mapEnt, "classname", "misc_model");
+				if (USE_LODMODEL)
+					SetKeyValue(mapEnt, "classname", "misc_lodmodel");
+				else
+					SetKeyValue(mapEnt, "classname", "misc_model");
+
 				classname = ValueForKey( mapEnt, "classname" );
 
 				SetKeyValue( mapEnt, "model", TREE_MODELS[FOLIAGE_TREE_SELECTION[i]]); // test tree
@@ -3767,7 +3924,11 @@ void GenerateStaticEntities(void)
 
 
 		/* ydnar: get classname */
-		SetKeyValue(mapEnt, "classname", "misc_model");
+		if (USE_LODMODEL)
+			SetKeyValue(mapEnt, "classname", "misc_lodmodel");
+		else
+			SetKeyValue(mapEnt, "classname", "misc_model");
+
 		classname = ValueForKey(mapEnt, "classname");
 
 		SetKeyValue(mapEnt, "model", STATIC_MODEL[i]);
@@ -4460,7 +4621,11 @@ void GenerateMapCity(void)
 
 
 				/* ydnar: get classname */
-				SetKeyValue(mapEnt, "classname", "misc_model");
+				if (USE_LODMODEL)
+					SetKeyValue(mapEnt, "classname", "misc_lodmodel");
+				else
+					SetKeyValue(mapEnt, "classname", "misc_model");
+
 				classname = ValueForKey(mapEnt, "classname");
 
 				SetKeyValue(mapEnt, "model", CITY_MODELS[FOLIAGE_TREE_SELECTION[i]]); // test tree

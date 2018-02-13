@@ -1145,7 +1145,7 @@ keep:
 		classname = ValueForKey( e, "classname" );
 
 		/* scissor misc_models by model box */
-		if( !Q_stricmp( classname, "misc_model" ) || !Q_stricmp( classname, "misc_gamemodel" ) )
+		if( !Q_stricmp( classname, "misc_model" ) || !Q_stricmp( classname, "misc_gamemodel" ) || !Q_stricmp(classname, "misc_lodmodel"))
 		{
 			/* get model name */
 			model = ValueForKey( e, "_model" );	
