@@ -34,6 +34,7 @@ WzMap feature defines...
 ------------------------------------------------------------------------------- */
 
 #define __BASEJKA_LIGHTGRID__
+#define __SUPPORT_VALVE220__
 
 // Collision model generation... TODO: Possibly add .climate ini option per model to select best method manually per model???
 #define __MODEL_SIMPLIFY__			// Primary method. Simplification/Decimation.... Fairly reliable... Can sometimes leave some small holes though.
@@ -308,8 +309,10 @@ constants
 #define	PSIDE_FACING			4
 
 #define BPRIMIT_UNDEFINED		0
+#define BPRIMIT_QUAKE			BPRIMIT_UNDEFINED
 #define BPRIMIT_OLDBRUSHES		1
 #define BPRIMIT_NEWBRUSHES		2
+#define BPRIMIT_VALVE220		3
 
 
 /* vis */
@@ -2340,6 +2343,7 @@ Q_EXTERN entity_t			*mapEnt;
 Q_EXTERN brush_t			*buildBrush;
 Q_EXTERN int				numActiveBrushes;
 Q_EXTERN int				g_bBrushPrimit;
+Q_EXTERN int				g_brushType;
 
 Q_EXTERN int				numStrippedLights Q_ASSIGN( 0 );
 

@@ -998,6 +998,59 @@ static void ParseRawBrush( )
 		GetToken( qfalse );
 		strcpy( name, token );
 		
+#ifdef __SUPPORT_VALVE220__
+		g_brushType = BPRIMIT_UNDEFINED;
+
+		/* AP or 220? */
+		if (g_brushType == BPRIMIT_UNDEFINED) {
+			GetToken(qfalse);
+			if (!strcmp(token, "[")) {
+				g_brushType = BPRIMIT_VALVE220;
+				//Sys_Printf("detected brushType = VALVE 220\n");
+			}
+			else {
+				g_brushType = BPRIMIT_QUAKE;
+				//Sys_Printf("detected brushType = QUAKE (Axial Projection)\n");
+			}
+			UnGetToken();
+		}
+
+		if (g_brushType == BPRIMIT_QUAKE) {
+			GetToken(qfalse);
+			shift[0] = atof(token);
+			GetToken(qfalse);
+			shift[1] = atof(token);
+			GetToken(qfalse);
+			rotate = atof(token);
+			GetToken(qfalse);
+			scale[0] = atof(token);
+			GetToken(qfalse);
+			scale[1] = atof(token);
+		}
+		else if (g_brushType == BPRIMIT_VALVE220) {
+			int axis, comp;
+			for (axis = 0; axis < 2; ++axis) {
+				MatchToken("[");
+				for (comp = 0; comp < 4; ++comp) {
+					GetToken(qfalse);
+					side->vecs[axis][comp] = atof(token);
+				}
+				MatchToken("]");
+			}
+			GetToken(qfalse);
+			rotate = atof(token);
+			GetToken(qfalse);
+			scale[0] = atof(token);
+			GetToken(qfalse);
+			scale[1] = atof(token);
+
+			if (!scale[0]) scale[0] = 1.f;
+			if (!scale[1]) scale[1] = 1.f;
+			for (axis = 0; axis < 2; ++axis)
+				for (comp = 0; comp < 3; ++comp)
+					side->vecs[axis][comp] /= scale[axis];
+		}
+#else
 		/* bp */
 		if( g_bBrushPrimit == BPRIMIT_OLDBRUSHES )
 		{
@@ -1012,6 +1065,7 @@ static void ParseRawBrush( )
 			GetToken( qfalse );
 			scale[ 1 ] = atof( token );
 		}
+#endif
 		
 		/* set default flags and values */
 		sprintf( shader, "textures/%s", name );
