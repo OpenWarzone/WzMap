@@ -1003,6 +1003,7 @@ mapDrawSurface_t *DrawSurfaceForSide( entity_t *e, brush_t *b, side_t *s, windin
 			dv->st[ 1 ] = DotProduct( si->vecs[ 1 ], vTranslated );
 		}
 
+#ifdef __SUPPORT_VALVE220__
 		if (s->brushType == BPRIMIT_VALVE220)
 		{
 			/* nearest-axial projection */
@@ -1011,11 +1012,13 @@ mapDrawSurface_t *DrawSurfaceForSide( entity_t *e, brush_t *b, side_t *s, windin
 			dv->st[0] /= si->shaderWidth;
 			dv->st[1] /= si->shaderHeight;
 
-			Sys_Printf("DEBUGVALVE: Used vecs are: [ %f %f %f %f ] [ %f %f %f %f ].\n", s->vecs[0][0], s->vecs[0][1], s->vecs[0][2], s->vecs[0][3], s->vecs[1][0], s->vecs[1][1], s->vecs[1][2], s->vecs[1][3]);
-			Sys_Printf("DEBUGVALVE: Final ST: %f %f.\n", dv->st[0], dv->st[1]);
+			Sys_FPrintf(SYS_VRB, "DEBUGVALVE: Used vecs are: [ %f %f %f %f ] [ %f %f %f %f ].\n", s->vecs[0][0], s->vecs[0][1], s->vecs[0][2], s->vecs[0][3], s->vecs[1][0], s->vecs[1][1], s->vecs[1][2], s->vecs[1][3]);
+			Sys_FPrintf(SYS_VRB, "DEBUGVALVE: Final ST: %f %f.\n", dv->st[0], dv->st[1]);
 		}
+		else 
+#endif //__SUPPORT_VALVE220__
 		/* old quake-style texturing */
-		else if(g_bBrushPrimit == BPRIMIT_OLDBRUSHES)
+		if(g_bBrushPrimit == BPRIMIT_OLDBRUSHES)
 		{
 			/* nearest-axial projection */
 			dv->st[0] = s->vecs[0][3] + DotProduct(s->vecs[0], vTranslated);

@@ -999,87 +999,41 @@ static void ParseRawBrush( )
 		strcpy( name, token );
 		
 #ifdef __SUPPORT_VALVE220__
-		/* AP or 220? */
+		/* BP or 220? */
 		{
 			GetToken(qfalse);
 			if (!strcmp(token, "[")) {
 				side->brushType = BPRIMIT_VALVE220;
-
-				for (int comp = 0; comp < 4; ++comp) {
-					side->texMat[0][comp] = 0.0;
-
-					GetToken(qfalse);
-					side->vecs[0][comp] = atof(token);
-				}
-
-				MatchToken("]");
-
-				MatchToken("[");
-
-				for (int comp = 0; comp < 4; ++comp) {
-					side->texMat[1][comp] = 0.0;
-
-					GetToken(qfalse);
-					side->vecs[1][comp] = atof(token);
-				}
-
-				MatchToken("]");
-
-				Sys_Printf("DEBUGVALVE: Initial tokens: [ %f %f %f %f ] [ %f %f %f %f ].\n", side->vecs[0][0], side->vecs[0][1], side->vecs[0][2], side->vecs[0][3], side->vecs[1][0], side->vecs[1][1], side->vecs[1][2], side->vecs[1][3]);
-
-
-				GetToken(qfalse);
-				rotate = atof(token);
-				GetToken(qfalse);
-				scale[0] = atof(token);
-				GetToken(qfalse);
-				scale[1] = atof(token);
-
-				Sys_Printf("DEBUGVALVE: Rotate: %f. Scales %f %f.\n", rotate, scale[0], scale[1]);
-
-				shift[0] = 0;
-				shift[1] = 0;
-
-				if (!scale[0]) scale[0] = 1.0f;
-				if (!scale[1]) scale[1] = 1.0f;
-
-				for (int axis = 0; axis < 2; ++axis)
-					for (int comp = 0; comp < 3; ++comp)
-						side->vecs[axis][comp] /= scale[axis];
-
-				Sys_Printf("DEBUGVALVE: Scaled vectors: [ %f %f %f %f ] [ %f %f %f %f ].\n", side->vecs[0][0], side->vecs[0][1], side->vecs[0][2], side->vecs[0][3], side->vecs[1][0], side->vecs[1][1], side->vecs[1][2], side->vecs[1][3]);
 			}
 			else {
 				side->brushType = BPRIMIT_QUAKE;
 			}
-			//UnGetToken();
 		}
 
-#if 0
-		/* valve 220 */
-		if (side->brushType == BPRIMIT_VALVE220) {
-			int axis, comp;
-			for (axis = 0; axis < 2; ++axis) {
-				MatchToken("[");
-				for (comp = 0; comp < 4; ++comp) {
-					side->texMat[axis][comp] = 0.0;
+		if (side->brushType == BPRIMIT_VALVE220) 
+		{
+			for (int comp = 0; comp < 4; ++comp) {
+				side->texMat[0][comp] = 0.0;
 
-					GetToken(qfalse);
-					Sys_Printf("token: [%f].\n", token);
-					side->vecs[axis][comp] = atof(token);
-				}
-				MatchToken("]");
+				GetToken(qfalse);
+				side->vecs[0][comp] = atof(token);
 			}
 
-			Sys_Printf("Read values are: ");
-			for (int v = 0; v < 2; v++)
-			{
-				for (int t = 0; t < 4; t++)
-				{
-					Sys_Printf("%f ", side->vecs[v][t]);
-				}
+			MatchToken("]");
+
+			MatchToken("[");
+
+			for (int comp = 0; comp < 4; ++comp) {
+				side->texMat[1][comp] = 0.0;
+
+				GetToken(qfalse);
+				side->vecs[1][comp] = atof(token);
 			}
-			Sys_Printf("\n");
+
+			MatchToken("]");
+
+			Sys_FPrintf(SYS_VRB, "DEBUGVALVE: Initial tokens: [ %f %f %f %f ] [ %f %f %f %f ].\n", side->vecs[0][0], side->vecs[0][1], side->vecs[0][2], side->vecs[0][3], side->vecs[1][0], side->vecs[1][1], side->vecs[1][2], side->vecs[1][3]);
+
 
 			GetToken(qfalse);
 			rotate = atof(token);
@@ -1088,29 +1042,25 @@ static void ParseRawBrush( )
 			GetToken(qfalse);
 			scale[1] = atof(token);
 
-			if (!scale[0]) scale[0] = 1.f;
-			if (!scale[1]) scale[1] = 1.f;
-			for (axis = 0; axis < 2; ++axis)
-				for (comp = 0; comp < 3; ++comp)
+			Sys_FPrintf(SYS_VRB, "DEBUGVALVE: Rotate: %f. Scales %f %f.\n", rotate, scale[0], scale[1]);
+
+			shift[0] = 0;
+			shift[1] = 0;
+
+			if (!scale[0]) scale[0] = 1.0f;
+			if (!scale[1]) scale[1] = 1.0f;
+
+			for (int axis = 0; axis < 2; ++axis)
+				for (int comp = 0; comp < 3; ++comp)
 					side->vecs[axis][comp] /= scale[axis];
 
-			Sys_Printf("Final values are: ");
-			for (int v = 0; v < 2; v++)
-			{
-				for (int t = 0; t < 4; t++)
-				{
-					Sys_Printf("%f ", side->vecs[v][t]);
-				}
-			}
-			Sys_Printf("\n");
+			Sys_FPrintf(SYS_VRB, "DEBUGVALVE: Scaled vectors: [ %f %f %f %f ] [ %f %f %f %f ].\n", side->vecs[0][0], side->vecs[0][1], side->vecs[0][2], side->vecs[0][3], side->vecs[1][0], side->vecs[1][1], side->vecs[1][2], side->vecs[1][3]);
 		}
-#endif
-		if (side->brushType == BPRIMIT_VALVE220) {
-		}
+		else 
+#endif //__SUPPORT_VALVE220__
 		/* bp */
-		else if (g_bBrushPrimit == BPRIMIT_OLDBRUSHES)
+		if (g_bBrushPrimit == BPRIMIT_OLDBRUSHES)
 		{
-			//GetToken(qfalse);
 			shift[0] = atof(token);
 			GetToken(qfalse);
 			shift[1] = atof(token);
@@ -1121,22 +1071,6 @@ static void ParseRawBrush( )
 			GetToken(qfalse);
 			scale[1] = atof(token);
 		}
-#else
-		/* bp */
-		if( g_bBrushPrimit == BPRIMIT_OLDBRUSHES )
-		{
-			GetToken( qfalse );
-			shift[ 0 ] = atof( token );
-			GetToken( qfalse );
-			shift[ 1 ] = atof( token );
-			GetToken( qfalse );
-			rotate = atof( token );	
-			GetToken( qfalse );
-			scale[ 0 ] = atof( token );
-			GetToken( qfalse );
-			scale[ 1 ] = atof( token );
-		}
-#endif
 		
 		/* set default flags and values */
 		sprintf( shader, "textures/%s", name );
@@ -1185,7 +1119,11 @@ static void ParseRawBrush( )
 		side->planenum = planenum;
 		
 		/* bp: get the texture mapping for this texturedef / plane combination */
-		if( g_bBrushPrimit == BPRIMIT_OLDBRUSHES && side->brushType != BPRIMIT_VALVE220) // UQ1: hmm, valve here as well?
+#ifdef __SUPPORT_VALVE220__
+		if( g_bBrushPrimit == BPRIMIT_OLDBRUSHES || side->brushType == BPRIMIT_VALVE220) // UQ1: hmm, valve here as well?
+#else //!__SUPPORT_VALVE220__
+		if (g_bBrushPrimit == BPRIMIT_OLDBRUSHES)
+#endif //__SUPPORT_VALVE220__
 			QuakeTextureVecs( &mapplanes[ planenum ], shift, rotate, scale, side->vecs );
 	}
 	
