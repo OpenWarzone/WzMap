@@ -1038,6 +1038,8 @@ typedef struct side_s
 
 	shaderInfo_t		*shaderInfo;
 
+	int					brushType;
+
 	int					contentFlags;		/* from shaderInfo */
 	int					surfaceFlags;		/* from shaderInfo */
 	int					compileFlags;		/* from shaderInfo */
@@ -2343,7 +2345,6 @@ Q_EXTERN entity_t			*mapEnt;
 Q_EXTERN brush_t			*buildBrush;
 Q_EXTERN int				numActiveBrushes;
 Q_EXTERN int				g_bBrushPrimit;
-Q_EXTERN int				g_brushType;
 
 Q_EXTERN int				numStrippedLights Q_ASSIGN( 0 );
 

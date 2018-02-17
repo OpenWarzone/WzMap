@@ -953,9 +953,10 @@ mapDrawSurface_t *DrawSurfaceForSide( entity_t *e, brush_t *b, side_t *s, windin
 			dv->xyz[ 2 ] += offsets[ j ];
 
 		/* round the xyz to a given precision */
-		//for( i = 0 ; i < 3 ; i++ )
-		//	dv->xyz[ i ] = SNAP_INT_TO_FLOAT * floor( dv->xyz[ i ] * SNAP_FLOAT_TO_INT + 0.5f );
-
+#if 1
+		for( i = 0 ; i < 3 ; i++ )
+			dv->xyz[ i ] = SNAP_INT_TO_FLOAT * floor( dv->xyz[ i ] * SNAP_FLOAT_TO_INT + 0.5f );
+#else
 		/* stitch to the vertex cache */
 		if( 0 && vertexCache != NULL )
 		{
@@ -976,6 +977,7 @@ mapDrawSurface_t *DrawSurfaceForSide( entity_t *e, brush_t *b, side_t *s, windin
 				*numVertsInCache = *numVertsInCache + 1;
 			}
 		}
+#endif
 	
 		/* translate by origin */
 		VectorAdd( dv->xyz, e->origin, vTranslated );
@@ -1001,16 +1003,26 @@ mapDrawSurface_t *DrawSurfaceForSide( entity_t *e, brush_t *b, side_t *s, windin
 			dv->st[ 1 ] = DotProduct( si->vecs[ 1 ], vTranslated );
 		}
 
-		/* old quake-style texturing */
-		else if( g_bBrushPrimit == BPRIMIT_OLDBRUSHES )
+		if (s->brushType == BPRIMIT_VALVE220)
 		{
 			/* nearest-axial projection */
-			dv->st[ 0 ] = s->vecs[ 0 ][ 3 ] + DotProduct( s->vecs[ 0 ], vTranslated );
-			dv->st[ 1 ] = s->vecs[ 1 ][ 3 ] + DotProduct( s->vecs[ 1 ], vTranslated );
-			dv->st[ 0 ] /= si->shaderWidth;
-			dv->st[ 1 ] /= si->shaderHeight;
+			dv->st[0] = s->vecs[0][3] + DotProduct(s->vecs[0], vTranslated);
+			dv->st[1] = s->vecs[1][3] + DotProduct(s->vecs[1], vTranslated);
+			dv->st[0] /= si->shaderWidth;
+			dv->st[1] /= si->shaderHeight;
+
+			Sys_Printf("DEBUGVALVE: Used vecs are: [ %f %f %f %f ] [ %f %f %f %f ].\n", s->vecs[0][0], s->vecs[0][1], s->vecs[0][2], s->vecs[0][3], s->vecs[1][0], s->vecs[1][1], s->vecs[1][2], s->vecs[1][3]);
+			Sys_Printf("DEBUGVALVE: Final ST: %f %f.\n", dv->st[0], dv->st[1]);
 		}
-		
+		/* old quake-style texturing */
+		else if(g_bBrushPrimit == BPRIMIT_OLDBRUSHES)
+		{
+			/* nearest-axial projection */
+			dv->st[0] = s->vecs[0][3] + DotProduct(s->vecs[0], vTranslated);
+			dv->st[1] = s->vecs[1][3] + DotProduct(s->vecs[1], vTranslated);
+			dv->st[0] /= si->shaderWidth;
+			dv->st[1] /= si->shaderHeight;
+		}
 		/* brush primitive texturing */
 		else
 		{

@@ -284,6 +284,7 @@ skipspace:
 		return GetToken (crossline);
 	}
 
+	//Sys_Printf("%s ", token);
 	return qtrue;
 }
 
