@@ -95,6 +95,7 @@ qboolean		FORCED_MODEL_META = qfalse;
 qboolean		CAULKIFY_CRAP = qfalse;
 qboolean		CULLSIDES_AFTER_MODEL_ADITION = qfalse;
 qboolean		USE_CONVEX_HULL_MODELS = qfalse;
+float			MAP_ROAD_SCAN_WIDTH_MULTIPLIER = 1.0;
 
 qboolean		ADD_CLIFF_FACES = qfalse;
 float			CLIFF_FACES_SCALE = 1.0;
@@ -368,7 +369,7 @@ void SetupRoadmapBounds(void)
 	ROAD_BOUNDS_INITIALIZED = qtrue;
 }
 
-qboolean RoadExistsAtPoint(vec3_t point, int scanWidth)
+qboolean RoadExistsAtPoint(vec3_t point, int inScanWidth)
 {
 	if (!ROAD_MAP)
 	{
@@ -401,6 +402,8 @@ qboolean RoadExistsAtPoint(vec3_t point, int scanWidth)
 	{
 		return qtrue;
 	}
+
+	int scanWidth = int((float)inScanWidth * MAP_ROAD_SCAN_WIDTH_MULTIPLIER);
 
 #if 1
 	// Also scan pixels around this position...
@@ -530,7 +533,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 		Sys_Printf("Forcing all models to use meta surfaces.\n");
 	}
 
-	CAULKIFY_CRAP = (qboolean)atoi(IniRead(filename, "GENERAL", "caulkifyCrap", "0"));
+	CAULKIFY_CRAP = (atoi(IniRead(filename, "GENERAL", "caulkifyCrap", "0")) > 0) ? qtrue : qfalse;
 
 	if (CAULKIFY_CRAP)
 	{
@@ -554,6 +557,9 @@ void FOLIAGE_LoadClimateData( char *filename )
 	{
 		Sys_Printf("Convex hull collision models will not be used.\n");
 	}
+
+	MAP_ROAD_SCAN_WIDTH_MULTIPLIER = atof(IniRead(filename, "GENERAL", "roadScanWidthMultiplier", "1.0"));
+	Sys_Printf("Roads scan width is %f.\n", MAP_ROAD_SCAN_WIDTH_MULTIPLIER);
 
 	//
 	// Cliffs...
@@ -987,7 +993,7 @@ qboolean FOLIAGE_LoadFoliagePositions( char *filename )
 		fread( &FOLIAGE_TREE_ANGLES[treeCount], sizeof(float), 1, f );
 		fread( &FOLIAGE_TREE_SCALE[treeCount], sizeof(float), 1, f );
 
-		if (FOLIAGE_TREE_SELECTION[treeCount] > 0)
+		//if (FOLIAGE_TREE_SELECTION[treeCount] > 0)
 		{// Only keep positions with trees...
 			treeCount++;
 		}

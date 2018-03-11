@@ -35,6 +35,8 @@ several games based on the Quake III Arena engine, in the form of "Q3Map2."
 /* dependencies */
 #include "q3map2.h"
 
+extern qboolean USE_LODMODEL;
+extern qboolean USE_CONVEX_HULL_MODELS;
 extern qboolean FORCED_STRUCTURAL;
 
 extern qboolean StringContainsWord(const char *haystack, const char *needle);
@@ -569,7 +571,12 @@ void RemoveSurface(mapDrawSurface_t *ds)
 	}
 }
 
-void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScale, remap_t *remap, shaderInfo_t *celShader, qboolean ledgeOverride, shaderInfo_t *overrideShader, qboolean forcedSolid, qboolean forcedFullSolid, qboolean forcedNoSolid, int entityNum, int mapEntityNum, char castShadows, char recvShadows, int spawnFlags, float lightmapScale, vec3_t lightmapAxis, vec3_t minlight, vec3_t minvertexlight, vec3_t ambient, vec3_t colormod, float lightmapSampleSize, int shadeAngle, int vertTexProj, qboolean noAlphaFix, float pushVertexes, qboolean skybox, int *added_surfaces, int *added_verts, int *added_triangles, int *added_brushes, qboolean cullSmallSolids, float LOWEST_NEAR_POINT)
+void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScale, remap_t *remap, shaderInfo_t *celShader
+	, qboolean ledgeOverride, shaderInfo_t *overrideShader, qboolean forcedSolid, qboolean forcedFullSolid, qboolean forcedNoSolid
+	, int entityNum, int mapEntityNum, char castShadows, char recvShadows, int spawnFlags, float lightmapScale, vec3_t lightmapAxis
+	, vec3_t minlight, vec3_t minvertexlight, vec3_t ambient, vec3_t colormod, float lightmapSampleSize, int shadeAngle
+	, int vertTexProj, qboolean noAlphaFix, float pushVertexes, qboolean skybox, int *added_surfaces, int *added_verts
+	, int *added_triangles, int *added_brushes, qboolean cullSmallSolids, float LOWEST_NEAR_POINT, qboolean isLodModel)
 {
 	int					s, numSurfaces;
 	m4x4_t				identity, nTransform;
@@ -669,6 +676,11 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		}
 	}
 
+	if (USE_LODMODEL && isLodModel && !HAS_COLLISION_INFO)
+	{
+		return;
+	}
+
 	//Sys_Printf("top: %f. bottom: %f.\n", top, bottom);
 
 	//Sys_Printf( "Model %s has %d surfaces\n", name, numSurfaces );
@@ -755,6 +767,22 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			picoShaderName = glob->to;
 		}
 
+		bool IS_COLLISION_SURFACE = false;
+
+		if (HAS_COLLISION_INFO && StringContainsWord(picoShaderName, "system/nodraw_solid"))
+		{// We have actual solid information for this model, don't generate planes for the other crap...
+			IS_COLLISION_SURFACE = true;
+		}
+		else if (forcedSolid)
+		{
+			IS_COLLISION_SURFACE = true;
+		}
+
+		if (USE_LODMODEL && isLodModel /*&& HAS_COLLISION_INFO*/ && !IS_COLLISION_SURFACE)
+		{
+			continue;
+		}
+
 #pragma omp critical
 		{
 			if (!forcedNoSolid && HAS_COLLISION_INFO && StringContainsWord(picoShaderName, "system/nodraw_solid"))
@@ -805,7 +833,12 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		if (si->warnNoShaderImage == qtrue)
 		{
 			if (mapEntityNum >= 0)
-				Sys_Warning(mapEntityNum, "Failed to load shader image '%s'", si->shader);
+			{
+				//Sys_Warning(mapEntityNum, "Failed to load shader image '%s'", si->shader);
+				/* external entity, just show single warning */
+				Sys_Warning("Failed to load shader image '%s'", si->shader);
+				si->warnNoShaderImage = qfalse;
+			}
 			else
 			{
 				/* external entity, just show single warning */
@@ -1005,17 +1038,6 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 				/* copy xyz */
 				VectorCopy(dv->xyz, points[j]);
 			}
-		}
-
-		bool IS_COLLISION_SURFACE = false;
-
-		if (HAS_COLLISION_INFO && StringContainsWord(picoShaderName, "system/nodraw_solid"))
-		{// We have actual solid information for this model, don't generate planes for the other crap...
-			IS_COLLISION_SURFACE = true;
-		}
-		else if (forcedSolid)
-		{
-			IS_COLLISION_SURFACE = true;
 		}
 
 #ifdef CULL_BY_LOWEST_NEAR_POINT
@@ -1464,9 +1486,6 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 	}
 }
 
-extern qboolean USE_LODMODEL;
-extern qboolean USE_CONVEX_HULL_MODELS;
-
 void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowSimplify, qboolean loadCollision)
 {
 	picoModel_t		*picoModel = NULL;
@@ -1896,6 +1915,8 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			continue;
 		}
 
+		qboolean isLodModel = (qboolean)!Q_stricmp("misc_lodmodel", ValueForKey(e2, "classname"));
+
 		/* ydnar: added support for md3 models on non-worldspawn models */
 		target = ValueForKey(e2, "target");
 		if (strcmp(target, targetName))
@@ -2201,36 +2222,36 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 		if (COLLISION_MODEL && strlen(COLLISION_MODEL) > 0)
 		{
 			// Add the actual model...
-			if (!USE_LODMODEL) // misc_lodmodel doesn't output map surfaces other then the collision objects...
-				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, qfalse, qfalse, qtrue, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear);
+			if (!USE_LODMODEL || !isLodModel) // misc_lodmodel doesn't output map surfaces other then the collision objects...
+				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, qfalse, qfalse, qtrue, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear, isLodModel);
 
 			// Add the collision planes...
 			overrideShader = ShaderInfoForShader("textures/system/nodraw_solid");
 
 			//Sys_Printf("Adding collision model %s surfaces.\n", COLLISION_MODEL);
-			InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear);
+			InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear, isLodModel);
 		}
 		else
 		{
-			if (!USE_LODMODEL) // misc_lodmodel doesn't output map surfaces other then the collision objects...
-				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear);
+			if (!USE_LODMODEL || !isLodModel) // misc_lodmodel doesn't output map surfaces other then the collision objects...
+				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear, isLodModel);
 		}
 #else //!CULL_BY_LOWEST_NEAR_POINT
 		if (COLLISION_MODEL && strlen(COLLISION_MODEL) > 0)
 		{
 			// Add the actual model...
-			if (!USE_LODMODEL) // misc_lodmodel doesn't output map surfaces other then the collision objects...
-				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, qfalse, qfalse, qtrue, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, 999999.0f);
+			if (!USE_LODMODEL || !isLodModel) // misc_lodmodel doesn't output map surfaces other then the collision objects...
+				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, qfalse, qfalse, qtrue, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, 999999.0f, isLodModel);
 
 			// Add the collision planes...
 			overrideShader = ShaderInfoForShader("textures/system/nodraw_solid");
 			
-			InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, 999999.0f);
+			InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, 999999.0f, isLodModel);
 		}
 		else
 		{
-			if (!USE_LODMODEL) // misc_lodmodel doesn't output map surfaces other then the collision objects...
-				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, 999999.0f);
+			if (!USE_LODMODEL || !isLodModel) // misc_lodmodel doesn't output map surfaces other then the collision objects...
+				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, 999999.0f, isLodModel);
 		}
 #endif //CULL_BY_LOWEST_NEAR_POINT
 
