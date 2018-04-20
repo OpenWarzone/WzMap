@@ -547,7 +547,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 		Sys_Printf("Cullsides will be run again after adding models.\n");
 	}
 
-	USE_CONVEX_HULL_MODELS = (qboolean)atoi(IniRead(filename, "GENERAL", "useConvexHullModels", "0"));
+	USE_CONVEX_HULL_MODELS = (qboolean)atoi(IniRead(filename, "GENERAL", "useConvexHullModels", "1"));
 
 	if (USE_CONVEX_HULL_MODELS)
 	{
@@ -701,7 +701,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 			strcpy(CITY_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "CITY", va("overrideShader%i", i), ""));
 
 			if (strcmp(CITY_MODELS[i], ""))
-				Sys_Printf("Building %i. Model %s. Offset %f. Scale %f. MaxAngle %i. BufferDist %f. InstanceDist %f. ForcedSolid: %s. Shader: %s. OneOnly: %s.\n", i, CITY_MODELS[i], CITY_OFFSETS[i], CITY_SCALES[i], CITY_FORCED_MAX_ANGLE[i], CITY_FORCED_BUFFER_DISTANCE[i], CITY_FORCED_DISTANCE_FROM_SAME[i], CITY_FORCED_FULLSOLID[i] ? "true" : "false", CITY_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? CITY_FORCED_OVERRIDE_SHADER[i] : "Default", CITY_CENTRAL_ONCE[i] ? "true" : "false");
+				Sys_Printf("Building %i. Model %s. Offset %f. Scale %f. MaxAngle %i. BufferDist %f. InstanceDist %f. ForcedSolid: %s. Shader: %s. OneOnly: %s.\n", i, CITY_MODELS[i], CITY_OFFSETS[i], CITY_SCALES[i], (int)CITY_FORCED_MAX_ANGLE[i], CITY_FORCED_BUFFER_DISTANCE[i], CITY_FORCED_DISTANCE_FROM_SAME[i], CITY_FORCED_FULLSOLID[i] ? "true" : "false", CITY_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? CITY_FORCED_OVERRIDE_SHADER[i] : "Default", CITY_CENTRAL_ONCE[i] ? "true" : "false");
 		}
 	}
 
@@ -2810,6 +2810,15 @@ void GenerateLedgeFaces(void)
 				continue;
 			}
 
+			if (!(Distance(center, CITY_LOCATION) > CITY_RADIUS
+				&& Distance(center, CITY2_LOCATION) > CITY2_RADIUS
+				&& Distance(center, CITY3_LOCATION) > CITY3_RADIUS
+				&& Distance(center, CITY4_LOCATION) > CITY4_RADIUS
+				&& Distance(center, CITY5_LOCATION) > CITY5_RADIUS))
+			{// Don't add ledges in towns...
+				continue;
+			}
+
 			qboolean bad = qfalse;
 
 			for (int k = 0; k < MAX_STATIC_ENTITY_MODELS; k++)
@@ -3649,6 +3658,17 @@ void GenerateMapForest ( void )
 				VectorCopy(FOLIAGE_POSITIONS[i], mapEnt->origin);
 				mapEnt->origin[2] += TREE_OFFSETS[FOLIAGE_TREE_SELECTION[i]];
 
+				{// Offset the model so the lowest bounds are at 0 0 0.
+					picoModel_t *picoModel = FindModel(TREE_MODELS[FOLIAGE_TREE_SELECTION[i]], 0);
+
+					if (picoModel)
+					{
+						float modelOffset = 0.0 - picoModel->mins[2];
+						if (modelOffset > 0)
+							mapEnt->origin[2] += modelOffset;
+					}
+				}
+
 				{
 					char str[32];
 					sprintf( str, "%f %f %f", mapEnt->origin[ 0 ], mapEnt->origin[ 1 ], mapEnt->origin[ 2 ] );
@@ -3904,6 +3924,17 @@ void GenerateStaticEntities(void)
 
 		VectorCopy(STATIC_ORIGIN[i], mapEnt->origin);
 
+		{// Offset the model so the lowest bounds are at 0 0 0.
+			picoModel_t *picoModel = FindModel(STATIC_MODEL[i], 0);
+
+			if (picoModel)
+			{
+				float modelOffset = 0.0 - picoModel->mins[2];
+				if (modelOffset > 0)
+					mapEnt->origin[2] += modelOffset;
+			}
+		}
+
 		{
 			char str[32];
 			sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
@@ -4095,39 +4126,6 @@ void ReassignCityModels(void)
 
 	Rand_Init(FOLIAGE_POSITIONS[0][0]);
 
-	//Sys_Printf("Finding angles models.\n");
-
-	// Find non-angle models...
-	for (i = 0; i < MAX_FOREST_MODELS; i++)
-	{
-		if (CITY_FORCED_MAX_ANGLE[i] == 0.0)
-		{
-			continue;
-		}
-
-		if (CITY_CENTRAL_ONCE[i])
-		{
-			continue;
-		}
-
-		if (!strcmp(CITY_MODELS[i], ""))
-		{
-			continue;
-		}
-
-		POSSIBLES[NUM_POSSIBLES] = i;
-		POSSIBLES_BUFFERS[NUM_POSSIBLES] = CITY_FORCED_BUFFER_DISTANCE[i];
-		POSSIBLES_BUILDING_SAME_RANGES[NUM_POSSIBLES] = CITY_FORCED_DISTANCE_FROM_SAME[i];
-		POSSIBLES_MAX_ANGLE[NUM_POSSIBLES] = CITY_FORCED_MAX_ANGLE[i];
-		NUM_POSSIBLES++;
-	}
-
-	Sys_Printf("Restricted angle possibles:\n");
-	for (i = 0; i < NUM_POSSIBLES; i++)
-	{
-		Sys_Printf("%d - %s.\n", i, CITY_MODELS[POSSIBLES[i]]);
-	}
-
 	// One-Off models...
 	for (i = 0; i < MAX_FOREST_MODELS; i++)
 	{
@@ -4193,6 +4191,12 @@ void ReassignCityModels(void)
 						continue;
 					}
 
+					if (RoadExistsAtPoint(FOLIAGE_POSITIONS[j], 4))
+					{// There's a road here...
+						numLedgesRoadCulled++;
+						continue;
+					}
+
 					for (int k = 0; k < FOLIAGE_NUM_POSITIONS; k++)
 					{
 						if (j == k)
@@ -4238,6 +4242,39 @@ void ReassignCityModels(void)
 				Sys_Printf("Warning: Failed to find a place for once off model %i [%s].\n", i, CITY_MODELS[i]);
 			}
 		}
+	}
+
+	//Sys_Printf("Finding angles models.\n");
+
+	// Find non-angle models...
+	for (i = 0; i < MAX_FOREST_MODELS; i++)
+	{
+		if (CITY_FORCED_MAX_ANGLE[i] == 0.0)
+		{
+			continue;
+		}
+
+		if (CITY_CENTRAL_ONCE[i])
+		{
+			continue;
+		}
+
+		if (!strcmp(CITY_MODELS[i], ""))
+		{
+			continue;
+		}
+
+		POSSIBLES[NUM_POSSIBLES] = i;
+		POSSIBLES_BUFFERS[NUM_POSSIBLES] = CITY_FORCED_BUFFER_DISTANCE[i];
+		POSSIBLES_BUILDING_SAME_RANGES[NUM_POSSIBLES] = CITY_FORCED_DISTANCE_FROM_SAME[i];
+		POSSIBLES_MAX_ANGLE[NUM_POSSIBLES] = CITY_FORCED_MAX_ANGLE[i];
+		NUM_POSSIBLES++;
+	}
+
+	Sys_Printf("Restricted angle possibles:\n");
+	for (i = 0; i < NUM_POSSIBLES; i++)
+	{
+		Sys_Printf("%d - %s.\n", i, CITY_MODELS[POSSIBLES[i]]);
 	}
 
 	//Sys_Printf("Assign angles models from %i possibles.\n", NUM_POSSIBLES);
@@ -4289,7 +4326,7 @@ void ReassignCityModels(void)
 					break;
 				}
 
-				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= POSSIBLES_BUILDING_SAME_RANGES[selected])
+				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= BUILDING_SAME_RANGES[POSSIBLES[selected]])
 				{// Not within this object's same type range... OK!
 					bad = qtrue;
 					break;
@@ -4298,6 +4335,7 @@ void ReassignCityModels(void)
 
 			if (bad)
 			{
+				//Sys_Printf("DEBUG: Position %i range.\n", i);
 				continue;
 			}
 
@@ -4314,14 +4352,13 @@ void ReassignCityModels(void)
 
 			if (pitch > POSSIBLES_MAX_ANGLE[selected] || pitch < -POSSIBLES_MAX_ANGLE[selected])
 			{// Bad slope...
-			 //Sys_Printf("Position %i angles too great (%f).\n", i, pitch);
+				//Sys_Printf("DEBUG: Position %i angles too great (%f).\n", i, pitch);
 				continue;
 			}
 
 			for (int z = 0; z < numCliffs; z++)
 			{// Also keep them away from cliff objects...
-				if (DistanceHorizontal(cliffPositions[z], FOLIAGE_POSITIONS[i]) < cliffScale[z] * 256.0 * CITY_CLIFF_CULL_RADIUS
-					/*|| DistanceHorizontal(ledgePositions[z], FOLIAGE_POSITIONS[i]) < ledgeScale[z] * 256.0 * CITY_CLIFF_CULL_RADIUS*/)
+				if (DistanceHorizontal(cliffPositions[z], FOLIAGE_POSITIONS[i]) < cliffScale[z] * 256.0 * CITY_CLIFF_CULL_RADIUS)
 				{
 					bad = qtrue;
 					NUM_CLOSE_CLIFFS++;
@@ -4331,6 +4368,31 @@ void ReassignCityModels(void)
 
 			if (bad)
 			{
+				//Sys_Printf("DEBUG: Position %i cliff.\n", i);
+				continue;
+			}
+
+#if 0
+			for (int z = 0; z < numLedges; z++)
+			{// Also keep them away from ledge objects...
+				if (DistanceHorizontal(ledgePositions[z], FOLIAGE_POSITIONS[i]) < ledgeScale[z] * 64.0 /** CITY_CLIFF_CULL_RADIUS*/)
+				{
+					bad = qtrue;
+					NUM_CLOSE_CLIFFS++;
+					break;
+				}
+			}
+
+			if (bad)
+			{
+				continue;
+			}
+#endif
+
+			if (RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4))
+			{// There's a road here...
+				//Sys_Printf("DEBUG: Position %i road.\n", i);
+				numLedgesRoadCulled++;
 				continue;
 			}
 
@@ -4352,7 +4414,7 @@ void ReassignCityModels(void)
 	// Find other models...
 	for (i = 0; i < MAX_FOREST_MODELS; i++)
 	{
-		if (CITY_FORCED_MAX_ANGLE[i] != 0.0)
+		if (CITY_FORCED_MAX_ANGLE[i] > 0.0)
 		{
 			continue;
 		}
@@ -4401,6 +4463,16 @@ void ReassignCityModels(void)
 
 			if (BUILDING_ASSIGNED[i])
 			{
+				//printf("blocked by assigned.\n");
+				continue;
+			}
+
+			if (Distance(FOLIAGE_POSITIONS[i], CITY_LOCATION) > CITY_RADIUS
+				&& Distance(FOLIAGE_POSITIONS[i], CITY2_LOCATION) > CITY2_RADIUS
+				&& Distance(FOLIAGE_POSITIONS[i], CITY3_LOCATION) > CITY3_RADIUS
+				&& Distance(FOLIAGE_POSITIONS[i], CITY4_LOCATION) > CITY4_RADIUS
+				&& Distance(FOLIAGE_POSITIONS[i], CITY5_LOCATION) > CITY5_RADIUS)
+			{
 				continue;
 			}
 
@@ -4410,6 +4482,7 @@ void ReassignCityModels(void)
 			{
 				if (tries > 32)
 				{
+					//printf("blocked by tries.\n");
 					bad = qtrue;
 					break;
 				}
@@ -4432,7 +4505,7 @@ void ReassignCityModels(void)
 					break;
 				}
 
-				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= POSSIBLES_BUILDING_SAME_RANGES[selected])
+				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= BUILDING_SAME_RANGES[POSSIBLES[selected]])
 				{// Not within this object's same type range... OK!
 					selected = irand(0, NUM_POSSIBLES - 1);
 					tries++;
@@ -4441,18 +4514,20 @@ void ReassignCityModels(void)
 
 			if (bad)
 			{
+				//printf("blocked by buffer.\n");
+				continue;
+			}
+
+			if (RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4))
+			{// There's a road here...
+				//printf("blocked by road.\n");
+				numLedgesRoadCulled++;
 				continue;
 			}
 
 			for (int z = 0; z < numCliffs; z++)
 			{// Also keep them away from cliff objects...
-			 /*Sys_Printf("cliff %f %f %f. possible %f %f %f. Distance %f.\n", cliffPositions[z][0], cliffPositions[z][1], cliffPositions[z][2]
-			 , FOLIAGE_POSITIONS[POSSIBLES[selected]][0], FOLIAGE_POSITIONS[POSSIBLES[selected]][1], FOLIAGE_POSITIONS[POSSIBLES[selected]][2],
-			 DistanceHorizontal(cliffPositions[z], FOLIAGE_POSITIONS[POSSIBLES[selected]]));
-			 */
-
-				if (DistanceHorizontal(cliffPositions[z], FOLIAGE_POSITIONS[i]) < cliffScale[z] * 256.0 * CITY_CLIFF_CULL_RADIUS
-					/*|| DistanceHorizontal(ledgePositions[z], FOLIAGE_POSITIONS[i]) < ledgeScale[z] * 256.0 * CITY_CLIFF_CULL_RADIUS*/)
+				if (DistanceHorizontal(cliffPositions[z], FOLIAGE_POSITIONS[i]) < cliffScale[z] * 256.0 * CITY_CLIFF_CULL_RADIUS)
 				{
 					bad = qtrue;
 					NUM_CLOSE_CLIFFS++;
@@ -4462,8 +4537,27 @@ void ReassignCityModels(void)
 
 			if (bad)
 			{
+				//printf("blocked by cliff.\n");
 				continue;
 			}
+
+#if 0
+			for (int z = 0; z < numLedges; z++)
+			{// Also keep them away from ledge objects...
+				if (DistanceHorizontal(ledgePositions[z], FOLIAGE_POSITIONS[i]) < ledgeScale[z] * 64.0 /** CITY_CLIFF_CULL_RADIUS*/)
+				{
+					bad = qtrue;
+					NUM_CLOSE_CLIFFS++;
+					break;
+				}
+			}
+
+			if (bad)
+			{
+				printf("blocked by ledge.\n");
+				continue;
+			}
+#endif
 
 			FOLIAGE_TREE_SELECTION[i] = POSSIBLES[selected];
 			FOLIAGE_TREE_BUFFER[i] = BUILDING_BUFFER_RANGES[i] = POSSIBLES_BUFFERS[selected];
@@ -4561,6 +4655,17 @@ void GenerateMapCity(void)
 
 				VectorCopy(FOLIAGE_POSITIONS[i], mapEnt->origin);
 				mapEnt->origin[2] += CITY_OFFSETS[FOLIAGE_TREE_SELECTION[i]];
+
+				{// Offset the model so the lowest bounds are at 0 0 0.
+					picoModel_t *picoModel = FindModel(CITY_MODELS[FOLIAGE_TREE_SELECTION[i]], 0);
+
+					if (picoModel)
+					{
+						float modelOffset = 0.0 - picoModel->mins[2];
+						if (modelOffset > 0)
+							mapEnt->origin[2] += modelOffset;
+					}
+				}
 
 				{
 					char str[32];
@@ -4770,6 +4875,31 @@ void GenerateMapCity(void)
 				//MoveBrushesToWorld( mapEnt );
 				numEntities--;
 #endif
+
+				if (StringContainsWord(CITY_MODELS[FOLIAGE_TREE_SELECTION[i]], "campfire"))
+				{// Special case for campfires, also make a fx_runner for flames...
+				 /* setup */
+					entitySourceBrushes = 0;
+					mapEnt = &entities[numEntities];
+					numEntities++;
+					memset(mapEnt, 0, sizeof(*mapEnt));
+
+					mapEnt->mapEntityNum = numEntities - 1;// 0;
+
+					{
+						VectorCopy(FOLIAGE_POSITIONS[i], mapEnt->origin);
+						mapEnt->origin[2] += CITY_OFFSETS[FOLIAGE_TREE_SELECTION[i]];
+
+						char str[32];
+						sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] + 4.0);
+						SetKeyValue(mapEnt, "origin", str);
+					}
+
+					SetKeyValue(mapEnt, "classname", "fx_runner");
+					classname = ValueForKey(mapEnt, "classname");
+
+					SetKeyValue(mapEnt, "fxFile", "effects/campfire/campfire.efx");
+				}
 			}
 
 			free(BUILDING_ASSIGNED);

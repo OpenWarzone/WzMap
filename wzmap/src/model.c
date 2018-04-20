@@ -1526,6 +1526,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 			char			tempCollisionModel[512] = { 0 };
 			char			collisionModel[512] = { 0 };
 			char			collisionModelObj[512] = { 0 };
+			char			collisionModelMd3[512] = { 0 };
 			char			tempCollisionModelExt[32] = { 0 };
 
 			sprintf(tempCollisionModel, "%s", model);
@@ -1533,6 +1534,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 			StripExtension(tempCollisionModel);
 			sprintf(collisionModel, "%s_collision_convex.%s", tempCollisionModel, tempCollisionModelExt);
 			sprintf(collisionModelObj, "%s_collision_convex.%s", tempCollisionModel, "obj");
+			sprintf(collisionModelMd3, "%s_collision_convex.%s", tempCollisionModel, "md3");
 
 			qboolean loaded2 = PreloadModel((char*)collisionModel, frame);
 
@@ -1545,6 +1547,36 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 				Sys_Printf("loaded model %s. convex collision model %s.\n", model, collisionModel);
 				*numLoadedModels++;
 				return;
+			}
+			else
+			{
+				loaded2 = PreloadModel((char*)collisionModelObj, frame);
+
+				/* warn about missing models */
+				picoModel2 = FindModel((char*)collisionModelObj, frame);
+
+				if (/*loaded2 &&*/ picoModel2)
+				{
+					picoModel2->isCollisionModel = qtrue;
+					Sys_Printf("loaded model %s. convex collision model %s.\n", model, collisionModelObj);
+					*numLoadedModels++;
+					return;
+				}
+				else
+				{
+					loaded2 = PreloadModel((char*)collisionModelMd3, frame);
+
+					/* warn about missing models */
+					picoModel2 = FindModel((char*)collisionModelMd3, frame);
+
+					if (/*loaded2 &&*/ picoModel2)
+					{
+						picoModel2->isCollisionModel = qtrue;
+						Sys_Printf("loaded model %s. convex collision model %s.\n", model, collisionModelMd3);
+						*numLoadedModels++;
+						return;
+					}
+				}
 			}
 		}
 
@@ -1951,6 +1983,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };
 			char collisionModelObj[512] = { 0 };
+			char collisionModelMd3[512] = { 0 };
 			char tempCollisionModelExt[32] = { 0 };
 
 			sprintf(tempCollisionModel, "%s", model);
@@ -1959,6 +1992,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 
 			sprintf(collisionModel, "%s_collision_convex.%s", tempCollisionModel, tempCollisionModelExt);
 			sprintf(collisionModelObj, "%s_collision_convex.obj", tempCollisionModel);
+			sprintf(collisionModelMd3, "%s_collision_convex.md3", tempCollisionModel);
 
 			picoModel_t *picoModel = FindModel((char*)collisionModel, frame);
 
@@ -1989,7 +2023,23 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 				}
 				else
 				{
-					//Sys_Printf("Did not find convex hull models %s or %s.\n", collisionModel, collisionModelObj);
+					picoModel = FindModel((char*)collisionModelMd3, frame);
+
+					if (!picoModel)
+					{
+						picoModel = LoadModel((char*)collisionModelMd3, frame);
+						picoModel = FindModel((char*)collisionModelMd3, frame);
+					}
+
+					if (picoModel)
+					{
+						COLLISION_MODEL = collisionModelMd3;
+						//Sys_Printf("Found convex hull model %s.\n", COLLISION_MODEL);
+					}
+					else
+					{
+						//Sys_Printf("Did not find convex hull models %s or %s.\n", collisionModel, collisionModelObj);
+					}
 				}
 			}
 		}

@@ -1581,6 +1581,24 @@ int PicoGetSurfaceSpecial( picoSurface_t *surface, int num )
 	return surface->special[ num ];
 }
 
+int defaultPicoShaderInitialized = 0;
+picoShader_t defaultPicoShader = { 0 };
+
+picoShader_t *PicoDefaultShader(picoModel_t *model)
+{
+	if (defaultPicoShaderInitialized) return &defaultPicoShader;
+
+	// Make one...
+	defaultPicoShader.name = _pico_alloc(sizeof(char) * 64);
+	defaultPicoShader.mapName = _pico_alloc(sizeof(char) * 64);
+	strcpy(defaultPicoShader.name, "defaultshader");
+	strcpy(defaultPicoShader.mapName, "defaultshader");
+	defaultPicoShader.model = model;
+
+	defaultPicoShaderInitialized = 1;
+
+	return &defaultPicoShader;
+}
 
 char *PicoGetSurfaceShaderNameForSkin( picoSurface_t *surface, int skinnum )
 {
@@ -1596,6 +1614,13 @@ char *PicoGetSurfaceShaderNameForSkin( picoSurface_t *surface, int skinnum )
 
 	/* default shader name */
 	shader = surface->shader;
+
+	if (!shader)
+	{// UQ1: Send default collision shader...
+		//return "collision";
+		shader = surface->shader = PicoDefaultShader(surface->model);
+	}
+
 	if ( shader->name == NULL)
 		shaderName = (char*) "";
 	else
