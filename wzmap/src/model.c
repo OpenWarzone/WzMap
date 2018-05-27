@@ -488,11 +488,15 @@ extern void vectoangles(const vec3_t value1, vec3_t angles);
 #define CULL_BY_LOWEST_NEAR_POINT
 
 #ifdef CULL_BY_LOWEST_NEAR_POINT
-float LowestMapPointNear(vec3_t pos)
+//#define CULL_BY_LOWEST_NEAR_POINT_DISTANCE_MAX 4096.0
+
+float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 {// So we can cull surfaces below this height...
 	// This is about as good as I think I can do to minimize crap from the additions...
 	float nMins = pos[2];
+	shaderInfo_t *lsi = NULL;
 
+#pragma omp parallel for schedule(dynamic) num_threads(numthreads)
 	for (int s = 0; s < numMapDrawSurfs; s++)
 	{
 		/* get drawsurf */
@@ -514,9 +518,9 @@ float LowestMapPointNear(vec3_t pos)
 			&& !StringContainsWord(si->shader, "caulk")
 			&& !StringContainsWord(si->shader, "common/water"))
 		{
-			if (DistanceHorizontal(pos, ds->mins) < 4096.0 || DistanceHorizontal(pos, ds->maxs) < 4096.0)
+			//if (DistanceHorizontal(pos, ds->mins) <= radius || DistanceHorizontal(pos, ds->maxs) <= radius)
 			{
-				if (ds->mins[2] < nMins)
+				//if (ds->mins[2] < nMins)
 				{
 					for (int i = 0; i < ds->numVerts; i++)
 					{
@@ -540,12 +544,16 @@ float LowestMapPointNear(vec3_t pos)
 							continue;
 						}
 
-						if (DistanceHorizontal(pos, dv->xyz) < 4096.0)
+						if (DistanceHorizontal(pos, dv->xyz) <= radius)
 						{
 							if (dv->xyz[2] < nMins)
 							{
-								//Sys_Printf("origin %f %f %f. inRangePos %f %f %f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
-								nMins = dv->xyz[2];
+#pragma omp critical
+								{
+									//Sys_Printf("origin %f %f %f. inRangePos %f %f %f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
+									nMins = dv->xyz[2];
+									lsi = si;
+								}
 							}
 						}
 					}
@@ -554,8 +562,168 @@ float LowestMapPointNear(vec3_t pos)
 		}
 	}
 
-	//Sys_Printf("origin %f %f %f.\n", pos[0], pos[1], pos[2]);
-	//Sys_Printf("LOWEST_NEAR_POINT %f.\n", nMins);
+	if (nMins == pos[2])
+	{// Failed to find anything... Try without the angle check..
+#pragma omp parallel for schedule(dynamic) num_threads(numthreads)
+		for (int s = 0; s < numMapDrawSurfs; s++)
+		{
+			/* get drawsurf */
+			mapDrawSurface_t *ds = &mapDrawSurfs[s];
+
+			if (!ds)
+				continue;
+
+			shaderInfo_t *si = ds->shaderInfo;
+
+			if (!si)
+				continue;
+
+			if (!(si->compileFlags & C_SKY)
+				&& !(si->compileFlags & C_SKIP)
+				&& !(si->compileFlags & C_HINT)
+				&& !(si->compileFlags & C_NODRAW)
+				&& !StringContainsWord(si->shader, "sky")
+				&& !StringContainsWord(si->shader, "caulk")
+				&& !StringContainsWord(si->shader, "common/water"))
+			{
+				//if (DistanceHorizontal(pos, ds->mins) <= radius || DistanceHorizontal(pos, ds->maxs) <= radius)
+				{
+					//if (ds->mins[2] < nMins)
+					{
+						for (int i = 0; i < ds->numVerts; i++)
+						{
+							bspDrawVert_t *dv = &ds->verts[i];
+							
+							if (DistanceHorizontal(pos, dv->xyz) <= radius)
+							{
+								if (dv->xyz[2] < nMins)
+								{
+#pragma omp critical
+									{
+										//Sys_Printf("origin %f %f %f. inRangePos %f %f %f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
+										nMins = dv->xyz[2];
+										lsi = si;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (nMins == pos[2])
+	{// Failed to find anything... Try double radius...
+#pragma omp parallel for schedule(dynamic) num_threads(numthreads)
+		for (int s = 0; s < numMapDrawSurfs; s++)
+		{
+			/* get drawsurf */
+			mapDrawSurface_t *ds = &mapDrawSurfs[s];
+
+			if (!ds)
+				continue;
+
+			shaderInfo_t *si = ds->shaderInfo;
+
+			if (!si)
+				continue;
+
+			if (!(si->compileFlags & C_SKY)
+				&& !(si->compileFlags & C_SKIP)
+				&& !(si->compileFlags & C_HINT)
+				&& !(si->compileFlags & C_NODRAW)
+				&& !StringContainsWord(si->shader, "sky")
+				&& !StringContainsWord(si->shader, "caulk")
+				&& !StringContainsWord(si->shader, "common/water"))
+			{
+				//if (DistanceHorizontal(pos, ds->mins) <= radius || DistanceHorizontal(pos, ds->maxs) <= radius)
+				{
+					//if (ds->mins[2] < nMins)
+					{
+						for (int i = 0; i < ds->numVerts; i++)
+						{
+							bspDrawVert_t *dv = &ds->verts[i];
+
+							if (DistanceHorizontal(pos, dv->xyz) <= radius * 2.0)
+							{
+								if (dv->xyz[2] < nMins)
+								{
+#pragma omp critical
+									{
+										//Sys_Printf("origin %f %f %f. inRangePos %f %f %f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
+										nMins = dv->xyz[2];
+										lsi = si;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (nMins == pos[2])
+	{// Failed to find anything... Try tripple radius...
+#pragma omp parallel for schedule(dynamic) num_threads(numthreads)
+		for (int s = 0; s < numMapDrawSurfs; s++)
+		{
+			/* get drawsurf */
+			mapDrawSurface_t *ds = &mapDrawSurfs[s];
+
+			if (!ds)
+				continue;
+
+			shaderInfo_t *si = ds->shaderInfo;
+
+			if (!si)
+				continue;
+
+			if (!(si->compileFlags & C_SKY)
+				&& !(si->compileFlags & C_SKIP)
+				&& !(si->compileFlags & C_HINT)
+				&& !(si->compileFlags & C_NODRAW)
+				&& !StringContainsWord(si->shader, "sky")
+				&& !StringContainsWord(si->shader, "caulk")
+				&& !StringContainsWord(si->shader, "common/water"))
+			{
+				//if (DistanceHorizontal(pos, ds->mins) <= radius || DistanceHorizontal(pos, ds->maxs) <= radius)
+				{
+					//if (ds->mins[2] < nMins)
+					{
+						for (int i = 0; i < ds->numVerts; i++)
+						{
+							bspDrawVert_t *dv = &ds->verts[i];
+
+							if (DistanceHorizontal(pos, dv->xyz) <= radius * 3.0)
+							{
+								if (dv->xyz[2] < nMins)
+								{
+#pragma omp critical
+									{
+										//Sys_Printf("origin %f %f %f. inRangePos %f %f %f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
+										nMins = dv->xyz[2];
+										lsi = si;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/*if (nMins >= pos[2] - 128.0)
+	{
+		nMins = pos[2] - 128.0;
+	}*/
+
+	nMins -= 128.0;
+
+	//Sys_Printf("model %s. origin %f %f %f.\n", modelName, pos[0], pos[1], pos[2]);
+	//Sys_Printf("LOWEST_NEAR_POINT %f. Lowest found surface shader was %s.\n", nMins, (lsi->shader && lsi->shader[0]) ? lsi->shader : "Unknown");
 
 	return nMins;
 }
@@ -1012,8 +1180,55 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		/* copy indexes */
 		indexes = PicoGetSurfaceIndexes(surface, 0);
 
+
+#ifdef CULL_BY_LOWEST_NEAR_POINT
+		int numIndexesCulled = 0;
+		int numIndexesFinal = 0;
+		int numIndexesOriginal = 0;
+
+		for (i = 0; i < ds->numIndexes; i += 3)
+		{
+			// Assume that we can cull them all... Add exceptions as found...
+			qboolean shouldLowestPointCull = qtrue;
+
+			numIndexesOriginal += 3;
+
+			for (int j = 0; j < 3; j++)
+			{
+				bspDrawVert_t		*dv = &ds->verts[indexes[i + j]];
+
+				if (LOWEST_NEAR_POINT == 999999.0f || dv->xyz[2] >= LOWEST_NEAR_POINT)
+				{// If any surface is above the found lowest map point, then we need to draw this triangle...
+					shouldLowestPointCull = qfalse;
+					break;
+				}
+			}
+
+			if (!shouldLowestPointCull)
+			{// If any surface is above the found lowest map point, then we need to draw this triangle...
+				ds->indexes[numIndexesFinal] = indexes[i];
+				numIndexesFinal++;
+				ds->indexes[numIndexesFinal] = indexes[i+1];
+				numIndexesFinal++;
+				ds->indexes[numIndexesFinal] = indexes[i+2];
+				numIndexesFinal++;
+			}
+			else
+			{
+				numIndexesCulled += 3;
+			}
+		}
+
+		if (numIndexesCulled > 0)
+		{
+			ds->numIndexes = numIndexesFinal;
+			numBoundsCulledSurfs += numIndexesCulled / 3;
+			//Sys_Printf("Lowest point culled %i of %i indexes. %.2f percent were culled. %i final indexes.\n", numIndexesCulled, numIndexesOriginal, (float(numIndexesCulled) / float(numIndexesOriginal)) * 100.0, numIndexesFinal);
+		}
+#else //!CULL_BY_LOWEST_NEAR_POINT
 		for (i = 0; i < ds->numIndexes; i++)
 			ds->indexes[i] = indexes[i];
+#endif //CULL_BY_LOWEST_NEAR_POINT
 
 		/* deform vertexes */
 		DeformVertexes(ds, pushVertexes);
@@ -1039,34 +1254,6 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 				VectorCopy(dv->xyz, points[j]);
 			}
 		}
-
-#ifdef CULL_BY_LOWEST_NEAR_POINT
-		qboolean shouldLowestPointCull = qtrue;
-
-		for (i = 0; i < ds->numIndexes; i += 3)
-		{
-			for (int j = 0; j < 3; j++)
-			{
-				bspDrawVert_t		*dv = &ds->verts[ds->indexes[i + j]];
-
-				if (LOWEST_NEAR_POINT != 999999.0f && dv->xyz[2] >= LOWEST_NEAR_POINT)
-				{
-					shouldLowestPointCull = qfalse;
-					break;
-				}
-			}
-
-			if (!shouldLowestPointCull) break;
-		}
-
-		if (shouldLowestPointCull)
-		{// Below map's lowest known near point, definately cull...
-		 //Sys_Printf("Culled one!\n");
-			numBoundsCulledSurfs++;
-			RemoveSurface(ds);
-			continue;
-		}
-#endif //CULL_BY_LOWEST_NEAR_POINT
 
 		/* ydnar: giant hack land: generate clipping brushes for model triangles */
 		if (ds->verts && !forcedNoSolid && (!haveLodModel && (si->clipModel || (spawnFlags & 2)) && !noclipmodel) || forcedSolid || IS_COLLISION_SURFACE)	/* 2nd bit */
@@ -1921,7 +2108,39 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 		}
 		else
 		{
-			e3->lowestPointNear = LowestMapPointNear(origin);
+			picoModel_t *m = LoadModel(model, 0);
+
+			if (m == NULL)
+			{// Fallback...
+				//e3->lowestPointNear = origin[2] - 256.0;
+				e3->lowestPointNear = LowestMapPointNear(origin, 4096.0, model);
+			}
+			else
+			{
+				/* get scale */
+				scale[0] = scale[1] = scale[2] = 1.0f;
+				temp = FloatForKey(e3, "modelscale");
+				if (temp != 0.0f)
+					scale[0] = scale[1] = scale[2] = temp;
+				value = ValueForKey(e3, "modelscale_vec");
+				if (value[0] != '\0')
+					sscanf(value, "%f %f %f", &scale[0], &scale[1], &scale[2]);
+
+				vec3_t size;
+				VectorSubtract(m->maxs, m->mins, size);
+				size[0] *= scale[0];
+				size[1] *= scale[1];
+				size[2] *= scale[2];
+				//float maxSize = max(size[0], max(size[1], size[2]));
+				float maxSize = max(size[0], size[1]); // Don't need Z, thats what we are searching for...
+				float radius = maxSize;// / 1.5;
+
+				if (radius < 1024.0) radius = 1024.0;
+
+				//Sys_Printf("%s. mins %f %f %f. maxs %f %f %f. scale %f %f %f. radius %f.\n", model, m->mins[0], m->mins[1], m->mins[2], m->maxs[0], m->maxs[1], m->maxs[2], scale[0], scale[1], scale[2], radius);
+
+				e3->lowestPointNear = LowestMapPointNear(origin, radius, model);
+			}
 		}
 	}
 

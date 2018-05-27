@@ -2713,7 +2713,7 @@ void GenerateLedgeFaces(void)
 			VectorSet(mins, 999999, 999999, 999999);
 			VectorSet(maxs, -999999, -999999, -999999);
 
-			if (RoadExistsAtPoint(ds->verts[0].xyz, 8) || RoadExistsAtPoint(ds->verts[1].xyz, 8) || RoadExistsAtPoint(ds->verts[2].xyz, 8))
+			if (RoadExistsAtPoint(ds->verts[0].xyz, 4) || RoadExistsAtPoint(ds->verts[1].xyz, 4) || RoadExistsAtPoint(ds->verts[2].xyz, 4))
 			{// There's a road here...
 				numLedgesRoadCulled++;
 				continue;
@@ -2804,7 +2804,7 @@ void GenerateLedgeFaces(void)
 			center[1] = (mins[1] + maxs[1]) * 0.5f;
 			center[2] = (mins[2] + maxs[2]) * 0.5f;
 
-			if (RoadExistsAtPoint(center, 8))
+			if (RoadExistsAtPoint(center, 4))
 			{// There's a road here...
 				numLedgesRoadCulled++;
 				continue;
@@ -2994,6 +2994,9 @@ void GenerateLedgeFaces(void)
 				SetKeyValue(mapEnt, "_overrideShader", LEDGE_SHADER);
 			}
 		}
+
+		// Always use origin as the near low point on ledges... They are at low angles...
+		//SetKeyValue(mapEnt, "_originAsLowPoint", "1");
 
 		//Sys_Printf( "Generated cliff face at %f %f %f. Angle %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], ledgeAngles[i][1] );
 
