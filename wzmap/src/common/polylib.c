@@ -56,20 +56,23 @@ winding_t *AllocWinding(int points)
 	winding_t	*w;
 	int			s;
 
-  if (points >= MAX_POINTS_ON_WINDING)
-    Error ("AllocWinding failed: MAX_POINTS_ON_WINDING exceeded");
+	if (points >= MAX_POINTS_ON_WINDING)
+		Error ("AllocWinding failed: MAX_POINTS_ON_WINDING exceeded");
 
-	if( numthreads == 1 )
+#pragma omp critical (__ALLOC_WINDING__)
 	{
-		c_winding_allocs++;
-		c_winding_points += points;
-		c_active_windings++;
-		if (c_active_windings > c_peak_windings)
-			c_peak_windings = c_active_windings;
+		if (numthreads == 1)
+		{
+			c_winding_allocs++;
+			c_winding_points += points;
+			c_active_windings++;
+			if (c_active_windings > c_peak_windings)
+				c_peak_windings = c_active_windings;
+		}
+		s = sizeof(vec_t) * 3 * points + sizeof(int);
+		w = (winding_t *)safe_malloc(s);
+		memset(w, 0, s);
 	}
-	s = sizeof(vec_t)*3*points + sizeof(int);
-	w = (winding_t *)safe_malloc (s);
-	memset (w, 0, s); 
 	return w;
 }
 
@@ -77,10 +80,14 @@ void FreeWinding (winding_t *w)
 {
 	if (*(unsigned *)w == 0xdeaddead)
 		Error ("FreeWinding: freed a freed winding");
-	*(unsigned *)w = 0xdeaddead;
-	if( numthreads == 1 )
-		c_active_windings--;
-	free (w);
+
+#pragma omp critical (__ALLOC_WINDING__)
+	{
+		*(unsigned *)w = 0xdeaddead;
+		if (numthreads == 1)
+			c_active_windings--;
+		free(w);
+	}
 }
 
 /*

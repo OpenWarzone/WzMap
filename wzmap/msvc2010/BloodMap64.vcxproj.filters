@@ -64,6 +64,9 @@
     <Filter Include="TinyImageLoader">
       <UniqueIdentifier>{b6a466b7-fcee-472b-ae9c-0a1e784e156b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\meshOptimization">
+      <UniqueIdentifier>{d5d139cb-e2c2-4afc-ba84-fc988d9737b5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\bspfile_abstract.c">
@@ -399,6 +402,12 @@
     <ClCompile Include="..\src\TinyImageLoader\TinyImageLoader.cpp">
       <Filter>TinyImageLoader</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\VertexCacheOptimize.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\meshOptimization\triListOpt.cpp">
+      <Filter>src\meshOptimization</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\games\darkplaces.h">
@@ -688,6 +697,9 @@
     </ClInclude>
     <ClInclude Include="..\src\TinyImageLoader\TinyImageLoader.h">
       <Filter>TinyImageLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\meshOptimization\triListOpt.h">
+      <Filter>src\meshOptimization</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

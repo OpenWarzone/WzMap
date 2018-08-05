@@ -624,6 +624,8 @@ void MakeEntityMetaTriangles( entity_t *e )
 	/* init pacifier */
 	fOld = -1;
 	start = I_FloatTime();
+
+	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
 	
 	/* walk the list of surfaces in the entity */
 	for( i = e->firstDrawSurf; i < numMapDrawSurfs; i++ )
@@ -642,6 +644,30 @@ void MakeEntityMetaTriangles( entity_t *e )
 		/* meta this surface? */
 		if( ( meta == qfalse && ds->shaderInfo->forceMeta == qfalse ) || ds->shaderInfo->noMeta == qtrue)
 			continue;
+
+		extern qboolean REMOVE_CAULK;
+		extern qboolean StringContainsWord(const char *haystack, const char *needle);
+
+		if (REMOVE_CAULK && ds->shaderInfo && (ds->shaderInfo == caulkShader || StringContainsWord(ds->shaderInfo->shader, "caulk")))
+		{
+			ds->shaderInfo = NULL;
+			ds->type = SURFACE_BAD;
+			continue;
+		}
+
+		if (REMOVE_CAULK && ds->shaderInfo && (ds->shaderInfo->compileFlags & C_SKIP))
+		{
+			ds->shaderInfo = NULL;
+			ds->type = SURFACE_BAD;
+			continue;
+		}
+
+		if (REMOVE_CAULK && ds->shaderInfo && (ds->shaderInfo->compileFlags & C_NODRAW) && !(ds->shaderInfo->compileFlags & C_SOLID))
+		{
+			ds->shaderInfo = NULL;
+			ds->type = SURFACE_BAD;
+			continue;
+		}
 
 		/* switch on type */
 		switch( ds->type )
@@ -1370,11 +1396,16 @@ int AddMetaVertToSurface( mapDrawSurface_t *ds, bspDrawVert_t *dv1, int *coincid
 		return VERTS_EXCEEDED;
 	
 	/* made it this far, add the vert and return */
-	ThreadMutexLock(&AddMetaVertToSurfaceMutex);
-	dv2 = &ds->verts[ ds->numVerts++ ];
-	*dv2 = *dv1;
-	ThreadMutexUnlock(&AddMetaVertToSurfaceMutex);
-	return (ds->numVerts - 1);
+	int total = 0;
+	//ThreadMutexLock(&AddMetaVertToSurfaceMutex);
+#pragma omp critical (__ADD_META_VERT__)
+	{
+		dv2 = &ds->verts[ds->numVerts++];
+		*dv2 = *dv1;
+		total = ds->numVerts - 1;
+	}
+	//ThreadMutexUnlock(&AddMetaVertToSurfaceMutex);
+	return (total);
 }
 
 
@@ -1441,9 +1472,12 @@ static int AddMetaTriangleToSurface( mapDrawSurface_t *ds, metaTriangle_t *tri, 
 	
 	/* attempt to add the verts */
 	coincident = 0;
-	ai = AddMetaVertToSurface( ds, &metaVerts[ tri->indexes[ 0 ] ], &coincident );
-	bi = AddMetaVertToSurface( ds, &metaVerts[ tri->indexes[ 1 ] ], &coincident );
-	ci = AddMetaVertToSurface( ds, &metaVerts[ tri->indexes[ 2 ] ], &coincident );
+//#pragma omp critical (__ADD_META_VERT__)
+	{
+		ai = AddMetaVertToSurface(ds, &metaVerts[tri->indexes[0]], &coincident);
+		bi = AddMetaVertToSurface(ds, &metaVerts[tri->indexes[1]], &coincident);
+		ci = AddMetaVertToSurface(ds, &metaVerts[tri->indexes[2]], &coincident);
+	}
 	
 	/* check vertex underflow */
 	if( ai < 0 || bi < 0 || ci < 0 )
@@ -1576,9 +1610,12 @@ static int AddMetaTriangleToSurface( mapDrawSurface_t *ds, metaTriangle_t *tri, 
 	}
 
 	/* add a side reference */
-	ThreadMutexLock(&AddMetaTriangleToSurfaceMutex);
-	ds->sideRef = AllocSideRef( tri->side, ds->sideRef );
-	ThreadMutexUnlock(&AddMetaTriangleToSurfaceMutex);
+	//ThreadMutexLock(&AddMetaTriangleToSurfaceMutex);
+#pragma omp critical (__ALLOC_SIDEREF__)
+	{
+		ds->sideRef = AllocSideRef(tri->side, ds->sideRef);
+	}
+	//ThreadMutexUnlock(&AddMetaTriangleToSurfaceMutex);
 	
 	/* return to sender */
 	return score;
@@ -1589,9 +1626,7 @@ MetaTrianglesToSurface()
 creates map drawsurface(s) from the list of possibles
 */
 
-uint32_t completedGroups = 0;
-
-static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles/*, bspDrawVert_t *verts, int *indexes*/ )
+static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles, uint32_t completedGroups )
 {
 	int					i;
 
@@ -1599,6 +1634,8 @@ static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles/
 	float groupPercent = singlePercent * completedGroups;
 	int completedPercent = 0;
 	int numCompleted = 0;
+
+	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
 
 	/* walk the list of triangles */
 #pragma omp parallel for ordered num_threads(numthreads)
@@ -1622,6 +1659,15 @@ static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles/
 		/* skip this triangle if it has already been merged */
 		if( seed->si == NULL )
 			continue;
+
+		extern qboolean REMOVE_CAULK;
+		extern qboolean StringContainsWord(const char *haystack, const char *needle);
+
+		if (REMOVE_CAULK && (seed->si == caulkShader || StringContainsWord(seed->si->shader, "caulk")))
+		{
+			seed->si = NULL;
+			continue;
+		}
 		
 		/* -----------------------------------------------------------------
 		   initial drawsurf construction
@@ -1742,7 +1788,7 @@ static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles/
 			}
 		}
 
-//#pragma omp critical (__META_COPY_VERTS__)
+#pragma omp critical (__META_COPY_VERTS__)
 		{
 			/* copy the verts and indexes to the new surface */
 			ds->verts = (bspDrawVert_t *)safe_malloc(ds->numVerts * sizeof(bspDrawVert_t));
@@ -1753,7 +1799,7 @@ static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles/
 
 		/* classify the surface */
 		ClassifySurfaces( 1, ds );
-		
+
 		/* add to count */
 		numMergedSurfaces++;
 
@@ -1934,15 +1980,43 @@ void GroupMetaTriangles( void )
 	Sys_Printf( "%9d groups\n", numMetaTriangleGroups );
 	Sys_Printf( "%9d max triangles in group\n", maxMetaTrianglesInGroup );
 
+	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
+
 	/* print out large groups (helps to optimize shaders) */
 	for( i = 0; i < numMetaTriangleGroups; i++)
 	{
 		group = &metaTriangleGroups[ i ];
-		
-		if ( group->numTriangles > 500 )
+
+		extern qboolean REMOVE_CAULK;
+		extern qboolean StringContainsWord(const char *haystack, const char *needle);
+
+		head = &metaTriangles[group->firstTriangle];
+
+		if (REMOVE_CAULK && head->si && (head->si == caulkShader || StringContainsWord(head->si->shader, "caulk")))
 		{
-			head = &metaTriangles[ group->firstTriangle ];
-			Sys_FPrintf( SYS_VRB, "          ent#%i %s - %i tris\n", head->entityNum, (head->si != NULL) ? head->si->shader : "noshader", group->numTriangles );
+			Sys_FPrintf(SYS_STD, "          ent#%i %s - %i tris - REMOVED (CAULK)!\n", head->entityNum, (head->si != NULL) ? head->si->shader : "noshader", group->numTriangles);
+			head->si = NULL;
+			continue;
+		}
+
+		if (REMOVE_CAULK && head->si && (head->si->compileFlags & C_SKIP))
+		{
+			Sys_FPrintf(SYS_STD, "          ent#%i %s - %i tris - REMOVED (C_SKIP)!\n", head->entityNum, (head->si != NULL) ? head->si->shader : "noshader", group->numTriangles);
+			head->si = NULL;
+			continue;
+		}
+
+		if (REMOVE_CAULK && head->si && (head->si->compileFlags & C_NODRAW) && !(head->si->compileFlags & C_SOLID))
+		{
+			Sys_FPrintf(SYS_STD, "          ent#%i %s - %i tris - REMOVED (C_NODRAW & !C_SOLID)!\n", head->entityNum, (head->si != NULL) ? head->si->shader : "noshader", group->numTriangles);
+			head->si = NULL;
+			continue;
+		}
+		
+		//if ( group->numTriangles > 500 )
+		{
+			Sys_FPrintf(SYS_STD, "          ent#%i %s - %i tris\n", head->entityNum, (head->si != NULL) ? head->si->shader : "noshader", group->numTriangles );
+			continue;
 		}
 	}
 }
@@ -1955,39 +2029,40 @@ thread function for MergeMetaTriangles
 void MergeMetaTrianglesThread( int threadnum )
 {
 	int work, i;
-	metaTriangleGroup_t *group;
-	metaTriangle_t *head;
-	bspDrawVert_t *verts;
-	int *indexes;
 
-	/* allocate arrays */
-	//verts = (bspDrawVert_t *)safe_malloc( sizeof( *verts ) * maxMetaTrianglesInGroup * 3 );
-	//indexes = (int *)safe_malloc( sizeof( *indexes ) * maxMetaTrianglesInGroup * 3 );
+	uint32_t completedGroups = 0;
+
+	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
 
 	/* cycle */
 	while( (work = GetThreadWork()) >= 0 )
 	{
 		/* get group */
-		group = &metaTriangleGroups[ work ];
+		metaTriangleGroup_t *group = &metaTriangleGroups[ work ];
 
 		/* find out surfaces */
 		for( i = group->firstTriangle; i < group->nextTriangle; i++ )
 		{
 			/* get head of list */
-			head = &metaTriangles[ i ];
+			metaTriangle_t *head = &metaTriangles[ i ];
 			
 			/* skip this triangle if it has already been merged */
 			if( head->si == NULL )
 				continue;
 
+			extern qboolean REMOVE_CAULK;
+			extern qboolean StringContainsWord(const char *haystack, const char *needle);
+
+			if (REMOVE_CAULK && (head->si == caulkShader || StringContainsWord(head->si->shader, "caulk")))
+			{
+				head->si = NULL;
+				continue;
+			}
+
 			/* try to merge this list of possible merge candidates */
-			MetaTrianglesToSurface( (group->nextTriangle - i), head/*, verts, indexes*/ );
+			MetaTrianglesToSurface( (group->nextTriangle - i), head, completedGroups);
 		}
 	}
-
-	/* free arrays */
-	//free( verts );
-	//free( indexes );
 }
 
 /*
@@ -2023,7 +2098,7 @@ void MergeMetaTriangles( void )
 	/* note it */
 	Sys_PrintHeadingVerbose( "--- MergeMetaTriangles ---\n" );
 
-	completedGroups = 0;
+	//completedGroups = 0;
 
 	/* run threaded */
 	/* vortex: real threaded implemetation is still crashy */

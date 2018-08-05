@@ -115,8 +115,11 @@ void LerpDrawVertAmount( bspDrawVert_t *a, bspDrawVert_t *b, float amount, bspDr
 
 
 void FreeMesh( mesh_t *m ) {
-	free( m->verts );
-	free( m );
+#pragma omp critical (__ALLOC__)
+	{
+		free(m->verts);
+		free(m);
+	}
 }
 
 void PrintMesh( mesh_t *m ) {

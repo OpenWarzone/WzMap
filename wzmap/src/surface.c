@@ -2394,8 +2394,12 @@ void EmitDrawVerts( mapDrawSurface_t *ds, bspDrawSurface_t *out, int bspModelNum
 		/* allocate a new vert */
 		if( numBSPDrawVerts == MAX_MAP_DRAW_VERTS )
 			Error( "MAX_MAP_DRAW_VERTS" );
-		IncDrawVerts();
-		dv = &bspDrawVerts[ numBSPDrawVerts - 1 ];
+
+#pragma omp critical (__EMIT_DRAW_VERTS__)
+		{
+			IncDrawVerts();
+			dv = &bspDrawVerts[numBSPDrawVerts - 1];
+		}
 		
 		/* copy it */
 		memcpy( dv, &ds->verts[ i ], sizeof( *dv ) );
@@ -2510,26 +2514,30 @@ void EmitDrawIndexes( mapDrawSurface_t *ds, bspDrawSurface_t *out )
 		{
 			if( numBSPDrawIndexes == MAX_MAP_DRAW_INDEXES )
 				Sys_Error( "MAX_MAP_DRAW_INDEXES (%d) exceeded", MAX_MAP_DRAW_INDEXES );
-			bspDrawIndexes[ numBSPDrawIndexes ] = ds->indexes[ i ];
 
-			/* validate the index */
-			if( ds->type != SURFACE_PATCH )
+#pragma omp critical (__EMIT_DRAW_INDEXES__)
 			{
-				if( bspDrawIndexes[ numBSPDrawIndexes ] < 0 || bspDrawIndexes[ numBSPDrawIndexes ] >= ds->numVerts )
+				bspDrawIndexes[numBSPDrawIndexes] = ds->indexes[i];
+
+				/* validate the index */
+				if (ds->type != SURFACE_PATCH)
 				{
-					int max = ds->numVerts;
-					vec3_t p[256];
-					if( max > 256 )
-						max = 256;
-					for ( i = 0 ; i < max ; i++ )
-						VectorCopy( ds->verts[i].xyz, p[i] );
-					Sys_Warning( p, max, "Drawsurface %d %s has invalid index %d (%d)\n", numBSPDrawSurfaces, ds->shaderInfo->shader, bspDrawIndexes[ numBSPDrawIndexes ], i );
-					bspDrawIndexes[ numBSPDrawIndexes ] = 0;
+					if (bspDrawIndexes[numBSPDrawIndexes] < 0 || bspDrawIndexes[numBSPDrawIndexes] >= ds->numVerts)
+					{
+						int max = ds->numVerts;
+						vec3_t p[256];
+						if (max > 256)
+							max = 256;
+						for (i = 0; i < max; i++)
+							VectorCopy(ds->verts[i].xyz, p[i]);
+						Sys_Warning(p, max, "Drawsurface %d %s has invalid index %d (%d)\n", numBSPDrawSurfaces, ds->shaderInfo->shader, bspDrawIndexes[numBSPDrawIndexes], i);
+						bspDrawIndexes[numBSPDrawIndexes] = 0;
+					}
 				}
+
+				/* increment index count */
+				numBSPDrawIndexes++;
 			}
-			
-			/* increment index count */
-			numBSPDrawIndexes++;
 		}
 	}
 }
@@ -2559,9 +2567,14 @@ void EmitFlareSurface( mapDrawSurface_t *ds )
 	/* allocate a new surface */
 	if( numBSPDrawSurfaces == MAX_MAP_DRAW_SURFS )
 		Error( "MAX_MAP_DRAW_SURFS" );
-	out = &bspDrawSurfaces[ numBSPDrawSurfaces ];
-	ds->outputNum = numBSPDrawSurfaces;
-	numBSPDrawSurfaces++;
+
+#pragma omp critical (__EMIT_DRAWSURF__)
+	{
+		out = &bspDrawSurfaces[numBSPDrawSurfaces];
+		ds->outputNum = numBSPDrawSurfaces;
+		numBSPDrawSurfaces++;
+	}
+
 	memset( out, 0, sizeof( *out ) );
 	
 	/* set it up */
@@ -2649,9 +2662,13 @@ void EmitPatchSurface( entity_t *e, mapDrawSurface_t *ds )
 	/* allocate a new surface */
 	if( numBSPDrawSurfaces == MAX_MAP_DRAW_SURFS )
 		Error( "MAX_MAP_DRAW_SURFS" );
-	out = &bspDrawSurfaces[ numBSPDrawSurfaces ];
-	ds->outputNum = numBSPDrawSurfaces;
-	numBSPDrawSurfaces++;
+
+#pragma omp critical (__EMIT_DRAWSURF__)
+	{
+		out = &bspDrawSurfaces[numBSPDrawSurfaces];
+		ds->outputNum = numBSPDrawSurfaces;
+		numBSPDrawSurfaces++;
+	}
 	memset( out, 0, sizeof( *out ) );
 
 	/* set it up */
@@ -2721,10 +2738,11 @@ OptimizeTriangleSurface() - ydnar
 optimizes the vertex/index data in a triangle surface
 */
 
-#define VERTEX_CACHE_SIZE 1024 /* vortex: was 16 */
+#define VERTEX_CACHE_SIZE 64/*1024*/ /* vortex: was 16 */
 
 static void OptimizeTriangleSurface( mapDrawSurface_t *ds )
 {
+#if 0 // UQ1: Now already done...
 	int		i, j, k, temp, first, best, bestScore, score;
 	int		vertexCache[ VERTEX_CACHE_SIZE + 1 ];	/* one more for optimizing insert */
 	int		*indexes;
@@ -2830,8 +2848,8 @@ static void OptimizeTriangleSurface( mapDrawSurface_t *ds )
 	
 	/* clean up */
 	free( indexes );
+#endif
 }
-
 
 
 /*
@@ -2866,9 +2884,14 @@ static void EmitTriangleSurface( mapDrawSurface_t *ds )
 	/* allocate a new surface */
 	if( numBSPDrawSurfaces == MAX_MAP_DRAW_SURFS )
 		Error( "MAX_MAP_DRAW_SURFS" );
-	out = &bspDrawSurfaces[ numBSPDrawSurfaces ];
-	ds->outputNum = numBSPDrawSurfaces;
-	numBSPDrawSurfaces++;
+
+#pragma omp critical (__EMIT_DRAWSURF__)
+	{
+		out = &bspDrawSurfaces[numBSPDrawSurfaces];
+		ds->outputNum = numBSPDrawSurfaces;
+		numBSPDrawSurfaces++;
+	}
+
 	memset( out, 0, sizeof( *out ) );
 	
 	/* ydnar/sd: handle wolf et foliage surfaces */
@@ -3936,7 +3959,7 @@ void FilterDrawsurfsIntoTree( entity_t *e, tree_t *tree, qboolean showpacifier )
 		/* ydnar: skybox surfaces are special */
 		if( ds->skybox )
 		{
-#pragma omp critical (__EMIT__)
+#pragma omp critical (__ADD_REF_TO_TREE__)
 			{
 				refs = AddReferenceToTree_r(ds, tree->headnode, qtrue);
 			}

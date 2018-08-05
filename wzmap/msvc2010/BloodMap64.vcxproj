@@ -302,6 +302,20 @@
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <OpenMPSupport>true</OpenMPSupport>
+    </ClCompile>
+    <Link>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\brush.c" />
     <ClCompile Include="..\src\brush_primit.c" />
@@ -326,6 +340,7 @@
     <ClCompile Include="..\src\decorations.c" />
     <ClCompile Include="..\src\facebsp.c" />
     <ClCompile Include="..\src\fog.c" />
+    <ClCompile Include="..\src\meshOptimization\triListOpt.cpp" />
     <ClCompile Include="..\src\proceduralGeneration.c" />
     <ClCompile Include="..\src\gldraw.c" />
     <ClCompile Include="..\src\image.c" />
@@ -411,6 +426,7 @@
     <ClCompile Include="..\src\TinyImageLoader\TinyImageLoader.cpp" />
     <ClCompile Include="..\src\tjunction.c" />
     <ClCompile Include="..\src\tree.c" />
+    <ClCompile Include="..\src\VertexCacheOptimize.c" />
     <ClCompile Include="..\src\vis.c" />
     <ClCompile Include="..\src\visflow.c" />
     <ClCompile Include="..\src\writebsp.c" />
@@ -455,6 +471,7 @@
     <ClInclude Include="..\src\meshdecimation\mdMeshDecimator.h" />
     <ClInclude Include="..\src\meshdecimation\mdSArray.h" />
     <ClInclude Include="..\src\meshdecimation\mdVector.h" />
+    <ClInclude Include="..\src\meshOptimization\triListOpt.h" />
     <ClInclude Include="..\src\meshsimplification\simplify.h" />
     <ClInclude Include="..\src\nav.h" />
     <ClInclude Include="..\src\navgen.h" />

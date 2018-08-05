@@ -93,6 +93,7 @@ qboolean		USE_LODMODEL = qfalse;
 qboolean		FORCED_STRUCTURAL = qfalse;
 qboolean		FORCED_MODEL_META = qfalse;
 qboolean		CAULKIFY_CRAP = qfalse;
+qboolean		REMOVE_CAULK = qfalse;
 qboolean		CULLSIDES_AFTER_MODEL_ADITION = qfalse;
 qboolean		USE_CONVEX_HULL_MODELS = qfalse;
 float			MAP_ROAD_SCAN_WIDTH_MULTIPLIER = 1.0;
@@ -102,11 +103,13 @@ float			CLIFF_FACES_SCALE = 1.0;
 qboolean		CLIFF_FACES_SCALE_XY = qfalse;
 float			CLIFF_FACES_CULL_MULTIPLIER = 1.0;
 qboolean		CLIFF_CHEAP = qfalse;
+int				CLIFF_PLANE_SNAP = 0;
 char			CLIFF_SHADER[MAX_QPATH] = { 0 };
 char			CLIFF_CHECK_SHADER[MAX_QPATH] = { 0 };
 qboolean		ADD_LEDGE_FACES = qfalse;
 float			LEDGE_FACES_SCALE = 1.0;
 qboolean		LEDGE_FACES_SCALE_XY = qfalse;
+int				LEDGE_PLANE_SNAP = 0;
 float			LEDGE_FACES_CULL_MULTIPLIER = 1.0;
 float			LEDGE_MIN_SLOPE = 22.0;
 float			LEDGE_MAX_SLOPE = 28.0;
@@ -124,6 +127,8 @@ float			TREE_FORCED_BUFFER_DISTANCE[MAX_FOREST_MODELS] = { 0.0 };
 float			TREE_FORCED_DISTANCE_FROM_SAME[MAX_FOREST_MODELS] = { 0.0 };
 char			TREE_FORCED_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 qboolean		TREE_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { qfalse };
+float			TREE_ROADSCAN_MULTIPLIER[MAX_FOREST_MODELS] = { 0.0 };
+int				TREE_PLANE_SNAP[MAX_FOREST_MODELS] = { 8 };
 qboolean		TREE_USE_ORIGIN_AS_LOWPOINT[MAX_FOREST_MODELS] = { qfalse };
 int				TREE_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 2 };
 qboolean		ADD_CITY_ROADS = qfalse;
@@ -144,21 +149,26 @@ char			CITY_MODELS[MAX_FOREST_MODELS][128] = { 0 };
 float			CITY_OFFSETS[MAX_FOREST_MODELS] = { -4.0 };
 float			CITY_SCALES[MAX_FOREST_MODELS] = { 1.0 };
 qboolean		CITY_CENTRAL_ONCE[MAX_FOREST_MODELS] = { qfalse };
+qboolean		CITY_ALLOW_ROAD[MAX_FOREST_MODELS] = { qfalse };
 float			CITY_FORCED_MAX_ANGLE[MAX_FOREST_MODELS] = { 0.0 };
 float			CITY_FORCED_BUFFER_DISTANCE[MAX_FOREST_MODELS] = { 0.0 };
 float			CITY_FORCED_DISTANCE_FROM_SAME[MAX_FOREST_MODELS] = { 0.0 };
 char			CITY_FORCED_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 int				CITY_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { 0 };
+int				CITY_PLANE_SNAP[MAX_FOREST_MODELS] = { 0 };
 int				CITY_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 2 };
 
 qboolean		ADD_SKYSCRAPERS = qfalse;
-vec3_t			CITY_CENTER = { 0 };
+vec3_t			SKYSCRAPERS_CENTER = { 0 };
+float			SKYSCRAPERS_RADIUS = 0;
+int				SKYSCRAPERS_PLANE_SNAP = 0;
 
 char			STATIC_MODEL[MAX_STATIC_ENTITY_MODELS][128] = { 0 };
 vec3_t			STATIC_ORIGIN[MAX_STATIC_ENTITY_MODELS] = { 0 };
 float			STATIC_ANGLE[MAX_STATIC_ENTITY_MODELS] = { 0 };
 float			STATIC_SCALE[MAX_STATIC_ENTITY_MODELS] = { 0 };
 int				STATIC_ALLOW_SIMPLIFY[MAX_STATIC_ENTITY_MODELS] = { 2 };
+int				STATIC_PLANE_SNAP[MAX_STATIC_ENTITY_MODELS] = { 0 };
 
 #define MAP_INFO_TRACEMAP_SIZE 2048
 
@@ -440,7 +450,7 @@ void FindWaterLevel(void)
 {
 	if (MAP_WATER_LEVEL > -999999.0)
 	{// Forced by climate ini file...
-		Sys_Printf("Climate specified map water level at %f.\n", MAP_WATER_LEVEL);
+		Sys_Printf("Climate specified map water level at %.4f.\n", MAP_WATER_LEVEL);
 		return;
 	}
 
@@ -465,7 +475,7 @@ void FindWaterLevel(void)
 
 			if (si->compileFlags & C_LIQUID)
 			{
-				//Sys_Printf("Water level set to %f. 2 set to %f.\n", ds->mins[2], waterLevel);
+				//Sys_Printf("Water level set to %.4f. 2 set to %.4f.\n", ds->mins[2], waterLevel);
 				waterLevel2 = waterLevel;
 				waterLevel = ds->mins[2];
 				continue;
@@ -473,7 +483,7 @@ void FindWaterLevel(void)
 			
 			if (StringContainsWord(si->shader, "water"))
 			{
-				//Sys_Printf("Water level set to %f. 2 set to %f.\n", ds->mins[2], waterLevel);
+				//Sys_Printf("Water level set to %.4f. 2 set to %.4f.\n", ds->mins[2], waterLevel);
 				waterLevel2 = waterLevel;
 				waterLevel = ds->mins[2];
 				continue;
@@ -494,7 +504,7 @@ void FindWaterLevel(void)
 
 	MAP_WATER_LEVEL = waterLevel;
 
-	Sys_Printf("Detected lowest map water level at %f.\n", MAP_WATER_LEVEL);
+	Sys_Printf("Detected lowest map water level at %.4f.\n", MAP_WATER_LEVEL);
 }
 
 void CaulkifyStuff(qboolean findBounds);
@@ -509,7 +519,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	if (MAP_WATER_LEVEL > -999999.0)
 	{
-		Sys_Printf("Forcing map water level to %f.\n", MAP_WATER_LEVEL);
+		Sys_Printf("Forcing map water level to %.4f.\n", MAP_WATER_LEVEL);
 	}
 
 	USE_LODMODEL = (qboolean)atoi(IniRead(filename, "GENERAL", "useLodModel", "0"));
@@ -540,6 +550,13 @@ void FOLIAGE_LoadClimateData( char *filename )
 		Sys_Printf("Caulkifying some map unneeded surfaces.\n");
 	}
 
+	REMOVE_CAULK = (atoi(IniRead(filename, "GENERAL", "removeCaulk", "0")) > 0) ? qtrue : qfalse;
+
+	if (REMOVE_CAULK)
+	{
+		Sys_Printf("Removing all caulk surfaces from bsp.\n");
+	}
+
 	CULLSIDES_AFTER_MODEL_ADITION = (qboolean)atoi(IniRead(filename, "GENERAL", "cullSidesAfterModelAddition", "0"));
 
 	if (CULLSIDES_AFTER_MODEL_ADITION)
@@ -559,7 +576,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 	}
 
 	MAP_ROAD_SCAN_WIDTH_MULTIPLIER = atof(IniRead(filename, "GENERAL", "roadScanWidthMultiplier", "1.0"));
-	Sys_Printf("Roads scan width is %f.\n", MAP_ROAD_SCAN_WIDTH_MULTIPLIER);
+	Sys_Printf("Roads scan width is %.4f.\n", MAP_ROAD_SCAN_WIDTH_MULTIPLIER);
 
 	//
 	// Cliffs...
@@ -597,6 +614,13 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	CLIFF_FACES_SCALE_XY = (qboolean)atoi(IniRead(filename, "CLIFFS", "cliffScaleOnlyXY", "0"));
 	CLIFF_CHEAP = (qboolean)atoi(IniRead(filename, "CLIFFS", "cheapCliffs", "0"));
+	
+	CLIFF_PLANE_SNAP = atoi(IniRead(filename, "CLIFFS", "cliffPlaneSnap", "16"));
+
+	if (CLIFF_PLANE_SNAP > 0)
+	{
+		Sys_Printf("Snapping cliff planes to %i units.\n", CLIFF_PLANE_SNAP);
+	}
 
 	//
 	// Ledges...
@@ -635,6 +659,12 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	LEDGE_FACES_SCALE_XY = (qboolean)atoi(IniRead(filename, "LEDGES", "ledgeScaleOnlyXY", "0"));
 
+	LEDGE_PLANE_SNAP = atoi(IniRead(filename, "LEDGES", "ledgePlaneSnap", "8"));
+
+	if (LEDGE_PLANE_SNAP > 0)
+	{
+		Sys_Printf("Snapping ledge planes to %i units.\n", LEDGE_PLANE_SNAP);
+	}
 
 
 	//
@@ -646,7 +676,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	TREE_PERCENTAGE = atof(IniRead(filename, "TREES", "treeAssignPercent", "100"));
 
-	//Sys_Printf("Tree scale for this climate is %f.\n", TREE_SCALE_MULTIPLIER);
+	//Sys_Printf("Tree scale for this climate is %.4f.\n", TREE_SCALE_MULTIPLIER);
 
 	TREE_CLIFF_CULL_RADIUS = atof(IniRead(filename, "TREES", "cliffFacesCullScale", "1.0"));
 
@@ -662,9 +692,11 @@ void FOLIAGE_LoadClimateData( char *filename )
 		TREE_ALLOW_SIMPLIFY[i] = atoi(IniRead(filename, "TREES", va("treeAllowSimplify%i", i), "2"));
 		TREE_USE_ORIGIN_AS_LOWPOINT[i] = (qboolean)atoi(IniRead(filename, "TREES", va("treeUseOriginAsLowPoint%i", i), "0"));
 		strcpy(TREE_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "TREES", va("overrideShader%i", i), ""));
+		TREE_PLANE_SNAP[i] = atoi(IniRead(filename, "TREES", va("treePlaneSnap%i", i), "4"));
+		TREE_ROADSCAN_MULTIPLIER[i] = atof(IniRead(filename, "TREES", va("treeRoadScanMultiplier%i", i), "1.0"));
 
 		if (strcmp(TREE_MODELS[i], ""))
-			Sys_Printf("Tree %i. Model %s. Offset %f. Scale %f. MaxAngle %i. BufferDist %f. InstanceDist %f. ForcedSolid: %s. Shader: %s.\n", i, TREE_MODELS[i], TREE_OFFSETS[i], TREE_SCALES[i], TREE_FORCED_MAX_ANGLE[i], TREE_FORCED_BUFFER_DISTANCE[i], TREE_FORCED_DISTANCE_FROM_SAME[i], TREE_FORCED_FULLSOLID[i] ? "true" : "false", TREE_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? TREE_FORCED_OVERRIDE_SHADER[i] : "Default");
+			Sys_Printf("Tree %i. Model %s. Offset %.4f. Scale %.4f. MaxAngle %i. Buffer %.4f. InstanceDist %.4f. ForceSolid: %s. PlaneSnap: %i. Shader: %s. RoadScale %.4f.\n", i, TREE_MODELS[i], TREE_OFFSETS[i], TREE_SCALES[i], TREE_FORCED_MAX_ANGLE[i], TREE_FORCED_BUFFER_DISTANCE[i], TREE_FORCED_DISTANCE_FROM_SAME[i], TREE_FORCED_FULLSOLID[i] ? "true" : "false", TREE_PLANE_SNAP[i], TREE_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? TREE_FORCED_OVERRIDE_SHADER[i] : "Default", TREE_ROADSCAN_MULTIPLIER[i]);
 	}
 
 	// Read all the tree info from the new .climate ini files...
@@ -679,7 +711,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	VectorSet(CITY_LOCATION, CITY_LOCATION_X, CITY_LOCATION_Y, CITY_LOCATION_Z);
 
-	//Sys_Printf("Building scale for this climate is %f.\n", CITY_SCALE_MULTIPLIER);
+	//Sys_Printf("Building scale for this climate is %.4f.\n", CITY_SCALE_MULTIPLIER);
 
 	if (VectorLength(CITY_LOCATION) != 0.0)
 	{
@@ -693,15 +725,17 @@ void FOLIAGE_LoadClimateData( char *filename )
 			CITY_OFFSETS[i] = atof(IniRead(filename, "CITY", va("cityZoffset%i", i), "-4.0"));
 			CITY_SCALES[i] = atof(IniRead(filename, "CITY", va("cityScale%i", i), "1.0"));
 			CITY_CENTRAL_ONCE[i] = (qboolean)atoi(IniRead(filename, "CITY", va("cityCentralOneOnly%i", i), "0"));
+			CITY_ALLOW_ROAD[i] = (qboolean)atoi(IniRead(filename, "CITY", va("cityAllowOnRoad%i", i), "0"));
 			CITY_FORCED_MAX_ANGLE[i] = atof(IniRead(filename, "CITY", va("cityForcedMaxAngle%i", i), "0.0"));
 			CITY_FORCED_BUFFER_DISTANCE[i] = atof(IniRead(filename, "CITY", va("cityForcedBufferDistance%i", i), "0.0"));
 			CITY_FORCED_DISTANCE_FROM_SAME[i] = atof(IniRead(filename, "CITY", va("cityForcedDistanceFromSame%i", i), "0.0"));
 			CITY_FORCED_FULLSOLID[i] = atoi(IniRead(filename, "CITY", va("cityForcedFullSolid%i", i), "0"));
 			CITY_ALLOW_SIMPLIFY[i] = atoi(IniRead(filename, "CITY", va("cityAllowSimplify%i", i), "2"));
 			strcpy(CITY_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "CITY", va("overrideShader%i", i), ""));
+			CITY_PLANE_SNAP[i] = atoi(IniRead(filename, "CITY", va("cityPlaneSnap%i", i), "4"));
 
 			if (strcmp(CITY_MODELS[i], ""))
-				Sys_Printf("Building %i. Model %s. Offset %f. Scale %f. MaxAngle %i. BufferDist %f. InstanceDist %f. ForcedSolid: %s. Shader: %s. OneOnly: %s.\n", i, CITY_MODELS[i], CITY_OFFSETS[i], CITY_SCALES[i], (int)CITY_FORCED_MAX_ANGLE[i], CITY_FORCED_BUFFER_DISTANCE[i], CITY_FORCED_DISTANCE_FROM_SAME[i], CITY_FORCED_FULLSOLID[i] ? "true" : "false", CITY_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? CITY_FORCED_OVERRIDE_SHADER[i] : "Default", CITY_CENTRAL_ONCE[i] ? "true" : "false");
+				Sys_Printf("Building %i. Model %s. Offset %.4f. Scale %.4f. MaxAngle %i. BufferDist %.4f. InstanceDist %.4f. ForcedSolid: %s. Plane Snap: %i. Shader: %s. OneOnly: %s. AllowRoad: %s.\n", i, CITY_MODELS[i], CITY_OFFSETS[i], CITY_SCALES[i], (int)CITY_FORCED_MAX_ANGLE[i], CITY_FORCED_BUFFER_DISTANCE[i], CITY_FORCED_DISTANCE_FROM_SAME[i], CITY_FORCED_FULLSOLID[i] ? "true" : "false", CITY_PLANE_SNAP[i], CITY_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? CITY_FORCED_OVERRIDE_SHADER[i] : "Default", CITY_CENTRAL_ONCE[i] ? "true" : "false", CITY_ALLOW_ROAD[i] ? "true" : "false");
 		}
 	}
 
@@ -759,9 +793,10 @@ void FOLIAGE_LoadClimateData( char *filename )
 		STATIC_SCALE[i] = atof(IniRead(filename, "STATIC", va("staticScale%i", i), "1.0"));
 		STATIC_ANGLE[i] = atof(IniRead(filename, "STATIC", va("staticAngle%i", i), "0.0"));
 		STATIC_ALLOW_SIMPLIFY[i] = (qboolean)atoi(IniRead(filename, "STATIC", va("staticAllowSimplify%i", i), "2"));
+		STATIC_PLANE_SNAP[i] = atoi(IniRead(filename, "STATIC", va("staticPlaneSnap%i", i), "4"));
 
 		if (strcmp(STATIC_MODEL[i], ""))
-			Sys_Printf("Static %i. Model %s. Origin %i %i %i. Angle %f. Scale %f.\n", i, STATIC_MODEL[i], (int)STATIC_ORIGIN[i][0], (int)STATIC_ORIGIN[i][1], (int)STATIC_ORIGIN[i][2], (float)STATIC_ANGLE[i], (float)STATIC_SCALE[i]);
+			Sys_Printf("Static %i. Model %s. Origin %i %i %i. Angle %.4f. Scale %.4f. Plane Snap: %i.\n", i, STATIC_MODEL[i], (int)STATIC_ORIGIN[i][0], (int)STATIC_ORIGIN[i][1], (int)STATIC_ORIGIN[i][2], (float)STATIC_ANGLE[i], (float)STATIC_SCALE[i], STATIC_PLANE_SNAP[i]);
 	}
 
 	//
@@ -770,10 +805,14 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	ADD_SKYSCRAPERS = (qboolean)atoi(IniRead(filename, "SKYSCRAPERS", "addSkyscrapers", "0"));
 
-	float CITY_CENTER_X = atof(IniRead(filename, "SKYSCRAPERS", "cityCenterX", "0"));
-	float CITY_CENTER_Y = atof(IniRead(filename, "SKYSCRAPERS", "cityCenterY", "0"));
+	float SKYSCRAPERS_CENTER_X = atof(IniRead(filename, "SKYSCRAPERS", "cityCenterX", "0"));
+	float SKYSCRAPERS_CENTER_Y = atof(IniRead(filename, "SKYSCRAPERS", "cityCenterY", "0"));
+	
+	SKYSCRAPERS_RADIUS = atof(IniRead(filename, "SKYSCRAPERS", "cityRadius", "0"));
 
-	VectorSet(CITY_CENTER, CITY_CENTER_X, CITY_CENTER_Y, 0.0);
+	SKYSCRAPERS_PLANE_SNAP = atoi(IniRead(filename, "SKYSCRAPERS", "cityPlaneSnap", "8"));
+
+	VectorSet(SKYSCRAPERS_CENTER, SKYSCRAPERS_CENTER_X, SKYSCRAPERS_CENTER_Y, 0.0);
 
 	//
 	// Pre-load all models, and generate/load convex hull collision meshes...
@@ -929,7 +968,7 @@ void CaulkifyStuff(qboolean findBounds)
 				&& !StringContainsWord(si->shader, "common/water"))
 			{
 				//if (!StringContainsWord(si->shader, "/sand"))
-				//Sys_Printf("ds %i [%s] bounds %f %f %f x %f %f %f.\n", s, si->shader, ds->mins[0], ds->mins[1], ds->mins[2], ds->maxs[0], ds->maxs[1], ds->maxs[2]);
+				//Sys_Printf("ds %i [%s] bounds %.4f %.4f %.4f x %.4f %.4f %.4f.\n", s, si->shader, ds->mins[0], ds->mins[1], ds->mins[2], ds->maxs[0], ds->maxs[1], ds->maxs[2]);
 				AddPointToBounds(ds->mins, mapPlayableMins, mapPlayableMaxs);
 				AddPointToBounds(ds->maxs, mapPlayableMins, mapPlayableMaxs);
 			}
@@ -938,14 +977,46 @@ void CaulkifyStuff(qboolean findBounds)
 		// Override playable maxs height with the full map version, we only want the lower extent of playable area...
 		mapMaxs[2] = mapPlayableMaxs[2];
 
-		Sys_Printf("Old map bounds %f %f %f x %f %f %f.\n", oldMapPlayableMins[0], oldMapPlayableMins[1], oldMapPlayableMins[2], oldMapPlayableMaxs[0], oldMapPlayableMaxs[1], oldMapPlayableMaxs[2]);
-		Sys_Printf("New map bounds %f %f %f x %f %f %f.\n", mapPlayableMins[0], mapPlayableMins[1], mapPlayableMins[2], mapPlayableMaxs[0], mapPlayableMaxs[1], mapPlayableMaxs[2]);
+		Sys_Printf("Old map bounds %.4f %.4f %.4f x %.4f %.4f %.4f.\n", oldMapPlayableMins[0], oldMapPlayableMins[1], oldMapPlayableMins[2], oldMapPlayableMaxs[0], oldMapPlayableMaxs[1], oldMapPlayableMaxs[2]);
+		Sys_Printf("New map bounds %.4f %.4f %.4f x %.4f %.4f %.4f.\n", mapPlayableMins[0], mapPlayableMins[1], mapPlayableMins[2], mapPlayableMaxs[0], mapPlayableMaxs[1], mapPlayableMaxs[2]);
 	}
 
 	Sys_Printf("%d shaders set to nodraw.\n", numNoDrawAdded);
 	Sys_Printf("%d shaders set to skip.\n", numSkipAdded);
 	Sys_Printf("%d of %d surfaces were caulkified.\n", numCalkified, numMapDrawSurfs);
 }
+
+qboolean MapEntityNear(vec3_t origin)
+{
+	for (int i = 0; i < numEntities; i++)
+	{
+		entity_t *entity = &entities[i];
+
+		if (!entity) continue;
+
+		/* register class */
+		const char *classname = ValueForKey(entity, "classname");
+
+		/* register model */
+		/*if (!strcmp(classname, "info_player_start")
+		|| !strcmp(classname, "info_player_start_blue")
+		|| !strcmp(classname, "info_player_start_red")
+		|| !strcmp(classname, "info_player_start")
+		|| !strcmp(classname, "info_player_start")
+		|| !strcmp(classname, "info_player_start"))
+		{
+
+		}*/
+
+		if (Distance(origin, entity->origin) <= 256.0)
+		{
+			return qtrue;
+		}
+	}
+
+	return qfalse;
+}
+
 
 #define			FOLIAGE_MAX_FOLIAGES 2097152
 
@@ -1150,7 +1221,7 @@ void GenerateCliffFaces(void)
 				pitch += 90.0f;
 
 				//if ((pitch > 80.0 && pitch < 100.0) || (pitch < -80.0 && pitch > -100.0))
-				//	Sys_Printf("pitch %f.\n", pitch);
+				//	Sys_Printf("pitch %.4f.\n", pitch);
 
 #define MIN_CLIFF_SLOPE 46.0
 				if (pitch == 180.0 || pitch == -180.0)
@@ -1228,7 +1299,7 @@ void GenerateCliffFaces(void)
 				continue;
 			}
 
-			//Sys_Printf("cliff found at %f %f %f. angles0 %f %f %f. angles1 %f %f %f. angles2 %f %f %f.\n", center[0], center[1], center[2], angles[0][0], angles[0][1], angles[0][2], angles[1][0], angles[1][1], angles[1][2], angles[2][0], angles[2][1], angles[2][2]);
+			//Sys_Printf("cliff found at %.4f %.4f %.4f. angles0 %.4f %.4f %.4f. angles1 %.4f %.4f %.4f. angles2 %.4f %.4f %.4f.\n", center[0], center[1], center[2], angles[0][0], angles[0][1], angles[0][2], angles[1][0], angles[1][1], angles[1][2], angles[2][0], angles[2][1], angles[2][2]);
 
 			cliffScale[numCliffs] = (smallestSize * CLIFF_FACES_SCALE) / 64.0;
 			cliffHeight[numCliffs] = smallestSize / 64.0;
@@ -1273,27 +1344,27 @@ void GenerateCliffFaces(void)
 
 		{
 			char str[32];
-			sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+			sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
 			SetKeyValue(mapEnt, "origin", str);
 		}
 
 		if (!CLIFF_FACES_SCALE_XY)
 		{// Scale X, Y & Z axis...
 			char str[32];
-			sprintf(str, "%f", cliffScale[i]);
+			sprintf(str, "%.4f", cliffScale[i]);
 			SetKeyValue(mapEnt, "modelscale", str);
 		}
 		else
 		{// Scale X & Y only...
 			char str[128];
-			sprintf(str, "%f %f %f", cliffScale[i], cliffScale[i], cliffHeight[i]);
+			sprintf(str, "%.4f %.4f %.4f", cliffScale[i], cliffScale[i], cliffHeight[i]);
 			//Sys_Printf("%s\n", str);
 			SetKeyValue(mapEnt, "modelscale_vec", str);
 		}
 
 		{
 			char str[32];
-			sprintf(str, "%f", cliffAngles[i][1]-180.0);
+			sprintf(str, "%.4f", cliffAngles[i][1]-180.0);
 			SetKeyValue(mapEnt, "angle", str);
 		}
 
@@ -1317,7 +1388,12 @@ void GenerateCliffFaces(void)
 		else
 			SetKeyValue(mapEnt, "model", va("models/warzone/rocks/cliffface0%i.md3", irand(1,5)));
 
-		//Sys_Printf( "Generated cliff face at %f %f %f. Angle %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], cliffAngles[i][1] );
+		if (CLIFF_PLANE_SNAP > 0)
+		{
+			SetKeyValue(mapEnt, "snap", va("%i", CLIFF_PLANE_SNAP));
+		}
+
+		//Sys_Printf( "Generated cliff face at %.4f %.4f %.4f. Angle %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], cliffAngles[i][1] );
 
 		funcGroup = qfalse;
 
@@ -1558,7 +1634,7 @@ void GenerateCityRoads(void)
 				pitch += 90.0f;
 
 				//if ((pitch > 80.0 && pitch < 100.0) || (pitch < -80.0 && pitch > -100.0))
-				//	Sys_Printf("pitch %f.\n", pitch);
+				//	Sys_Printf("pitch %.4f.\n", pitch);
 
 				if (pitch == 180.0 || pitch == -180.0)
 				{// Horrible hack to skip the surfaces created under the map by q3map2 code... Why are boxes needed for triangles?
@@ -1645,7 +1721,7 @@ void GenerateCityRoads(void)
 			if (size[1] < smallestSize) smallestSize = size[1];
 			if (size[2] < smallestSize) smallestSize = size[2];
 
-			//Sys_Printf("road found at %f %f %f. angles0 %f %f %f. angles1 %f %f %f. angles2 %f %f %f.\n", center[0], center[1], center[2], angles[0][0], angles[0][1], angles[0][2], angles[1][0], angles[1][1], angles[1][2], angles[2][0], angles[2][1], angles[2][2]);
+			//Sys_Printf("road found at %.4f %.4f %.4f. angles0 %.4f %.4f %.4f. angles1 %.4f %.4f %.4f. angles2 %.4f %.4f %.4f.\n", center[0], center[1], center[2], angles[0][0], angles[0][1], angles[0][2], angles[1][0], angles[1][1], angles[1][2], angles[2][0], angles[2][1], angles[2][2]);
 
 			roadScale[numRoads] = 2.0;//(smallestSize * CITY_ROADS_SCALE) / 64.0;
 			VectorCopy(center, roadPositions[numRoads]);
@@ -1700,23 +1776,23 @@ void GenerateCityRoads(void)
 
 		{
 			char str[32];
-			sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]+4.0);
+			sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]+4.0);
 			SetKeyValue(mapEnt, "origin", str);
 		}
 
 		{
 			char str[32];
-			sprintf(str, "%f", roadScale[i]);
+			sprintf(str, "%.4f", roadScale[i]);
 			SetKeyValue(mapEnt, "modelscale", str);
 		}
 
 		{
 			//char str[32];
-			//sprintf(str, "%f", roadAngles[i][1] - 180.0);
+			//sprintf(str, "%.4f", roadAngles[i][1] - 180.0);
 			//SetKeyValue(mapEnt, "angle", str);
 
 			char str[32];
-			sprintf(str, "%f %f %f", roadAngles[i][0], roadAngles[i][1]/* - 180.0*/, roadAngles[i][2]);
+			sprintf(str, "%.4f %.4f %.4f", roadAngles[i][0], roadAngles[i][1]/* - 180.0*/, roadAngles[i][2]);
 			SetKeyValue(mapEnt, "angles", str);
 		}
 
@@ -1736,7 +1812,7 @@ void GenerateCityRoads(void)
 		//	SetKeyValue(mapEnt, "_overrideShader", ROAD_SHADER);
 		//}
 
-		//Sys_Printf( "Generated cliff face at %f %f %f. Angle %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], roadAngles[i][1] );
+		//Sys_Printf( "Generated cliff face at %.4f %.4f %.4f. Angle %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], roadAngles[i][1] );
 
 		funcGroup = qfalse;
 
@@ -1907,7 +1983,10 @@ void GenerateSkyscrapers(void)
 	{
 		for (float y = mapPlayableMins[1]; y <= mapPlayableMaxs[1]; y += 2048.0)
 		{
-			totalCount++;
+			vec3_t pos;
+			VectorSet(pos, x, y, SKYSCRAPERS_CENTER[2]);
+			if (!SKYSCRAPERS_RADIUS || DistanceHorizontal(SKYSCRAPERS_CENTER, pos) + 2048.0 <= SKYSCRAPERS_RADIUS)
+				totalCount++;
 		}
 	}
 
@@ -1915,6 +1994,11 @@ void GenerateSkyscrapers(void)
 	{
 		for (float y = mapPlayableMins[1]; y <= mapPlayableMaxs[1]; y += 2048.0)
 		{
+			vec3_t pos;
+			VectorSet(pos, x, y, SKYSCRAPERS_CENTER[2]);
+			if (SKYSCRAPERS_RADIUS || DistanceHorizontal(SKYSCRAPERS_CENTER, pos) + 2048.0 > SKYSCRAPERS_RADIUS)
+				continue;
+
 			qboolean isMapEdge = qfalse;
 
 			thisCount++;
@@ -1940,19 +2024,19 @@ void GenerateSkyscrapers(void)
 
 				if ((si->compileFlags & C_TRANSLUCENT) || (si->compileFlags & C_SKIP) || (si->compileFlags & C_FOG) || (si->compileFlags & C_NODRAW) || (si->compileFlags & C_HINT))
 				{
-					//Sys_Printf("Position %f %f is nodraw!\n", x, y);
+					//Sys_Printf("Position %.4f %.4f is nodraw!\n", x, y);
 					continue;
 				}
 
 				if (!(si->compileFlags & C_SOLID))
 				{
-					//Sys_Printf("Position %f %f is not solid!\n", x, y);
+					//Sys_Printf("Position %.4f %.4f is not solid!\n", x, y);
 					continue;
 				}
 
 				if (MAP_WATER_LEVEL > -999999.0 && ds->maxs[2] <= MAP_WATER_LEVEL + 256.0)
 				{// Don't add skyscrapers under water...
-					//Sys_Printf("Position %f %f %f is under water!\n", x, y, ds->maxs[2]);
+					//Sys_Printf("Position %.4f %.4f %.4f is under water!\n", x, y, ds->maxs[2]);
 					continue;
 				}
 
@@ -1972,7 +2056,7 @@ void GenerateSkyscrapers(void)
 
 						if (MAP_WATER_LEVEL > -999999.0 && dv->xyz[2] <= MAP_WATER_LEVEL + 256.0)
 						{// Don't add skyscrapers under water...
-						 //Sys_Printf("Position %f %f %f is under water!\n", x, y, ds->maxs[2]);
+						 //Sys_Printf("Position %.4f %.4f %.4f is under water!\n", x, y, ds->maxs[2]);
 							continue;
 						}
 
@@ -1982,7 +2066,7 @@ void GenerateSkyscrapers(void)
 						{
 							bestSurfaceDistance = dist;
 							bestSurface = s;
-							//Sys_Printf("Position %f %f best surface set to %i.\n", x, y, s);
+							//Sys_Printf("Position %.4f %.4f best surface set to %i.\n", x, y, s);
 						}
 					}
 				}
@@ -1990,7 +2074,7 @@ void GenerateSkyscrapers(void)
 
 			if (bestSurface == -1)
 			{// No height found here...
-				//Sys_Printf("Position %f %f did no find a best surface.\n", x, y);
+				//Sys_Printf("Position %.4f %.4f did no find a best surface.\n", x, y);
 				continue;
 			}
 
@@ -2017,7 +2101,7 @@ void GenerateSkyscrapers(void)
 				pitch += 90.0f;
 
 				//if ((pitch > 80.0 && pitch < 100.0) || (pitch < -80.0 && pitch > -100.0))
-				//	Sys_Printf("pitch %f.\n", pitch);
+				//	Sys_Printf("pitch %.4f.\n", pitch);
 
 				//if ((pitch <= 8 && pitch >= -8) || (pitch <= 188.0 && pitch >= 172.0))
 				if (pitch == 0 || pitch == 180)
@@ -2028,20 +2112,20 @@ void GenerateSkyscrapers(void)
 				}
 				else
 				{
-					//Sys_Printf("Pitch is %f.\n", pitch);
+					//Sys_Printf("Pitch is %.4f.\n", pitch);
 				}
 			}
 
 			if (!isFlat)
 			{// This position is not flat...
-				//Sys_Printf("Position %f %f is not flat.\n", x, y);
+				//Sys_Printf("Position %.4f %.4f is not flat.\n", x, y);
 				continue;
 			}
 			
 			thisPosition[2] -= 256.0;
 
-			float CBD_DISTANCE = max(DistanceHorizontal(CITY_CENTER, thisPosition) - 6144.0, 0.0);
-			float CENTER_DISTANCE = max(DistanceHorizontal(CITY_CENTER, thisPosition) - 12288.0, 0.0);
+			float CBD_DISTANCE = max(DistanceHorizontal(SKYSCRAPERS_CENTER, thisPosition) - 6144.0, 0.0);
+			float CENTER_DISTANCE = max(DistanceHorizontal(SKYSCRAPERS_CENTER, thisPosition) - 12288.0, 0.0);
 			qboolean isCBD = (CBD_DISTANCE <= 0.0) ? qtrue : qfalse;
 			qboolean isCentral = (!isCBD && CENTER_DISTANCE <= 0.0) ? qtrue : qfalse;
 			
@@ -2252,23 +2336,28 @@ void GenerateSkyscrapers(void)
 
 			{
 				char str[32];
-				sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] + 4.0);
+				sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] + 4.0);
 				SetKeyValue(mapEnt, "origin", str);
 			}
 
 			{
 				char str[32];
-				sprintf(str, "%f %f %f", skyscraperScale[i][0], skyscraperScale[i][1], skyscraperScale[i][2]);
+				sprintf(str, "%.4f %.4f %.4f", skyscraperScale[i][0], skyscraperScale[i][1], skyscraperScale[i][2]);
 				SetKeyValue(mapEnt, "modelscale_vec", str);
 			}
 
 			{
 				char str[32];
-				sprintf(str, "%f", 0.0 - 180.0);
+				sprintf(str, "%.4f", 0.0 - 180.0);
 				SetKeyValue(mapEnt, "angle", str);
 			}
 
 			SetKeyValue(mapEnt, "_forcedSolid", "1");
+
+			if (SKYSCRAPERS_PLANE_SNAP > 0)
+			{
+				SetKeyValue(mapEnt, "snap", va("%i", SKYSCRAPERS_PLANE_SNAP));
+			}
 
 			currentSkyscraperTop = (mapEnt->origin[2] + 4.0) + (128.0 * skyscraperScale[i][2]);
 
@@ -2282,7 +2371,7 @@ void GenerateSkyscrapers(void)
 
 			SetKeyValue(mapEnt, "model", "models/warzone/skyscraper/box.md3");
 
-			//Sys_Printf( "Generated skyscraper at %f %f %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+			//Sys_Printf( "Generated skyscraper at %.4f %.4f %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
 
 			SetKeyValue(mapEnt, "_overrideShader", selectedTexture);
 
@@ -2466,19 +2555,19 @@ void GenerateSkyscrapers(void)
 
 			{
 				char str[32];
-				sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+				sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
 				SetKeyValue(mapEnt, "origin", str);
 			}
 
 			{
 				char str[32];
-				sprintf(str, "%f %f %f", thisLevelScale[0], thisLevelScale[1], thisLevelScale[2]);
+				sprintf(str, "%.4f %.4f %.4f", thisLevelScale[0], thisLevelScale[1], thisLevelScale[2]);
 				SetKeyValue(mapEnt, "modelscale_vec", str);
 			}
 
 			{
 				char str[32];
-				sprintf(str, "%f", 0.0 - 180.0);
+				sprintf(str, "%.4f", 0.0 - 180.0);
 				SetKeyValue(mapEnt, "angle", str);
 			}
 
@@ -2497,7 +2586,7 @@ void GenerateSkyscrapers(void)
 
 			SetKeyValue(mapEnt, "model", "models/warzone/skyscraper/box.md3");
 
-			//Sys_Printf( "Generated skyscraper at %f %f %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+			//Sys_Printf( "Generated skyscraper at %.4f %.4f %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
 
 			SetKeyValue(mapEnt, "_overrideShader", selectedTexture);
 
@@ -2764,7 +2853,7 @@ void GenerateLedgeFaces(void)
 				pitch += 90.0f;
 
 				//if ((pitch > 80.0 && pitch < 100.0) || (pitch < -80.0 && pitch > -100.0))
-				//	Sys_Printf("pitch %f.\n", pitch);
+				//	Sys_Printf("pitch %.4f.\n", pitch);
 
 				if (pitch == 180.0 || pitch == -180.0)
 				{// Horrible hack to skip the surfaces created under the map by q3map2 code... Why are boxes needed for triangles?
@@ -2868,7 +2957,7 @@ void GenerateLedgeFaces(void)
 				continue;
 			}
 
-			//Sys_Printf("cliff found at %f %f %f. angles0 %f %f %f. angles1 %f %f %f. angles2 %f %f %f.\n", center[0], center[1], center[2], angles[0][0], angles[0][1], angles[0][2], angles[1][0], angles[1][1], angles[1][2], angles[2][0], angles[2][1], angles[2][2]);
+			//Sys_Printf("cliff found at %.4f %.4f %.4f. angles0 %.4f %.4f %.4f. angles1 %.4f %.4f %.4f. angles2 %.4f %.4f %.4f.\n", center[0], center[1], center[2], angles[0][0], angles[0][1], angles[0][2], angles[1][0], angles[1][1], angles[1][2], angles[2][0], angles[2][1], angles[2][2]);
 
 			ledgeScale[numLedges] = (smallestSize * LEDGE_FACES_SCALE) / 64.0;
 			ledgeHeight[numLedges] = smallestSize / 64.0;
@@ -2930,15 +3019,15 @@ void GenerateLedgeFaces(void)
 
 			if (ledgeIsLowAngle[i] == 1)
 			{// Special case for low angle slopes... Dig it further into the ground more...
-				sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]-32.0);
+				sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]-32.0);
 			}
 			else if (ledgeIsLowAngle[i] == 2)
 			{// Special case for *very* low angle slopes... Dig it further into the ground more...
-				sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] - 48.0);
+				sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] - 48.0);
 			}
 			else
 			{
-				sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+				sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
 			}
 			SetKeyValue(mapEnt, "origin", str);
 		}
@@ -2946,23 +3035,27 @@ void GenerateLedgeFaces(void)
 		if (!LEDGE_FACES_SCALE_XY)
 		{// Scale X, Y & Z axis...
 			char str[32];
-			sprintf(str, "%f", ledgeScale[i]);
+			sprintf(str, "%.4f", ledgeScale[i]);
 			SetKeyValue(mapEnt, "modelscale", str);
 		}
 		else
 		{// Scale X & Y only...
 			char str[128];
-			sprintf(str, "%f %f %f", ledgeScale[i], ledgeScale[i], ledgeHeight[i]);
+			sprintf(str, "%.4f %.4f %.4f", ledgeScale[i], ledgeScale[i], ledgeHeight[i]);
 			//Sys_Printf("%s\n", str);
 			SetKeyValue(mapEnt, "modelscale_vec", str);
 		}
 
 		{
 			char str[32];
-			sprintf(str, "%f", ledgeAngles[i][1] - 180.0);
+			sprintf(str, "%.4f", ledgeAngles[i][1] - 180.0);
 			SetKeyValue(mapEnt, "angle", str);
 		}
 
+		if (LEDGE_PLANE_SNAP > 0)
+		{
+			SetKeyValue(mapEnt, "snap", va("%i", LEDGE_PLANE_SNAP));
+		}
 
 		/* ydnar: get classname */
 		if (USE_LODMODEL)
@@ -2998,7 +3091,7 @@ void GenerateLedgeFaces(void)
 		// Always use origin as the near low point on ledges... They are at low angles...
 		//SetKeyValue(mapEnt, "_originAsLowPoint", "1");
 
-		//Sys_Printf( "Generated cliff face at %f %f %f. Angle %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], ledgeAngles[i][1] );
+		//Sys_Printf( "Generated cliff face at %.4f %.4f %.4f. Angle %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], ledgeAngles[i][1] );
 
 		funcGroup = qfalse;
 
@@ -3207,6 +3300,11 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
+			if (MapEntityNear(FOLIAGE_POSITIONS[i]))
+			{// Don't spawn stuff near map entities...
+				continue;
+			}
+
 			if (RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4))
 			{// There's a road here...
 				NUM_CLOSE_ROADS++;
@@ -3235,6 +3333,17 @@ void ReassignTreeModels ( void )
 			}
 
 			int selected = irand(0,NUM_POSSIBLES-1);
+
+			if (TREE_ROADSCAN_MULTIPLIER[selected] > 1.0 && RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4 * TREE_ROADSCAN_MULTIPLIER[selected]))
+			{// There's a road here...
+				selected = irand(0, NUM_POSSIBLES - 1);
+
+				if (TREE_ROADSCAN_MULTIPLIER[selected] > 1.0 && RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4 * TREE_ROADSCAN_MULTIPLIER[selected]))
+				{// There's a road here...
+					NUM_CLOSE_ROADS++;
+					continue;
+				}
+			}
 
 			for (j = 0; j < FOLIAGE_NUM_POSITIONS; j++)
 			{
@@ -3301,6 +3410,14 @@ void ReassignTreeModels ( void )
 					bad = qtrue;
 					break;
 				}
+
+				dist = DistanceHorizontal(SKYSCRAPERS_CENTER, FOLIAGE_POSITIONS[i]);
+				
+				if (SKYSCRAPERS_RADIUS && dist <= SKYSCRAPERS_RADIUS)
+				{// Not within this city's buffer range... OK!
+					bad = qtrue;
+					break;
+				}
 			}
 
 			if (bad)
@@ -3321,7 +3438,7 @@ void ReassignTreeModels ( void )
 
 			if (pitch > POSSIBLES_MAX_ANGLE[selected] || pitch < -POSSIBLES_MAX_ANGLE[selected])
 			{// Bad slope...
-				//Sys_Printf("Position %i angles too great (%f).\n", i, pitch);
+				//Sys_Printf("Position %i angles too great (%.4f).\n", i, pitch);
 				continue;
 			}
 
@@ -3341,7 +3458,7 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
-			//Sys_Printf("Position %i angles OK! (%f).\n", i, pitch);
+			//Sys_Printf("Position %i angles OK! (%.4f).\n", i, pitch);
 
 			if (irand(0, 100) <= TREE_PERCENTAGE)
 			{
@@ -3408,6 +3525,11 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
+			if (MapEntityNear(FOLIAGE_POSITIONS[i]))
+			{// Don't spawn stuff near map entities...
+				continue;
+			}
+
 			if (RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4))
 			{// There's a road here...
 				NUM_CLOSE_ROADS++;
@@ -3436,6 +3558,17 @@ void ReassignTreeModels ( void )
 			}
 
 			int selected = irand(0,NUM_POSSIBLES-1);
+
+			if (TREE_ROADSCAN_MULTIPLIER[selected] > 1.0 && RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4 * TREE_ROADSCAN_MULTIPLIER[selected]))
+			{// There's a road here...
+				selected = irand(0, NUM_POSSIBLES - 1);
+
+				if (TREE_ROADSCAN_MULTIPLIER[selected] > 1.0 && RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4 * TREE_ROADSCAN_MULTIPLIER[selected]))
+				{// There's a road here...
+					NUM_CLOSE_ROADS++;
+					continue;
+				}
+			}
 
 			for (j = 0; j < FOLIAGE_NUM_POSITIONS; j++)
 			{
@@ -3508,6 +3641,14 @@ void ReassignTreeModels ( void )
 					bad = qtrue;
 					break;
 				}
+
+				dist = DistanceHorizontal(SKYSCRAPERS_CENTER, FOLIAGE_POSITIONS[i]);
+
+				if (SKYSCRAPERS_RADIUS && dist <= SKYSCRAPERS_RADIUS)
+				{// Not within this city's buffer range... OK!
+					bad = qtrue;
+					break;
+				}
 			}
 
 			if (bad)
@@ -3517,7 +3658,7 @@ void ReassignTreeModels ( void )
 
 			for (int z = 0; z < numCliffs; z++)
 			{// Also keep them away from cliff objects...
-				/*Sys_Printf("cliff %f %f %f. possible %f %f %f. Distance %f.\n", cliffPositions[z][0], cliffPositions[z][1], cliffPositions[z][2]
+				/*Sys_Printf("cliff %.4f %.4f %.4f. possible %.4f %.4f %.4f. Distance %.4f.\n", cliffPositions[z][0], cliffPositions[z][1], cliffPositions[z][2]
 					, FOLIAGE_POSITIONS[POSSIBLES[selected]][0], FOLIAGE_POSITIONS[POSSIBLES[selected]][1], FOLIAGE_POSITIONS[POSSIBLES[selected]][2],
 					DistanceHorizontal(cliffPositions[z], FOLIAGE_POSITIONS[POSSIBLES[selected]]));
 				*/
@@ -3661,7 +3802,7 @@ void GenerateMapForest ( void )
 				VectorCopy(FOLIAGE_POSITIONS[i], mapEnt->origin);
 				mapEnt->origin[2] += TREE_OFFSETS[FOLIAGE_TREE_SELECTION[i]];
 
-				{// Offset the model so the lowest bounds are at 0 0 0.
+				/*{// Offset the model so the lowest bounds are at 0 0 0.
 					picoModel_t *picoModel = FindModel(TREE_MODELS[FOLIAGE_TREE_SELECTION[i]], 0);
 
 					if (picoModel)
@@ -3670,23 +3811,23 @@ void GenerateMapForest ( void )
 						if (modelOffset > 0)
 							mapEnt->origin[2] += modelOffset;
 					}
-				}
+				}*/
 
 				{
 					char str[32];
-					sprintf( str, "%f %f %f", mapEnt->origin[ 0 ], mapEnt->origin[ 1 ], mapEnt->origin[ 2 ] );
+					sprintf( str, "%.4f %.4f %.4f", mapEnt->origin[ 0 ], mapEnt->origin[ 1 ], mapEnt->origin[ 2 ] );
 					SetKeyValue( mapEnt, "origin", str );
 				}
 
 				{
 					char str[32];
-					sprintf( str, "%f", FOLIAGE_TREE_SCALE[i]*2.0*TREE_SCALE_MULTIPLIER*TREE_SCALES[FOLIAGE_TREE_SELECTION[i]] );
+					sprintf( str, "%.4f", /*FOLIAGE_TREE_SCALE[i]**/2.0*TREE_SCALE_MULTIPLIER*TREE_SCALES[FOLIAGE_TREE_SELECTION[i]] );
 					SetKeyValue( mapEnt, "modelscale", str );
 				}
 
 				{
 					char str[32];
-					sprintf( str, "%f", FOLIAGE_TREE_ANGLES[i] );
+					sprintf( str, "%.4f", FOLIAGE_TREE_ANGLES[i] );
 					SetKeyValue( mapEnt, "angle", str );
 				}
 
@@ -3713,13 +3854,18 @@ void GenerateMapForest ( void )
 					SetKeyValue(mapEnt, "_originAsLowPoint", "0");
 				}
 
+				if (TREE_PLANE_SNAP[FOLIAGE_TREE_SELECTION[i]] > 0)
+				{
+					SetKeyValue(mapEnt, "snap", va("%i", TREE_PLANE_SNAP[FOLIAGE_TREE_SELECTION[i]]));
+				}
+
 				/*{
 				char str[32];
 				vec3_t angles;
 				vectoangles( FOLIAGE_NORMALS[i], angles );
 				angles[PITCH] += 90;
 				angles[YAW] = 270.0 - FOLIAGE_TREE_ANGLES[i];
-				sprintf( str, "%f %f %f", angles[0], angles[1], angles[2] );
+				sprintf( str, "%.4f %.4f %.4f", angles[0], angles[1], angles[2] );
 				SetKeyValue( mapEnt, "angles", str );
 				}*/
 
@@ -3729,7 +3875,7 @@ void GenerateMapForest ( void )
 				SetKeyValue( mapEnt, "spawnflags", str );
 				}*/
 
-				//Sys_Printf( "Generated tree at %f %f %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+				//Sys_Printf( "Generated tree at %.4f %.4f %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
 
 
 				/* ydnar: get classname */
@@ -3742,7 +3888,7 @@ void GenerateMapForest ( void )
 
 				SetKeyValue( mapEnt, "model", TREE_MODELS[FOLIAGE_TREE_SELECTION[i]]); // test tree
 
-				//Sys_Printf( "Generated tree at %f %f %f. Model %s.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], TROPICAL_TREES[FOLIAGE_TREE_SELECTION[i]] );
+				//Sys_Printf( "Generated tree at %.4f %.4f %.4f. Model %s.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], TROPICAL_TREES[FOLIAGE_TREE_SELECTION[i]] );
 
 				funcGroup = qfalse;
 
@@ -3940,27 +4086,31 @@ void GenerateStaticEntities(void)
 
 		{
 			char str[32];
-			sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+			sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
 			SetKeyValue(mapEnt, "origin", str);
 		}
 
 		{
 			char str[32];
-			sprintf(str, "%f", STATIC_SCALE[i]);
+			sprintf(str, "%.4f", STATIC_SCALE[i]);
 			SetKeyValue(mapEnt, "modelscale", str);
 		}
 
 		{
 			char str[32];
-			sprintf(str, "%f", STATIC_ANGLE[i]);
+			sprintf(str, "%.4f", STATIC_ANGLE[i]);
 			SetKeyValue(mapEnt, "angle", str);
 		}
 
 		SetKeyValue(mapEnt, "_forcedSolid", "1");
 		//SetKeyValue(mapEnt, "_forcedSolid", "0");
 
+		if (STATIC_PLANE_SNAP > 0)
+		{
+			SetKeyValue(mapEnt, "snap", va("%i", STATIC_PLANE_SNAP));
+		}
 
-		//Sys_Printf( "Generated mapent at %f %f %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+		//Sys_Printf( "Generated mapent at %.4f %.4f %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
 
 
 		/* ydnar: get classname */
@@ -4173,7 +4323,7 @@ void ReassignCityModels(void)
 
 						if (pitch > CITY_FORCED_MAX_ANGLE[i] || pitch < -CITY_FORCED_MAX_ANGLE[i])
 						{// Bad slope...
-						 //Sys_Printf("Position %i angles too great (%f).\n", i, pitch);
+						 //Sys_Printf("Position %i angles too great (%.4f).\n", i, pitch);
 							continue;
 						}
 					}
@@ -4194,7 +4344,7 @@ void ReassignCityModels(void)
 						continue;
 					}
 
-					if (RoadExistsAtPoint(FOLIAGE_POSITIONS[j], 4))
+					if (!CITY_ALLOW_ROAD[i] && RoadExistsAtPoint(FOLIAGE_POSITIONS[j], 4))
 					{// There's a road here...
 						numLedgesRoadCulled++;
 						continue;
@@ -4291,7 +4441,7 @@ void ReassignCityModels(void)
 			qboolean bad = qfalse;
 			int j;
 
-			printLabelledProgress("RandomizeNoAngleModels", i, FOLIAGE_NUM_POSITIONS);
+			printLabelledProgress("RestrictedAngleModels", i, FOLIAGE_NUM_POSITIONS);
 
 			if (BUILDING_ASSIGNED[i])
 			{
@@ -4323,15 +4473,24 @@ void ReassignCityModels(void)
 
 				float dist = Distance(FOLIAGE_POSITIONS[i], FOLIAGE_POSITIONS[j]);
 
-				if (dist <= BUILDING_BUFFER_RANGES[j] || dist <= BUILDING_BUFFER_RANGES[i])
+				if (dist <= BUILDING_BUFFER_RANGES[j])
 				{// Not within this object's buffer range... OK!
 					bad = qtrue;
+					//Sys_Printf("DEBUG: Position %i buffer-range. Dist: %.4f. Buffer: %.4f.\n", i, dist, BUILDING_BUFFER_RANGES[j]);
 					break;
 				}
 
-				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= BUILDING_SAME_RANGES[POSSIBLES[selected]])
+				if (dist <= BUILDING_BUFFER_RANGES[i])
+				{// Not within this object's buffer range... OK!
+					bad = qtrue;
+					//Sys_Printf("DEBUG: Position %i buffer-range. Dist: %.4f. Buffer: %.4f.\n", i, dist, BUILDING_BUFFER_RANGES[i]);
+					break;
+				}
+
+				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= POSSIBLES_BUILDING_SAME_RANGES[selected])
 				{// Not within this object's same type range... OK!
 					bad = qtrue;
+					//Sys_Printf("DEBUG: Position %i same-range. Dist: %.4f. Range: %.4f.\n", i, dist, POSSIBLES_BUILDING_SAME_RANGES[selected]);
 					break;
 				}
 			}
@@ -4355,7 +4514,7 @@ void ReassignCityModels(void)
 
 			if (pitch > POSSIBLES_MAX_ANGLE[selected] || pitch < -POSSIBLES_MAX_ANGLE[selected])
 			{// Bad slope...
-				//Sys_Printf("DEBUG: Position %i angles too great (%f).\n", i, pitch);
+				//printf("DEBUG: Position %i angles too great (%.4f).\n", i, pitch);
 				continue;
 			}
 
@@ -4392,14 +4551,14 @@ void ReassignCityModels(void)
 			}
 #endif
 
-			if (RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4))
+			if (!CITY_ALLOW_ROAD[POSSIBLES[selected]] && RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4))
 			{// There's a road here...
-				//Sys_Printf("DEBUG: Position %i road.\n", i);
+				//printf("DEBUG: Position %i road.\n", i);
 				numLedgesRoadCulled++;
 				continue;
 			}
 
-			//Sys_Printf("Position %i angles OK! (%f).\n", i, pitch);
+			//Sys_Printf("Position %i angles OK! (%.4f).\n", i, pitch);
 
 			FOLIAGE_TREE_SELECTION[i] = POSSIBLES[selected];
 			FOLIAGE_TREE_BUFFER[i] = BUILDING_BUFFER_RANGES[i] = POSSIBLES_BUFFERS[selected];
@@ -4440,7 +4599,7 @@ void ReassignCityModels(void)
 
 	//Sys_Printf("Assign other models from %i possibles.\n", NUM_POSSIBLES);
 
-	Sys_Printf("Non restricted angle possibles:\n");
+	Sys_Printf("Unrestricted angle possibles:\n");
 	for (i = 0; i < NUM_POSSIBLES; i++)
 	{
 		Sys_Printf("%d - %s.\n", i, CITY_MODELS[POSSIBLES[i]]);
@@ -4502,13 +4661,21 @@ void ReassignCityModels(void)
 
 				float dist = Distance(FOLIAGE_POSITIONS[i], FOLIAGE_POSITIONS[j]);
 
-				if (dist <= BUILDING_BUFFER_RANGES[j] || dist <= BUILDING_BUFFER_RANGES[i])
+				if (dist <= BUILDING_BUFFER_RANGES[j])
 				{// Not within this object's buffer range... OK!
 					bad = qtrue;
+					//Sys_Printf("DEBUG: Position %i buffer-range. Dist: %.4f. Buffer: %.4f.\n", i, dist, BUILDING_BUFFER_RANGES[j]);
 					break;
 				}
 
-				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= BUILDING_SAME_RANGES[POSSIBLES[selected]])
+				if (dist <= BUILDING_BUFFER_RANGES[i])
+				{// Not within this object's buffer range... OK!
+					bad = qtrue;
+					//Sys_Printf("DEBUG: Position %i buffer-range. Dist: %.4f. Buffer: %.4f.\n", i, dist, BUILDING_BUFFER_RANGES[i]);
+					break;
+				}
+
+				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= POSSIBLES_BUILDING_SAME_RANGES[selected])
 				{// Not within this object's same type range... OK!
 					selected = irand(0, NUM_POSSIBLES - 1);
 					tries++;
@@ -4521,7 +4688,7 @@ void ReassignCityModels(void)
 				continue;
 			}
 
-			if (RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4))
+			if (!CITY_ALLOW_ROAD[POSSIBLES[selected]] && RoadExistsAtPoint(FOLIAGE_POSITIONS[i], 4))
 			{// There's a road here...
 				//printf("blocked by road.\n");
 				numLedgesRoadCulled++;
@@ -4659,7 +4826,7 @@ void GenerateMapCity(void)
 				VectorCopy(FOLIAGE_POSITIONS[i], mapEnt->origin);
 				mapEnt->origin[2] += CITY_OFFSETS[FOLIAGE_TREE_SELECTION[i]];
 
-				{// Offset the model so the lowest bounds are at 0 0 0.
+				/*{// Offset the model so the lowest bounds are at 0 0 0.
 					picoModel_t *picoModel = FindModel(CITY_MODELS[FOLIAGE_TREE_SELECTION[i]], 0);
 
 					if (picoModel)
@@ -4668,24 +4835,24 @@ void GenerateMapCity(void)
 						if (modelOffset > 0)
 							mapEnt->origin[2] += modelOffset;
 					}
-				}
+				}*/
 
 				{
 					char str[32];
-					sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+					sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
 					SetKeyValue(mapEnt, "origin", str);
 				}
 
 				{
 					char str[32];
-					sprintf(str, "%f", FOLIAGE_TREE_SCALE[i] * 2.0*CITY_SCALE_MULTIPLIER*CITY_SCALES[FOLIAGE_TREE_SELECTION[i]]);
+					sprintf(str, "%.4f", FOLIAGE_TREE_SCALE[i] * 2.0*CITY_SCALE_MULTIPLIER*CITY_SCALES[FOLIAGE_TREE_SELECTION[i]]);
 					SetKeyValue(mapEnt, "modelscale", str);
 				}
 
 				/*
 				{
 					char str[32];
-					sprintf(str, "%f", FOLIAGE_TREE_ANGLES[i]);
+					sprintf(str, "%.4f", FOLIAGE_TREE_ANGLES[i]);
 					SetKeyValue(mapEnt, "angle", str);
 				}
 				*/
@@ -4715,13 +4882,18 @@ void GenerateMapCity(void)
 					SetKeyValue(mapEnt, "_overrideShader", CITY_FORCED_OVERRIDE_SHADER[FOLIAGE_TREE_SELECTION[i]]);
 				}
 
+				if (CITY_PLANE_SNAP[FOLIAGE_TREE_SELECTION[i]] > 0)
+				{
+					SetKeyValue(mapEnt, "snap", va("%i", CITY_PLANE_SNAP[FOLIAGE_TREE_SELECTION[i]]));
+				}
+
 				/*{
 				char str[32];
 				vec3_t angles;
 				vectoangles( FOLIAGE_NORMALS[i], angles );
 				angles[PITCH] += 90;
 				angles[YAW] = 270.0 - FOLIAGE_TREE_ANGLES[i];
-				sprintf( str, "%f %f %f", angles[0], angles[1], angles[2] );
+				sprintf( str, "%.4f %.4f %.4f", angles[0], angles[1], angles[2] );
 				SetKeyValue( mapEnt, "angles", str );
 				}*/
 
@@ -4731,7 +4903,7 @@ void GenerateMapCity(void)
 				SetKeyValue( mapEnt, "spawnflags", str );
 				}*/
 
-				//Sys_Printf( "Generated building at %f %f %f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+				//Sys_Printf( "Generated building at %.4f %.4f %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
 
 
 				/* ydnar: get classname */
@@ -4744,7 +4916,7 @@ void GenerateMapCity(void)
 
 				SetKeyValue(mapEnt, "model", CITY_MODELS[FOLIAGE_TREE_SELECTION[i]]); // test tree
 
-																				  //Sys_Printf( "Generated building at %f %f %f. Model %s.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], TROPICAL_TREES[FOLIAGE_TREE_SELECTION[i]] );
+																				  //Sys_Printf( "Generated building at %.4f %.4f %.4f. Model %s.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], TROPICAL_TREES[FOLIAGE_TREE_SELECTION[i]] );
 
 				funcGroup = qfalse;
 
@@ -4894,7 +5066,7 @@ void GenerateMapCity(void)
 						mapEnt->origin[2] += CITY_OFFSETS[FOLIAGE_TREE_SELECTION[i]];
 
 						char str[32];
-						sprintf(str, "%f %f %f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] + 4.0);
+						sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] + 4.0);
 						SetKeyValue(mapEnt, "origin", str);
 					}
 

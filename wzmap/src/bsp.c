@@ -517,6 +517,8 @@ extern vec3_t        mergeBlock;
 void MergeDrawSurfaces( void );
 void MergeDrawVerts( void );
 extern void CaulkifyStuff(qboolean findBounds);
+extern void OptimizeDrawSurfs(void);
+extern void GenerateSmoothNormals(void);
 extern void FindWaterLevel(void);
 
 void ProcessWorldModel( void )
@@ -679,6 +681,7 @@ void ProcessWorldModel( void )
 
 	// Remove crap...
 	CaulkifyStuff(qtrue);
+	//OptimizeDrawSurfs();
 
 	/* UQ1: Find water level so that we can skip adding procedural crap underwater */
 	FindWaterLevel();
@@ -714,6 +717,7 @@ void ProcessWorldModel( void )
 
 	// Remove crap...
 	CaulkifyStuff(qfalse);
+	//OptimizeDrawSurfs();
 
 	//mapplanes = (plane_t*)realloc(mapplanes, sizeof(plane_t)*nummapplanes); // UQ1: Test realloc here
 	
@@ -761,7 +765,7 @@ void ProcessWorldModel( void )
 	SmoothMetaTriangles();
 	FixMetaTJunctions();
 	MergeMetaTriangles();
-	
+
 	/* ydnar: debug portals */
 	if( debugPortals )
 		MakeDebugPortalSurfs( tree );
@@ -835,6 +839,9 @@ void ProcessWorldModel( void )
 		//Sys_Printf( " (%d)\n", (int) (I_FloatTime() - start) );
 		Sys_Printf( "%9d drawsurfs\n", numMapDrawSurfs );
 	}
+
+	OptimizeDrawSurfs();
+	GenerateSmoothNormals();
 
 	/* add references to the final drawsurfs in the apropriate clusters */
 	FilterDrawsurfsIntoTree( e, tree, qtrue );

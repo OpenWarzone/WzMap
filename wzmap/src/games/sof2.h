@@ -115,7 +115,17 @@ content and surface flags
 #define S_MAT_SHATTERGLASS			29			/* glass with the Crisis Zone style shattering */
 #define S_MAT_ARMOR					30			/* body armor */
 #define S_MAT_COMPUTER				31			/* computers/electronic equipment */
-#define S_MAT_LAST					32			/* number of materials */
+#define S_MAT_PUDDLE				32			// shallow puddle on floor surface, or water that should not use GLSL.
+#define S_MAT_POLISHEDWOOD			33			// shiny polished wood
+#define S_MAT_LAVA					34			// lava
+#define S_MAT_EFX					35			// any efx surfaces
+#define S_MAT_BLASTERBOLT			36			// blaster bolts, sabers, etc
+#define S_MAT_FIRE					37			// fire
+#define S_MAT_SMOKE					38			// smoke
+#define S_MAT_FIREFLIES				39			// fire flies fx
+#define S_MAT_MAGIC_PARTICLES_TREE	40			// magic tree particle fx
+#define S_MAT_MAGIC_PARTICLES		41			// magic particles (small particle fx)
+#define S_MAT_LAST					42			/* number of materials */
 
 
 
@@ -262,7 +272,16 @@ game_t struct
 		{ "*mat_shatterglass",	0,						0,							S_MAT_SHATTERGLASS,			S_MAT_MASK,					0,							0 },
 		{ "*mat_armor",		0,							0,							S_MAT_ARMOR,				S_MAT_MASK,					0,							0 },
 		{ "*mat_computer",	0,							0,							S_MAT_COMPUTER,				S_MAT_MASK,					0,							0 },	
-		
+		{ "*mat_puddle",	0,							0,							S_MAT_PUDDLE,				S_MAT_MASK,					0,							0 },
+		{ "*mat_polishedwood",	0,							0,						S_MAT_POLISHEDWOOD,			S_MAT_MASK,					0,							0 },
+		{ "*mat_lava",	0,							0,								S_MAT_LAVA,					S_MAT_MASK,					0,							0 },
+		{ "*mat_efx",	0,							0,								S_MAT_EFX,					S_MAT_MASK,					0,							0 },
+		{ "*mat_blasterbolt",	0,							0,						S_MAT_BLASTERBOLT,			S_MAT_MASK,					0,							0 },
+		{ "*mat_fire",	0,							0,								S_MAT_FIRE,					S_MAT_MASK,					0,							0 },
+		{ "*mat_smoke",	0,							0,								S_MAT_SMOKE,				S_MAT_MASK,					0,							0 },
+		{ "*mat_fireflies",	0,							0,							S_MAT_FIREFLIES,			S_MAT_MASK,					0,							0 },
+		{ "*mat_magicparticlestree",	0,							0,				S_MAT_MAGIC_PARTICLES_TREE,	S_MAT_MASK,					0,							0 },
+		{ "*mat_magicparticles",	0,							0,					S_MAT_MAGIC_PARTICLES,		S_MAT_MASK,					0,							0 },
 		
 		/* null */
 		{ NULL, 0, 0, 0, 0, 0, 0 }

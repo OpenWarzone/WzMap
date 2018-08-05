@@ -49,6 +49,8 @@ extern int g_numHiddenFaces, g_numCoinFaces;
 
 extern qboolean FORCED_MODEL_META;
 
+#define ForceCrash() { shaderInfo_t *blah = NULL; blah->lmCustomWidth = 1; }
+
 /*
 PicoPrintFunc()
 callback for picomodel.lib
@@ -729,6 +731,50 @@ float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 }
 #endif //CULL_BY_LOWEST_NEAR_POINT
 
+brush_t	*ModelBrushFromBounds(float minx, float miny, float minz, float maxx, float maxy, float maxz, shaderInfo_t *si)
+{
+	brush_t	*b;
+	vec3_t mins, maxs;
+	vec3_t normal;
+	vec_t dist;
+	int	i;
+
+	b = AllocBrush(6);
+	b->entityNum = mapEntityNum;
+	b->original = b;
+	b->contentShader = si;
+	b->compileFlags = si->compileFlags;
+	b->contentFlags = si->contentFlags;
+	b->opaque = qtrue;
+	b->detail = qfalse;
+	b->numsides = 6;
+	VectorSet(mins, minx, miny, minz);
+	VectorSet(maxs, maxx, maxy, maxz);
+	for (i = 0; i<3; i++)
+	{
+		VectorClear(normal);
+		normal[i] = 1;
+		dist = maxs[i];
+		b->sides[i].planenum = FindFloatPlane(normal, dist, 1, (vec3_t*)&maxs);
+		b->sides[i].shaderInfo = si;
+		b->sides[i].surfaceFlags = si->surfaceFlags;
+		b->sides[i].contentFlags = si->contentFlags;
+		b->sides[i].compileFlags = si->compileFlags;
+		b->sides[i].value = si->value;
+
+		normal[i] = -1;
+		dist = -mins[i];
+		b->sides[3 + i].planenum = FindFloatPlane(normal, dist, 1, (vec3_t*)&mins);
+		b->sides[3 + i].shaderInfo = si;
+		b->sides[3 + i].surfaceFlags = si->surfaceFlags;
+		b->sides[3 + i].contentFlags = si->contentFlags;
+		b->sides[3 + i].compileFlags = si->compileFlags;
+		b->sides[3 + i].value = si->value;
+	}
+
+	return b;
+}
+
 void RemoveSurface(mapDrawSurface_t *ds)
 {
 	if (!ds) return;
@@ -834,7 +880,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 				char *picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
 
 				//Sys_Printf("surface name %s.\n", picoShaderName);
-				if (StringContainsWord(picoShaderName, "system/nodraw_solid"))
+				if (StringContainsWord(picoShaderName, "system/nodraw_solid") || StringContainsWord(picoShaderName, "collision"))
 				{
 					//Sys_Printf("Found collision info in model!\n");
 					HAS_COLLISION_INFO = true;
@@ -887,22 +933,6 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			continue;
 
 #pragma omp critical
-		{
-			/* allocate a surface (ydnar: gs mods) */
-			ds = AllocDrawSurface(SURFACE_TRIANGLES);
-		}
-
-		ds->entityNum = entityNum;
-		ds->mapEntityNum = mapEntityNum;
-		ds->castShadows = castShadows;
-		ds->recvShadows = recvShadows;
-		ds->noAlphaFix = noAlphaFix;
-		ds->skybox = skybox;
-
-		if (added_surfaces != NULL)
-			*added_surfaces += 1;
-
-#pragma omp critical
 		if (!(overrideShader && !surface->shader))
 		{
 			/* get shader name */
@@ -937,7 +967,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 		bool IS_COLLISION_SURFACE = false;
 
-		if (HAS_COLLISION_INFO && StringContainsWord(picoShaderName, "system/nodraw_solid"))
+		if (HAS_COLLISION_INFO && (StringContainsWord(picoShaderName, "system/nodraw_solid") || StringContainsWord(picoShaderName, "collision")))
 		{// We have actual solid information for this model, don't generate planes for the other crap...
 			IS_COLLISION_SURFACE = true;
 		}
@@ -953,7 +983,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 #pragma omp critical
 		{
-			if (!forcedNoSolid && HAS_COLLISION_INFO && StringContainsWord(picoShaderName, "system/nodraw_solid"))
+			if (!forcedNoSolid && HAS_COLLISION_INFO && (StringContainsWord(picoShaderName, "system/nodraw_solid") || StringContainsWord(picoShaderName, "collision")))
 			{
 				si = ShaderInfoForShader(picoShaderName);
 			}
@@ -1020,73 +1050,224 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			si->forceMeta = qtrue;
 		}
 
-		/* set shader */
-		ds->shaderInfo = si;
-
-		/* set shading angle */
-		ds->smoothNormals = shadeAngle;
-
-		/* force to meta? */
-		if ((si != NULL && si->forceMeta) || (spawnFlags & 4))	/* 3rd bit */
-			ds->type = SURFACE_FORCED_META;
-
-		/* fix the surface's normals (jal: conditioned by shader info) */
 		if (!(spawnFlags & 64) && (shadeAngle <= 0.0f || ds->type != SURFACE_FORCED_META))
+		{/* fix the surface's normals (jal: conditioned by shader info) */
 			PicoFixSurfaceNormals(surface);
-
-		/* set sample size */
-		if (lightmapSampleSize > 0.0f)
-			ds->sampleSize = lightmapSampleSize;
-
-		/* set lightmap scale */
-		if (lightmapScale > 0.0f)
-			ds->lightmapScale = lightmapScale;
-
-		/* set lightmap axis */
-		if (lightmapAxis != NULL)
-			VectorCopy(lightmapAxis, ds->lightmapAxis);
-
-		/* set minlight/ambient/colormod */
-		if (minlight != NULL)
-		{
-			VectorCopy(minlight, ds->minlight);
-			VectorCopy(minlight, ds->minvertexlight);
 		}
+
+		//
+		//
+		//
+
+		surfaceType_t	wantedType = SURFACE_TRIANGLES;
+		float			wantedSampleSize = 0.0;
+		float			wantedLightmapScale = 0.0;
+		int				wantedVertTexProj = 0;
+		vec3_t			wantedLightMapAxis; VectorClear(wantedLightMapAxis);
+		vec3_t			wantedMinLight; VectorClear(wantedMinLight);
+		vec3_t			wantedMinvertexLight; VectorClear(wantedMinvertexLight);
+		vec3_t			wantedAmbient; VectorClear(wantedAmbient);
+		vec3_t			wantedColorMod; VectorClear(wantedColorMod);
+
+		if ((si != NULL && si->forceMeta) || (spawnFlags & 4))	/* 3rd bit */
+			wantedType = SURFACE_FORCED_META;
+
+		if (lightmapSampleSize > 0.0f)
+			wantedSampleSize = lightmapSampleSize;
+
+		if (lightmapScale > 0.0f)
+			wantedLightmapScale = lightmapScale;
+
+		if (lightmapAxis != NULL)
+			VectorCopy(lightmapAxis, wantedLightMapAxis);
+
+		if (minlight != NULL)
+			VectorCopy(minlight, wantedMinLight);
+
 		if (minvertexlight != NULL)
-			VectorCopy(minvertexlight, ds->minvertexlight);
+			VectorCopy(minvertexlight, wantedMinvertexLight);
+
 		if (ambient != NULL)
-			VectorCopy(ambient, ds->ambient);
+			VectorCopy(ambient, wantedAmbient);
+
 		if (colormod != NULL)
-			VectorCopy(colormod, ds->colormod);
+			VectorCopy(colormod, wantedColorMod);
 
 		/* set vertical texture projection */
 		if (vertTexProj > 0)
-			ds->vertTexProj = vertTexProj;
+			wantedVertTexProj = vertTexProj;
 
-		/* set particulars */
-		ds->numVerts = PicoGetSurfaceNumVertexes(surface);
-#pragma omp critical
+		mapDrawSurface_t *dsFound = NULL;
+
+		for (int d = 0; d < numMapDrawSurfs; d++)
 		{
-			ds->verts = (bspDrawVert_t *)safe_malloc(ds->numVerts * sizeof(ds->verts[0]));
-			memset(ds->verts, 0, ds->numVerts * sizeof(ds->verts[0]));
+			mapDrawSurface_t *ds2 = &mapDrawSurfs[d];
+			
+#if 1
+			if (ds2->mapEntityNum == mapEntityNum
+				&& ds2->castShadows == castShadows
+				&& ds2->recvShadows == recvShadows
+				&& ds2->noAlphaFix == noAlphaFix
+				&& ds2->skybox == skybox
+				&& ds2->shaderInfo == si
+				&& ds2->smoothNormals == shadeAngle
+				&& ds2->type == wantedType
+				&& ds2->sampleSize == wantedSampleSize
+				&& ds2->lightmapScale == wantedLightmapScale
+				&& ds2->vertTexProj == wantedVertTexProj
+				&& ds2->celShader == celShader
+				&& (lightmapAxis == NULL || VectorCompare(wantedLightMapAxis, ds2->lightmapAxis))
+				&& (minlight == NULL || VectorCompare(wantedMinLight, ds2->minlight))
+				&& (minvertexlight == NULL || VectorCompare(wantedMinvertexLight, ds2->minvertexlight))
+				&& (ambient == NULL || VectorCompare(wantedAmbient, ds2->ambient))
+				&& (colormod == NULL || VectorCompare(wantedColorMod, ds2->colormod)))
+#else
+			if (((si && ds2->shaderInfo && !strcmp(ds2->shaderInfo->shader, si->shader)) || !si && !ds2->shaderInfo))
+#endif
+			{
+				vec3_t xyz;
+				VectorCopy(PicoGetSurfaceXYZ(surface, 0), xyz);
+				m4x4_transform_point(transform, xyz);
+
+				float dist = Distance(ds2->verts[0].xyz, xyz);
+				if (dist < 2048.0)
+				{
+					dsFound = ds2;
+					break;
+				}
+			}
 		}
 
-		if (added_verts != NULL)
-			*added_verts += ds->numVerts;
+		if (dsFound != NULL)
+		{// Add to the old surface...
+			//
+			// Add to this new drawSurf...
+			//
 
-		ds->numIndexes = PicoGetSurfaceNumIndexes(surface);
-#pragma omp critical
-		{
-			ds->indexes = (int *)safe_malloc(ds->numIndexes * sizeof(ds->indexes[0]));
-			memset(ds->indexes, 0, ds->numIndexes * sizeof(ds->indexes[0]));
+			//printf("Found draw surf to reuse...\n");
+
+			ds = dsFound;
+
+			ds->currentNumVerts = ds->numVerts;
+			ds->currentNumIndexes = ds->numIndexes;
+
+			/* set particulars */
+			int nV = PicoGetSurfaceNumVertexes(surface);
+			ds->numVerts += nV;
+			
+#pragma omp critical (__ALLOC__)
+			{
+				ds->verts = (bspDrawVert_t *)realloc(ds->verts, ds->numVerts * sizeof(ds->verts[0]));
+			}
+
+			int nI = PicoGetSurfaceNumIndexes(surface);
+			ds->numIndexes += nI;
+
+#pragma omp critical (__ALLOC__)
+			{
+				ds->indexes = (int *)realloc(ds->indexes, ds->numIndexes * sizeof(ds->indexes[0]));
+			}
+
+			if (added_verts != NULL)
+				*added_verts += nI;
+
+			if (added_triangles != NULL)
+				*added_triangles += (nV / 3);
 		}
+		else
+		{// Create a new surface...
+			//printf("Creating new draw surf...\n");
 
-		if (added_triangles != NULL)
-			*added_triangles += (ds->numIndexes / 3);
+			//ForceCrash();
+
+#pragma omp critical
+			{
+				/* allocate a surface (ydnar: gs mods) */
+				ds = AllocDrawSurface(SURFACE_TRIANGLES);
+			}
+
+			ds->entityNum = entityNum;
+			ds->mapEntityNum = mapEntityNum;
+			ds->castShadows = castShadows;
+			ds->recvShadows = recvShadows;
+			ds->noAlphaFix = noAlphaFix;
+			ds->skybox = skybox;
+
+			if (added_surfaces != NULL)
+				*added_surfaces += 1;
+
+			/* set shader */
+			ds->shaderInfo = si;
+
+			/* set shading angle */
+			ds->smoothNormals = shadeAngle;
+
+			/* force to meta? */
+			ds->type = wantedType;
+
+			/* set sample size */
+			ds->sampleSize = wantedSampleSize;
+
+			/* set lightmap scale */
+			ds->lightmapScale = wantedLightmapScale;
+
+			/* set lightmap axis */
+			VectorCopy(lightmapAxis, wantedLightMapAxis);
+
+			/* set minlight/ambient/colormod */
+			if (minlight != NULL)
+			{
+				VectorCopy(wantedMinLight, ds->minlight);
+				VectorCopy(wantedMinLight, ds->minvertexlight);
+			}
+
+			if (minvertexlight != NULL)
+				VectorCopy(wantedMinvertexLight, ds->minvertexlight);
+
+			if (ambient != NULL)
+				VectorCopy(wantedAmbient, ds->ambient);
+
+			if (colormod != NULL)
+				VectorCopy(wantedColorMod, ds->colormod);
+
+			/* set vertical texture projection */
+			ds->vertTexProj = wantedVertTexProj;
+
+			//
+			// Set up this new drawSurf...
+			//
+
+			/* set particulars */
+			ds->numVerts = PicoGetSurfaceNumVertexes(surface);
+			ds->currentNumVerts = 0;
+			ds->currentNumIndexes = 0;
+
+#pragma omp critical
+			{
+				ds->verts = (bspDrawVert_t *)safe_malloc(ds->numVerts * sizeof(ds->verts[0]));
+				memset(ds->verts, 0, ds->numVerts * sizeof(ds->verts[0]));
+			}
+
+			ds->numIndexes = PicoGetSurfaceNumIndexes(surface);
+#pragma omp critical
+			{
+				ds->indexes = (int *)safe_malloc(ds->numIndexes * sizeof(ds->indexes[0]));
+				memset(ds->indexes, 0, ds->numIndexes * sizeof(ds->indexes[0]));
+			}
+
+			if (added_verts != NULL)
+				*added_verts += ds->numVerts;
+
+			if (added_triangles != NULL)
+				*added_triangles += (ds->numIndexes / 3);
+
+			/* set cel shader */
+			ds->celShader = celShader;
+		}
 
 		/* copy vertexes */
 #pragma omp parallel for ordered num_threads((ds->numVerts < numthreads) ? ds->numVerts : numthreads)
-		for (i = 0; i < ds->numVerts; i++)
+		for (i = ds->currentNumVerts; i < ds->numVerts; i++)
 		{
 			int					j;
 			bspDrawVert_t		*dv;
@@ -1109,11 +1290,11 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			}
 
 			/* xyz and normal */
-			xyz = PicoGetSurfaceXYZ(surface, i);
+			xyz = PicoGetSurfaceXYZ(surface, i - ds->currentNumVerts);
 			VectorCopy(xyz, dv->xyz);
 			m4x4_transform_point(transform, dv->xyz);
 
-			normal = PicoGetSurfaceNormal(surface, i);
+			normal = PicoGetSurfaceNormal(surface, i - ds->currentNumVerts);
 			VectorCopy(normal, dv->normal);
 			m4x4_transform_normal(nTransform, dv->normal);
 			VectorNormalize(dv->normal, dv->normal);
@@ -1144,7 +1325,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			/* normal texture coordinates */
 			else
 			{
-				st = PicoGetSurfaceST(surface, 0, i);
+				st = PicoGetSurfaceST(surface, 0, i - ds->currentNumVerts);
 				dv->st[0] = st[0];
 				dv->st[1] = st[1];
 			}
@@ -1154,7 +1335,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			dv->st[1] *= uvScale;
 
 			/* set lightmap/color bits */
-			color = PicoGetSurfaceColor(surface, 0, i);
+			color = PicoGetSurfaceColor(surface, 0, i - ds->currentNumVerts);
 
 			for (j = 0; j < MAX_LIGHTMAPS; j++)
 			{
@@ -1180,13 +1361,12 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		/* copy indexes */
 		indexes = PicoGetSurfaceIndexes(surface, 0);
 
-
 #ifdef CULL_BY_LOWEST_NEAR_POINT
 		int numIndexesCulled = 0;
-		int numIndexesFinal = 0;
-		int numIndexesOriginal = 0;
+		int numIndexesFinal = ds->currentNumIndexes;
+		int numIndexesOriginal = ds->currentNumIndexes;
 
-		for (i = 0; i < ds->numIndexes; i += 3)
+		for (i = ds->currentNumIndexes; i < ds->numIndexes; i += 3)
 		{
 			// Assume that we can cull them all... Add exceptions as found...
 			qboolean shouldLowestPointCull = qtrue;
@@ -1195,7 +1375,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 			for (int j = 0; j < 3; j++)
 			{
-				bspDrawVert_t		*dv = &ds->verts[indexes[i + j]];
+				bspDrawVert_t		*dv = &ds->verts[indexes[i + j - ds->currentNumIndexes]] + ds->currentNumVerts;
 
 				if (LOWEST_NEAR_POINT == 999999.0f || dv->xyz[2] >= LOWEST_NEAR_POINT)
 				{// If any surface is above the found lowest map point, then we need to draw this triangle...
@@ -1206,11 +1386,11 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 			if (!shouldLowestPointCull)
 			{// If any surface is above the found lowest map point, then we need to draw this triangle...
-				ds->indexes[numIndexesFinal] = indexes[i];
+				ds->indexes[numIndexesFinal] = indexes[i - ds->currentNumIndexes] + ds->currentNumVerts;
 				numIndexesFinal++;
-				ds->indexes[numIndexesFinal] = indexes[i+1];
+				ds->indexes[numIndexesFinal] = indexes[i + 1 - ds->currentNumIndexes] + ds->currentNumVerts;
 				numIndexesFinal++;
-				ds->indexes[numIndexesFinal] = indexes[i+2];
+				ds->indexes[numIndexesFinal] = indexes[i + 2 - ds->currentNumIndexes] + ds->currentNumVerts;
 				numIndexesFinal++;
 			}
 			else
@@ -1226,29 +1406,36 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			//Sys_Printf("Lowest point culled %i of %i indexes. %.2f percent were culled. %i final indexes.\n", numIndexesCulled, numIndexesOriginal, (float(numIndexesCulled) / float(numIndexesOriginal)) * 100.0, numIndexesFinal);
 		}
 #else //!CULL_BY_LOWEST_NEAR_POINT
-		for (i = 0; i < ds->numIndexes; i++)
-			ds->indexes[i] = indexes[i];
+		for (i = ds->currentNumIndexes; i < ds->numIndexes; i++)
+		{
+			ds->indexes[i + ds->currentNumIndexes] = indexes[i];
+		}
 #endif //CULL_BY_LOWEST_NEAR_POINT
 
 		/* deform vertexes */
-		DeformVertexes(ds, pushVertexes);
+		//DeformVertexes(ds, pushVertexes);
+		if (pushVertexes)
+		{
+			/* iterate verts */
+			for (int kk = ds->currentNumVerts; kk < ds->numVerts; kk++)
+			{
+				bspDrawVert_t *vv = &ds->verts[kk];
 
-		/* set cel shader */
-		ds->celShader = celShader;
+				/* push verts in direction of their normals (fatboy) */
+				VectorMA(vv->xyz, pushVertexes, vv->normal, vv->xyz);
+			}
+		}
 
 		/* walk triangle list */
-		for (i = 0; i < ds->numIndexes; i += 3)
+		for (i = ds->currentNumIndexes; i < ds->numIndexes; i += 3)
 		{
-			bspDrawVert_t		*dv;
-			int					j;
-
 			vec3_t points[4];
 
 			/* make points and back points */
-			for (j = 0; j < 3; j++)
+			for (int j = 0; j < 3; j++)
 			{
 				/* get vertex */
-				dv = &ds->verts[ds->indexes[i + j]];
+				bspDrawVert_t *dv = &ds->verts[ds->indexes[i + j]];
 
 				/* copy xyz */
 				VectorCopy(dv->xyz, points[j]);
@@ -1294,7 +1481,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 			/* walk triangle list */
 #pragma omp parallel for ordered num_threads((ds->numIndexes < numthreads) ? ds->numIndexes : numthreads)
-			for( i = 0; i < ds->numIndexes; i += 3 )
+			for( i = ds->currentNumIndexes; i < ds->numIndexes; i += 3 )
 			{
 				int					j;
 				vec3_t				points[4], backs[3];
@@ -1557,8 +1744,116 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 //						if (meta) si->forceMeta = qtrue; // much slower...
 //#endif
 
+//#define __AXIAL_COLLISION_BRUSHES__
+
 #pragma omp ordered
 						{
+#ifdef __AXIAL_COLLISION_BRUSHES__
+#pragma omp critical
+							{
+								/* build a brush */ // -- UQ1: Moved - Why allocate when its not needed...
+								//buildBrush = AllocBrush(24/*48*/); // UQ1: 48 seems to be more then is used... Wasting memory...
+								//buildBrush->entityNum = mapEntityNum;
+								//buildBrush->mapEntityNum = mapEntityNum;
+								//buildBrush->original = buildBrush;
+								//buildBrush->contentShader = si;
+								//buildBrush->compileFlags = si->compileFlags;
+								//buildBrush->contentFlags = si->contentFlags;
+
+								buildBrush = ModelBrushFromBounds(mins[0], mins[1], mins[2], maxs[0], maxs[0], maxs[0], si);
+								buildBrush->entityNum = mapEntityNum;
+								buildBrush->mapEntityNum = mapEntityNum;
+								buildBrush->original = buildBrush;
+								buildBrush->contentShader = si;
+								buildBrush->compileFlags = si->compileFlags;
+								buildBrush->contentFlags = si->contentFlags;
+
+								if (si && FORCED_STRUCTURAL && (si->compileFlags & C_SOLID) /*&& !(compileFlags & C_NODRAW)*/)
+								{// Forced structural option is set, force anything solid to also be structural and not detail...
+									si->compileFlags &= ~C_DETAIL;
+									si->compileFlags |= C_STRUCTURAL;
+
+									buildBrush->detail = qfalse;
+
+									// only allow EXACT matches when snapping for these (this is mostly for caulk brushes inside a model)
+									if (normalEpsilon > 0)
+										normalEpsilon = 0;
+									if (distanceEpsilon > 0)
+										distanceEpsilon = 0;
+
+									//Sys_Printf("%s was forced structural.\n", si->shader);
+								}
+								else if (si->isTreeSolid || si->isMapObjectSolid || (si->compileFlags & C_DETAIL))
+								{
+									buildBrush->detail = qtrue;
+								}
+								else if (si->compileFlags & C_STRUCTURAL) // allow forced structural brushes here
+								{
+									buildBrush->detail = qfalse;
+
+									// only allow EXACT matches when snapping for these (this is mostly for caulk brushes inside a model)
+									if (normalEpsilon > 0)
+										normalEpsilon = 0;
+									if (distanceEpsilon > 0)
+										distanceEpsilon = 0;
+								}
+								else
+								{
+									buildBrush->detail = qtrue;
+								}
+
+								/* set up brush sides */
+								//buildBrush->numsides = 5;
+								buildBrush->sides[0].shaderInfo = si;
+
+								for (j = 1; j < buildBrush->numsides; j++)
+								{
+									buildBrush->sides[j].shaderInfo = NULL; // don't emit these faces as draw surfaces, should make smaller BSPs; hope this works
+									buildBrush->sides[j].culled = qtrue;
+								}
+
+								//buildBrush->sides[0].planenum = FindFloatPlane(plane, plane[3], 3, points);
+								//buildBrush->sides[1].planenum = FindFloatPlane(pa, pa[3], 2, &points[1]); // pa contains points[1] and points[2]
+								//buildBrush->sides[2].planenum = FindFloatPlane(pb, pb[3], 2, &points[0]); // pb contains points[0] and points[1]
+								//buildBrush->sides[3].planenum = FindFloatPlane(pc, pc[3], 2, &points[2]); // pc contains points[2] and points[0] (copied to points[3]
+								//buildBrush->sides[4].planenum = FindFloatPlane(reverse, reverse[3], 3, backs);
+
+								/* add to entity */
+								if (CreateBrushWindings(buildBrush))
+								{
+									int numsides;
+
+									AddBrushBevels();
+									//%	EmitBrushes( buildBrush, NULL, NULL );
+
+									numsides = buildBrush->numsides;
+
+									if (!RemoveDuplicateBrushPlanes(buildBrush))
+									{// UQ1: Testing - This would create a mirrored plane... free it...
+										FreeBrush(buildBrush);
+										//Sys_Printf("Removed a mirrored plane\n");
+									}
+									else
+									{
+										for (j = 1; j < buildBrush->numsides; j++)
+										{
+											buildBrush->sides[j].shaderInfo = NULL; // don't emit these faces as draw surfaces, should make smaller BSPs; hope this works
+																					//buildBrush->sides[j].culled = qtrue;
+										}
+
+										//InsertModelCullSides(&entities[mapEntityNum], buildBrush);
+
+										buildBrush->next = entities[mapEntityNum].brushes;
+										entities[mapEntityNum].brushes = buildBrush;
+										entities[mapEntityNum].numBrushes++;
+									}
+								}
+								else
+								{
+									FreeBrush(buildBrush);
+								}
+							} // #pragma omp critical
+#else //!__AXIAL_COLLISION_BRUSHES__
 #pragma omp critical
 							{
 								/* build a brush */ // -- UQ1: Moved - Why allocate when its not needed...
@@ -1655,6 +1950,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 									FreeBrush(buildBrush);
 								}
 							} // #pragma omp critical
+#endif //__AXIAL_COLLISION_BRUSHES__
 						} // #pragma omp ordered
 
 						//if (buildBrush && !(*((int*)buildBrush) == 0xFEFEFEFE))
@@ -1843,7 +2139,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 					char			*picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
 
-					if (StringContainsWord(picoShaderName, "system/nodraw_solid")) {
+					if (StringContainsWord(picoShaderName, "system/nodraw_solid") || StringContainsWord(picoShaderName, "collision")) {
 						Sys_Printf("loaded model %s contains collision geometry (shader name: system/nodraw_solid).\n", model);
 						return; // Collision is built into this model...
 					}
@@ -2118,19 +2414,20 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			else
 			{
 				/* get scale */
-				scale[0] = scale[1] = scale[2] = 1.0f;
+				vec3_t tempScale;
+				tempScale[0] = tempScale[1] = tempScale[2] = 1.0f;
 				temp = FloatForKey(e3, "modelscale");
 				if (temp != 0.0f)
-					scale[0] = scale[1] = scale[2] = temp;
+					tempScale[0] = tempScale[1] = tempScale[2] = temp;
 				value = ValueForKey(e3, "modelscale_vec");
 				if (value[0] != '\0')
-					sscanf(value, "%f %f %f", &scale[0], &scale[1], &scale[2]);
+					sscanf(value, "%f %f %f", &tempScale[0], &tempScale[1], &tempScale[2]);
 
 				vec3_t size;
 				VectorSubtract(m->maxs, m->mins, size);
-				size[0] *= scale[0];
-				size[1] *= scale[1];
-				size[2] *= scale[2];
+				size[0] *= tempScale[0];
+				size[1] *= tempScale[1];
+				size[2] *= tempScale[2];
 				//float maxSize = max(size[0], max(size[1], size[2]));
 				float maxSize = max(size[0], size[1]); // Don't need Z, thats what we are searching for...
 				float radius = maxSize;// / 1.5;
@@ -2486,6 +2783,16 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			e2->mapEntityNum = 0;
 		}
 
+		/* Model plane snapping... Begin */
+		int origSnap = bevelSnap;
+		int modelSnap = IntForKey(e2, "snap");
+		
+		if (modelSnap > 0)
+		{
+			bevelSnap = modelSnap;
+		}
+		/* Model plane snapping... End */
+
 		/* insert the model */
 #ifdef CULL_BY_LOWEST_NEAR_POINT
 		if (COLLISION_MODEL && strlen(COLLISION_MODEL) > 0)
@@ -2523,6 +2830,10 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, 999999.0f, isLodModel);
 		}
 #endif //CULL_BY_LOWEST_NEAR_POINT
+
+		/* Model plane snapping... Begin */
+		bevelSnap = origSnap;
+		/* Model plane snapping... End */
 
 		//Sys_Printf( "insert model: %s. added_surfaces: %i. added_triangles: %i. added_verts: %i. added_brushes: %i.\n", model, added_surfaces, added_triangles, added_verts, added_brushes );
 

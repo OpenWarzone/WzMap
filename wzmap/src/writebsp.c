@@ -48,7 +48,6 @@ int	EmitShader( const char *shader, int *contentFlags, int *surfaceFlags )
 	int				i;
 	shaderInfo_t	*si;
 	
-	
 	/* handle special cases */
 	if( shader == NULL )
 		shader = "noshader";
@@ -73,10 +72,14 @@ int	EmitShader( const char *shader, int *contentFlags, int *surfaceFlags )
 	/* emit a new shader */
 	if( i == MAX_MAP_SHADERS )
 		Error( "MAX_MAP_SHADERS" );
-	numBSPShaders++;
-	strcpy( bspShaders[ i ].shader, shader );
-	bspShaders[ i ].surfaceFlags = si->surfaceFlags;
-	bspShaders[ i ].contentFlags = si->contentFlags;
+
+#pragma omp critical (__EMIT_SHADER__)
+	{
+		numBSPShaders++;
+		strcpy(bspShaders[i].shader, shader);
+		bspShaders[i].surfaceFlags = si->surfaceFlags;
+		bspShaders[i].contentFlags = si->contentFlags;
+	}
 	
 	/* handle custom content/surface flags */
 	if( surfaceFlags != NULL )

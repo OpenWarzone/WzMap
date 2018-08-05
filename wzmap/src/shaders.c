@@ -47,174 +47,6 @@ vec3_t	colorModRandom[COLORMOD_RANDOM_GRIDSIZE];
 
 extern qboolean FORCED_STRUCTURAL;
 
-#ifdef __MATERIAL_TYPES__
-/*
-=================
-ParseMaterial
-=================
-*/
-const char *materialNames[MATERIAL_LAST] =
-{
-	MATERIALS
-};
-
-#define	MAX_TOKEN_CHARS		1024	// max length of an individual token
-
-int com_lines = 0;
-
-const char *SkipWhitespace(const char *data, qboolean *hasNewLines) {
-	int c;
-
-	while ((c = *(const unsigned char* /*eurofix*/)data) <= ' ') {
-		if (!c) {
-			return NULL;
-		}
-		if (c == '\n') {
-			com_lines++;
-			*hasNewLines = qtrue;
-		}
-		data++;
-	}
-
-	return data;
-}
-
-char *COM_ParseExt(const char **data_p, qboolean allowLineBreaks)
-{
-	int c = 0, len;
-	qboolean hasNewLines = qfalse;
-	const char *data;
-
-	data = *data_p;
-	len = 0;
-	com_token[0] = 0;
-	int com_tokenline = 0;
-	int com_lines = 0;
-
-	// make sure incoming data is valid
-	if (!data)
-	{
-		*data_p = NULL;
-		return com_token;
-	}
-
-	while (1)
-	{
-		// skip whitespace
-		data = SkipWhitespace(data, &hasNewLines);
-		if (!data)
-		{
-			*data_p = NULL;
-			return com_token;
-		}
-		if (hasNewLines && !allowLineBreaks)
-		{
-			*data_p = data;
-			return com_token;
-		}
-
-		c = *data;
-
-		// skip double slash comments
-		if (c == '/' && data[1] == '/')
-		{
-			data += 2;
-			while (*data && *data != '\n') {
-				data++;
-			}
-		}
-		// skip /* */ comments
-		else if (c == '/' && data[1] == '*')
-		{
-			data += 2;
-			while (*data && (*data != '*' || data[1] != '/'))
-			{
-				if (*data == '\n')
-				{
-					com_lines++;
-				}
-				data++;
-			}
-			if (*data)
-			{
-				data += 2;
-			}
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	// token starts on this line
-	com_tokenline = com_lines;
-
-	// handle quoted strings
-	if (c == '\"')
-	{
-		data++;
-		while (1)
-		{
-			c = *data++;
-			if (c == '\"' || !c)
-			{
-				com_token[len] = 0;
-				*data_p = (char *)data;
-				return com_token;
-			}
-			if (c == '\n')
-			{
-				com_lines++;
-			}
-			if (len < MAX_TOKEN_CHARS - 1)
-			{
-				com_token[len] = c;
-				len++;
-			}
-		}
-	}
-
-	// parse a regular word
-	do
-	{
-		if (len < MAX_TOKEN_CHARS - 1)
-		{
-			com_token[len] = c;
-			len++;
-		}
-		data++;
-		c = *data;
-	} while (c>32);
-
-	com_token[len] = 0;
-
-	*data_p = (char *)data;
-	return com_token;
-}
-
-
-void ParseMaterial(const char **text, shaderInfo_t *shader)
-{
-	char	*token;
-	int		i;
-
-	token = COM_ParseExt(text, qfalse);
-	if (token[0] == 0)
-	{
-		printf("WARNING: missing material in shader '%s'\n", shader->shader);
-		return;
-	}
-	for (i = 0; i < MATERIAL_LAST; i++)
-	{
-		if (!Q_stricmp(token, materialNames[i]))
-		{
-			shader->surfaceFlags |= i;
-			break;
-		}
-	}
-}
-#endif //__MATERIAL_TYPES__
-
 /*
 ColorModBuildRandomGrid()
 builds a random colormod grid
@@ -1207,9 +1039,18 @@ shaderInfo_t *ShaderInfoForShader( const char *shaderName )
 		shaderName = "missing";
 	}
 
-	/* strip off extension */
-	strcpy( shader, shaderName );
-	StripExtension( shader );
+	extern qboolean StringContainsWord(const char *haystack, const char *needle);
+
+	if (StringContainsWord(shaderName, "collision")) 
+	{
+		strcpy(shader, "textures/system/nodraw_solid");
+	}
+	else
+	{
+		/* strip off extension */
+		strcpy(shader, shaderName);
+		StripExtension(shader);
+	}
 
 	/* search for it */
 	deprecationDepth = 0;
@@ -1550,6 +1391,35 @@ qboolean R_ForceGenericShader ( const char *name )
 }
 
 #endif //___SHADER_GENERATOR___
+
+const char *materialNames[MATERIAL_LAST] =
+{
+	MATERIALS
+};
+
+void ParseMaterial(shaderInfo_t *si, const char *token)
+{
+	int		i;
+
+	if (token[0] == 0)
+	{
+		if (stricmp(token, "sky") && stricmp(token, "sun"))
+		{
+			Sys_Printf("WARNING: missing material in shader '%s'\n", si->shader);
+		}
+
+		return;
+	}
+	for (i = 0; i < MATERIAL_LAST; i++)
+	{
+		if (!Q_stricmp(token, materialNames[i]))
+		{
+			//shader.surfaceFlags |= i;
+			si->materialType = i;
+			break;
+		}
+	}
+}
 
 /*
 ParseShaderFile()
@@ -2717,15 +2587,6 @@ static void ParseShaderFile( const char *filename )
 						Sys_Warning( "%s: Unknown q3map_colorMod method: %s", filename, token );
 				}
 
-#ifdef __MATERIAL_TYPES__
-				else if (!Q_stricmp(token, "material") || !Q_stricmp(token, "q3map_material"))
-				{
-					/* get material */
-					GetTokenAppend(shaderText, qfalse);
-					ParseMaterial((const char **)&token, si);
-				}
-#endif //__MATERIAL_TYPES__
-
 				/* ydnar: gs mods: q3map_tcMod <style> <parameters> */
 				else if( !Q_stricmp( token, "q3map_tcMod" ) )
 				{
@@ -2865,8 +2726,10 @@ static void ParseShaderFile( const char *filename )
 				{
 					GetTokenAppend( shaderText, qfalse );
 					sprintf( temp, "*mat_%s", token );
-					if( ApplySurfaceParm( temp, &si->contentFlags, &si->surfaceFlags, &si->compileFlags ) == qfalse )
-						Sys_Warning( "%s: Unknown material \"%s\"\n", filename, token );
+					if (ApplySurfaceParm(temp, &si->contentFlags, &si->surfaceFlags, &si->compileFlags) == qfalse)
+					{
+						ParseMaterial(si, token);
+					}
 				}
 
 				/* ydnar: q3map_clipmodel (autogenerate clip brushes for model triangles using this shader) */
