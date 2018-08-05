@@ -323,50 +323,58 @@ extern float Distance(vec3_t pos1, vec3_t pos2);
 #ifdef __REGENERATE_BSP_NORMALS__
 void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds)
 {
-	for (int i = 0; i < ds->numIndexes; i += 3)
+	qboolean smoothOnly = qfalse;
+
+	if (ds->shaderInfo && ds->shaderInfo->smoothOnly) 
+		smoothOnly = qtrue;
+
+	if (!smoothOnly)
 	{
-		int tri[3];
-		tri[0] = ds->indexes[i];
-		tri[1] = ds->indexes[i + 1];
-		tri[2] = ds->indexes[i + 2];
-
-		if (tri[0] >= ds->numVerts)
+		for (int i = 0; i < ds->numIndexes; i += 3)
 		{
-			//ri->Printf(PRINT_WARNING, "Shitty BSP index data - Bad index in face surface (vert) %i >=  (maxVerts) %i.", tri[0], cv->numVerts);
-			return;
+			int tri[3];
+			tri[0] = ds->indexes[i];
+			tri[1] = ds->indexes[i + 1];
+			tri[2] = ds->indexes[i + 2];
+
+			if (tri[0] >= ds->numVerts)
+			{
+				//ri->Printf(PRINT_WARNING, "Shitty BSP index data - Bad index in face surface (vert) %i >=  (maxVerts) %i.", tri[0], cv->numVerts);
+				return;
+			}
+			if (tri[1] >= ds->numVerts)
+			{
+				//ri->Printf(PRINT_WARNING, "Shitty BSP index data - Bad index in face surface (vert) %i >=  (maxVerts) %i.", tri[1], cv->numVerts);
+				return;
+			}
+			if (tri[2] >= ds->numVerts)
+			{
+				//ri->Printf(PRINT_WARNING, "Shitty BSP index data - Bad index in face surface (vert) %i >=  (maxVerts) %i.", tri[2], cv->numVerts);
+				return;
+			}
+
+			float* a = (float *)ds->verts[tri[0]].xyz;
+			float* b = (float *)ds->verts[tri[1]].xyz;
+			float* c = (float *)ds->verts[tri[2]].xyz;
+			vec3_t ba, ca;
+			VectorSubtract(b, a, ba);
+			VectorSubtract(c, a, ca);
+
+			vec3_t normal;
+			CrossProduct(ca, ba, normal);
+			VectorNormalize(normal, normal);
+
+			//ri->Printf(PRINT_WARNING, "OLD: %f %f %f. NEW: %f %f %f.\n", cv->verts[tri[0]].normal[0], cv->verts[tri[0]].normal[1], cv->verts[tri[0]].normal[2], normal[0], normal[1], normal[2]);
+
+	//#pragma omp critical
+			{
+				VectorCopy(normal, ds->verts[tri[0]].normal);
+				VectorCopy(normal, ds->verts[tri[1]].normal);
+				VectorCopy(normal, ds->verts[tri[2]].normal);
+			}
+
+			//ForceCrash();
 		}
-		if (tri[1] >= ds->numVerts)
-		{
-			//ri->Printf(PRINT_WARNING, "Shitty BSP index data - Bad index in face surface (vert) %i >=  (maxVerts) %i.", tri[1], cv->numVerts);
-			return;
-		}
-		if (tri[2] >= ds->numVerts)
-		{
-			//ri->Printf(PRINT_WARNING, "Shitty BSP index data - Bad index in face surface (vert) %i >=  (maxVerts) %i.", tri[2], cv->numVerts);
-			return;
-		}
-
-		float* a = (float *)ds->verts[tri[0]].xyz;
-		float* b = (float *)ds->verts[tri[1]].xyz;
-		float* c = (float *)ds->verts[tri[2]].xyz;
-		vec3_t ba, ca;
-		VectorSubtract(b, a, ba);
-		VectorSubtract(c, a, ca);
-
-		vec3_t normal;
-		CrossProduct(ca, ba, normal);
-		VectorNormalize(normal, normal);
-
-		//ri->Printf(PRINT_WARNING, "OLD: %f %f %f. NEW: %f %f %f.\n", cv->verts[tri[0]].normal[0], cv->verts[tri[0]].normal[1], cv->verts[tri[0]].normal[2], normal[0], normal[1], normal[2]);
-
-//#pragma omp critical
-		{
-			VectorCopy(normal, ds->verts[tri[0]].normal);
-			VectorCopy(normal, ds->verts[tri[1]].normal);
-			VectorCopy(normal, ds->verts[tri[2]].normal);
-		}
-
-		//ForceCrash();
 	}
 
 	// Now the hard part, make smooth normals...
@@ -519,6 +527,9 @@ void GenerateSmoothNormals(void)
 		}
 
 		mapDrawSurface_t *ds = &mapDrawSurfs[s];
+
+		if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
+
 		GenerateSmoothNormalsForMesh(ds);
 	}
 }

@@ -2651,8 +2651,12 @@ static void ParseShaderFile( const char *filename )
 					si->noBSP = qtrue;
 
 				/* vortex: prevent metasurface vertex normal smoothing */
-				else if( !Q_stricmp( token, "q3map_noSmooth" ) )
+				else if( !Q_stricmp( token, "q3map_noSmooth" ) || !Q_stricmp(token, "nosmooth"))
 					si->noSmooth = qtrue;
+
+				/* uq1: smooth normals but don't regenerate them */
+				else if (!Q_stricmp(token, "q3map_smoothOnly") || !Q_stricmp(token, "smoothOnly"))
+					si->smoothOnly = qtrue;
 
 				/* vortex: prevent merging of this surface in OPTIMIZE stage */
 				else if( !Q_stricmp( token, "q3map_noMerge" ) )

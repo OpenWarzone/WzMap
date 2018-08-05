@@ -934,6 +934,7 @@ typedef struct shaderInfo_s
 	qboolean			noMerge;						/* vortex: do not merge this drawsurface in OPTIMIZE stage */
 	qboolean			noVertexLight;					/* ydnar: leave vertex color alone */
 	qboolean            noSmooth;                       /* vortex: doesnt allow vertex normal smoothing */
+	qboolean            smoothOnly;						/* uq1: smooth the normals, but don't regenerate them */
 	qboolean			fixVertexAlpha;					/* vortex: automatic vertexalpha fixer*/
 	qboolean			splotchFix;						/* ydnar: filter splotches on lightmaps */
 	qboolean			hasPasses;						/* false if the shader doesn't define any rendering passes */
