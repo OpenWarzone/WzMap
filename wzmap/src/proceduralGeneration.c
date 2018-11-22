@@ -99,13 +99,15 @@ qboolean		USE_CONVEX_HULL_MODELS = qfalse;
 float			MAP_ROAD_SCAN_WIDTH_MULTIPLIER = 1.0;
 
 qboolean		ADD_CLIFF_FACES = qfalse;
-float			CLIFF_FACES_SCALE = 1.0;
-qboolean		CLIFF_FACES_SCALE_XY = qfalse;
+float			CLIFF_FACES_SCALE_XY = 1.0;
+float			CLIFF_FACES_SCALE_Z = 1.0;
 float			CLIFF_FACES_CULL_MULTIPLIER = 1.0;
 qboolean		CLIFF_CHEAP = qfalse;
 int				CLIFF_PLANE_SNAP = 0;
 char			CLIFF_SHADER[MAX_QPATH] = { 0 };
 char			CLIFF_CHECK_SHADER[MAX_QPATH] = { 0 };
+int				CLIFF_MODELS_TOTAL = 0;
+char			CLIFF_MODEL[MAX_FOREST_MODELS][MAX_QPATH] = { 0 };
 qboolean		ADD_LEDGE_FACES = qfalse;
 float			LEDGE_FACES_SCALE = 1.0;
 qboolean		LEDGE_FACES_SCALE_XY = qfalse;
@@ -583,10 +585,9 @@ void FOLIAGE_LoadClimateData( char *filename )
 	//
 
 	ADD_CLIFF_FACES = (qboolean)atoi(IniRead(filename, "CLIFFS", "addCliffFaces", "0"));
-	CLIFF_FACES_SCALE = atof(IniRead(filename, "CLIFFS", "cliffFacesScale", "1.0"));
+	CLIFF_FACES_SCALE_XY = atof(IniRead(filename, "CLIFFS", "cliffFacesScaleXY", "1.0"));
+	CLIFF_FACES_SCALE_Z = atof(IniRead(filename, "CLIFFS", "cliffFacesScaleZ", "1.0"));
 	CLIFF_FACES_CULL_MULTIPLIER = atof(IniRead(filename, "CLIFFS", "cliffFacesCullScale", "1.0"));
-
-	//CLIFF_FACES_CULL_MULTIPLIER *= CLIFF_FACES_SCALE;
 
 	strcpy(CLIFF_SHADER, IniRead(filename, "CLIFFS", "cliffShader", ""));
 
@@ -612,7 +613,6 @@ void FOLIAGE_LoadClimateData( char *filename )
 		Sys_Printf("Applying cliffs to any shader.\n");
 	}
 
-	CLIFF_FACES_SCALE_XY = (qboolean)atoi(IniRead(filename, "CLIFFS", "cliffScaleOnlyXY", "0"));
 	CLIFF_CHEAP = (qboolean)atoi(IniRead(filename, "CLIFFS", "cheapCliffs", "0"));
 	
 	CLIFF_PLANE_SNAP = atoi(IniRead(filename, "CLIFFS", "cliffPlaneSnap", "16"));
@@ -621,6 +621,42 @@ void FOLIAGE_LoadClimateData( char *filename )
 	{
 		Sys_Printf("Snapping cliff planes to %i units.\n", CLIFF_PLANE_SNAP);
 	}
+
+	if (!CLIFF_CHEAP)
+	{
+		Sys_Printf("Cliff Models:\n");
+
+		for (int i = 0; i < 64; i++)
+		{
+			char modelName[512] = { 0 };
+			strcpy(modelName, IniRead(filename, "CLIFFS", va("cliffModel%i", i), ""));
+
+			if (modelName[0])
+			{
+				strcpy(CLIFF_MODEL[i], modelName);
+
+				Sys_Printf("  %s (custom)\n", modelName);
+
+				CLIFF_MODELS_TOTAL++;
+			}
+		}
+
+		if (CLIFF_MODELS_TOTAL <= 0)
+		{// Use defaults...
+			strcpy(CLIFF_MODEL[0], "models/warzone/rocks/cliffface01.md3");
+			strcpy(CLIFF_MODEL[1], "models/warzone/rocks/cliffface02.md3");
+			strcpy(CLIFF_MODEL[2], "models/warzone/rocks/cliffface03.md3");
+			strcpy(CLIFF_MODEL[3], "models/warzone/rocks/cliffface04.md3");
+			strcpy(CLIFF_MODEL[4], "models/warzone/rocks/cliffface05.md3");
+			CLIFF_MODELS_TOTAL = 5;
+
+			for (int i = 0; i < CLIFF_MODELS_TOTAL; i++)
+			{
+				Sys_Printf("  %s (default)\n", CLIFF_MODEL[i]);
+			}
+		}
+	}
+	
 
 	//
 	// Ledges...
@@ -820,9 +856,19 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	int numLoadedModels = 0;
 
-	for (i = 1; i <= 5; i++)
+	if (CLIFF_MODELS_TOTAL > 0)
 	{
-		WzMap_PreloadModel(va("models/warzone/rocks/cliffface0%i.md3", i), 0, &numLoadedModels, 3, qtrue);
+		for (i = 0; i < CLIFF_MODELS_TOTAL; i++)
+		{
+			WzMap_PreloadModel(CLIFF_MODEL[i], 0, &numLoadedModels, 3, qtrue);
+		}
+	}
+	else
+	{
+		for (i = 1; i <= 5; i++)
+		{
+			WzMap_PreloadModel(va("models/warzone/rocks/cliffface0%i.md3", i), 0, &numLoadedModels, 3, qtrue);
+		}
 	}
 
 	for (i = 1; i <= 4; i++)
@@ -1301,8 +1347,8 @@ void GenerateCliffFaces(void)
 
 			//Sys_Printf("cliff found at %.4f %.4f %.4f. angles0 %.4f %.4f %.4f. angles1 %.4f %.4f %.4f. angles2 %.4f %.4f %.4f.\n", center[0], center[1], center[2], angles[0][0], angles[0][1], angles[0][2], angles[1][0], angles[1][1], angles[1][2], angles[2][0], angles[2][1], angles[2][2]);
 
-			cliffScale[numCliffs] = (smallestSize * CLIFF_FACES_SCALE) / 64.0;
-			cliffHeight[numCliffs] = smallestSize / 64.0;
+			cliffScale[numCliffs] = (smallestSize * CLIFF_FACES_SCALE_XY) / 64.0;
+			cliffHeight[numCliffs] = (smallestSize * CLIFF_FACES_SCALE_Z) / 64.0;
 			VectorCopy(center, cliffPositions[numCliffs]);
 			VectorCopy(angles[0], cliffAngles[numCliffs]);
 			cliffAngles[numCliffs][0] += 90.0;
@@ -1348,23 +1394,14 @@ void GenerateCliffFaces(void)
 			SetKeyValue(mapEnt, "origin", str);
 		}
 
-		if (!CLIFF_FACES_SCALE_XY)
-		{// Scale X, Y & Z axis...
-			char str[32];
-			sprintf(str, "%.4f", cliffScale[i]);
-			SetKeyValue(mapEnt, "modelscale", str);
-		}
-		else
-		{// Scale X & Y only...
-			char str[128];
-			sprintf(str, "%.4f %.4f %.4f", cliffScale[i], cliffScale[i], cliffHeight[i]);
-			//Sys_Printf("%s\n", str);
-			SetKeyValue(mapEnt, "modelscale_vec", str);
-		}
+		char str[128];
+		sprintf(str, "%.4f %.4f %.4f", cliffScale[i], cliffScale[i], cliffHeight[i]);
+		SetKeyValue(mapEnt, "modelscale_vec", str);
 
 		{
 			char str[32];
-			sprintf(str, "%.4f", cliffAngles[i][1]-180.0);
+			sprintf(str, "%.4f", irand(0, 360) - 180.0);// cliffAngles[i][1] - 180.0);
+			//sprintf(str, "%.4f", -cliffAngles[i][1] - 180.0);
 			SetKeyValue(mapEnt, "angle", str);
 		}
 
@@ -1384,9 +1421,20 @@ void GenerateCliffFaces(void)
 		classname = ValueForKey(mapEnt, "classname");
 
 		if (CLIFF_CHEAP)
+		{
 			SetKeyValue(mapEnt, "model", va("models/warzone/rocks/cliffface0%i.md3", irand(4, 5)));
+		}
 		else
-			SetKeyValue(mapEnt, "model", va("models/warzone/rocks/cliffface0%i.md3", irand(1,5)));
+		{
+			if (CLIFF_MODELS_TOTAL > 0)
+			{// Using custom list...
+				SetKeyValue(mapEnt, "model", CLIFF_MODEL[irand(0, CLIFF_MODELS_TOTAL-1)]);
+			}
+			else
+			{
+				SetKeyValue(mapEnt, "model", va("models/warzone/rocks/cliffface0%i.md3", irand(1, 5)));
+			}
+		}
 
 		if (CLIFF_PLANE_SNAP > 0)
 		{
