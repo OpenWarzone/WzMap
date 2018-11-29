@@ -118,14 +118,17 @@ content and surface flags
 #define S_MAT_PUDDLE				32			// shallow puddle on floor surface, or water that should not use GLSL.
 #define S_MAT_POLISHEDWOOD			33			// shiny polished wood
 #define S_MAT_LAVA					34			// lava
-#define S_MAT_EFX					35			// any efx surfaces
-#define S_MAT_BLASTERBOLT			36			// blaster bolts, sabers, etc
-#define S_MAT_FIRE					37			// fire
-#define S_MAT_SMOKE					38			// smoke
-#define S_MAT_FIREFLIES				39			// fire flies fx
-#define S_MAT_MAGIC_PARTICLES_TREE	40			// magic tree particle fx
-#define S_MAT_MAGIC_PARTICLES		41			// magic particles (small particle fx)
-#define S_MAT_LAST					42			/* number of materials */
+#define S_MAT_TREEBARK				35		// 
+#define S_MAT_STONE					36			// 
+#define S_MAT_EFX					37			// any efx surfaces
+#define S_MAT_BLASTERBOLT			38			// blaster bolts, sabers, etc
+#define S_MAT_FIRE					39			// fire
+#define S_MAT_SMOKE					40			// smoke
+#define S_MAT_FIREFLIES				41			// fire flies fx
+#define S_MAT_MAGIC_PARTICLES_TREE	42			// magic tree particle fx
+#define S_MAT_MAGIC_PARTICLES		43			// magic particles (small particle fx)
+#define S_MAT_PORTAL				44			// teleport portal
+#define S_MAT_LAST					45			/* number of materials */
 
 
 
@@ -275,6 +278,8 @@ game_t struct
 		{ "*mat_puddle",	0,							0,							S_MAT_PUDDLE,				S_MAT_MASK,					0,							0 },
 		{ "*mat_polishedwood",	0,							0,						S_MAT_POLISHEDWOOD,			S_MAT_MASK,					0,							0 },
 		{ "*mat_lava",	0,							0,								S_MAT_LAVA,					S_MAT_MASK,					0,							0 },
+		{ "*mat_treebark",	0,							0,							S_MAT_TREEBARK,				S_MAT_MASK,					0,							0 },
+		{ "*mat_stone",	0,							0,								S_MAT_STONE,				S_MAT_MASK,					0,							0 },
 		{ "*mat_efx",	0,							0,								S_MAT_EFX,					S_MAT_MASK,					0,							0 },
 		{ "*mat_blasterbolt",	0,							0,						S_MAT_BLASTERBOLT,			S_MAT_MASK,					0,							0 },
 		{ "*mat_fire",	0,							0,								S_MAT_FIRE,					S_MAT_MASK,					0,							0 },
@@ -282,6 +287,7 @@ game_t struct
 		{ "*mat_fireflies",	0,							0,							S_MAT_FIREFLIES,			S_MAT_MASK,					0,							0 },
 		{ "*mat_magicparticlestree",	0,							0,				S_MAT_MAGIC_PARTICLES_TREE,	S_MAT_MASK,					0,							0 },
 		{ "*mat_magicparticles",	0,							0,					S_MAT_MAGIC_PARTICLES,		S_MAT_MASK,					0,							0 },
+		{ "*mat_portal",	0,							0,							S_MAT_PORTAL,				S_MAT_MASK,					0,							0 },
 		
 		/* null */
 		{ NULL, 0, 0, 0, 0, 0, 0 }

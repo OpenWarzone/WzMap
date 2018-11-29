@@ -1573,8 +1573,15 @@ static void ParseShaderFile( const char *filename )
 				{
 					if( !GetTokenAppend( shaderText, qtrue ) )
 						break;
+
 					if( !strcmp( token, "}" ) )
 						break;
+
+					if (!Q_stricmp(token, "glow"))
+					{
+						//Sys_Printf("Shader %s has glow.\n", name);
+						si->glow = qtrue;
+					}
 
 					/* only care about images if we don't have a editor/light image */
 					if( si->editorImagePath[ 0 ] == '\0' && si->lightImagePath[ 0 ] == '\0' && si->implicitImagePath[ 0 ] == '\0' )

@@ -1099,41 +1099,44 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 		mapDrawSurface_t *dsFound = NULL;
 
-		for (int d = 0; d < numMapDrawSurfs; d++)
-		{
-			mapDrawSurface_t *ds2 = &mapDrawSurfs[d];
-			
-#if 1
-			if (ds2->mapEntityNum == mapEntityNum
-				&& ds2->castShadows == castShadows
-				&& ds2->recvShadows == recvShadows
-				&& ds2->noAlphaFix == noAlphaFix
-				&& ds2->skybox == skybox
-				&& ds2->shaderInfo == si
-				&& ds2->smoothNormals == shadeAngle
-				&& ds2->type == wantedType
-				&& ds2->sampleSize == wantedSampleSize
-				&& ds2->lightmapScale == wantedLightmapScale
-				&& ds2->vertTexProj == wantedVertTexProj
-				&& ds2->celShader == celShader
-				&& (lightmapAxis == NULL || VectorCompare(wantedLightMapAxis, ds2->lightmapAxis))
-				&& (minlight == NULL || VectorCompare(wantedMinLight, ds2->minlight))
-				&& (minvertexlight == NULL || VectorCompare(wantedMinvertexLight, ds2->minvertexlight))
-				&& (ambient == NULL || VectorCompare(wantedAmbient, ds2->ambient))
-				&& (colormod == NULL || VectorCompare(wantedColorMod, ds2->colormod)))
-#else
-			if (((si && ds2->shaderInfo && !strcmp(ds2->shaderInfo->shader, si->shader)) || !si && !ds2->shaderInfo))
-#endif
+		if (!si->glow)
+		{// Don't merge glow objects, warzone needs them separate for emissive lighting...
+			for (int d = 0; d < numMapDrawSurfs; d++)
 			{
-				vec3_t xyz;
-				VectorCopy(PicoGetSurfaceXYZ(surface, 0), xyz);
-				m4x4_transform_point(transform, xyz);
+				mapDrawSurface_t *ds2 = &mapDrawSurfs[d];
 
-				float dist = Distance(ds2->verts[0].xyz, xyz);
-				if (dist < 2048.0)
+#if 1
+				if (ds2->mapEntityNum == mapEntityNum
+					&& ds2->castShadows == castShadows
+					&& ds2->recvShadows == recvShadows
+					&& ds2->noAlphaFix == noAlphaFix
+					&& ds2->skybox == skybox
+					&& ds2->shaderInfo == si
+					&& ds2->smoothNormals == shadeAngle
+					&& ds2->type == wantedType
+					&& ds2->sampleSize == wantedSampleSize
+					&& ds2->lightmapScale == wantedLightmapScale
+					&& ds2->vertTexProj == wantedVertTexProj
+					&& ds2->celShader == celShader
+					&& (lightmapAxis == NULL || VectorCompare(wantedLightMapAxis, ds2->lightmapAxis))
+					&& (minlight == NULL || VectorCompare(wantedMinLight, ds2->minlight))
+					&& (minvertexlight == NULL || VectorCompare(wantedMinvertexLight, ds2->minvertexlight))
+					&& (ambient == NULL || VectorCompare(wantedAmbient, ds2->ambient))
+					&& (colormod == NULL || VectorCompare(wantedColorMod, ds2->colormod)))
+#else
+				if (((si && ds2->shaderInfo && !strcmp(ds2->shaderInfo->shader, si->shader)) || !si && !ds2->shaderInfo))
+#endif
 				{
-					dsFound = ds2;
-					break;
+					vec3_t xyz;
+					VectorCopy(PicoGetSurfaceXYZ(surface, 0), xyz);
+					m4x4_transform_point(transform, xyz);
+
+					float dist = Distance(ds2->verts[0].xyz, xyz);
+					if (dist < 2048.0)
+					{
+						dsFound = ds2;
+						break;
+					}
 				}
 			}
 		}
@@ -1447,7 +1450,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		{
 			if (forcedSolid)
 			{
-
+				//Sys_Printf("Adding forced collision planes for %s.\n", picoShaderName);
 			}
 			else if (HAS_COLLISION_INFO && !IS_COLLISION_SURFACE)
 			{
@@ -1925,7 +1928,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 									numsides = buildBrush->numsides;
 
-									if (!RemoveDuplicateBrushPlanes( buildBrush ))
+									if (!RemoveDuplicateBrushPlanes( buildBrush )/* && !forcedFullSolid*/)
 									{// UQ1: Testing - This would create a mirrored plane... free it...
 										FreeBrush(buildBrush);
 										//Sys_Printf("Removed a mirrored plane\n");
@@ -1947,6 +1950,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 								}
 								else
 								{
+									//Sys_Printf("%s failed windings.\n", picoShaderName);
 									FreeBrush(buildBrush);
 								}
 							} // #pragma omp critical

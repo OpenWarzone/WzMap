@@ -196,6 +196,8 @@ game_t struct
 		{ "*mat_puddle",	0,							0,							S_MAT_PUDDLE,				S_MAT_MASK,					0,							0 },
 		{ "*mat_polishedwood",	0,							0,						S_MAT_POLISHEDWOOD,			S_MAT_MASK,					0,							0 },
 		{ "*mat_lava",	0,							0,								S_MAT_LAVA,					S_MAT_MASK,					0,							0 },
+		{ "*mat_treebark",	0,							0,							S_MAT_TREEBARK,				S_MAT_MASK,					0,							0 },
+		{ "*mat_stone",	0,							0,								S_MAT_STONE,				S_MAT_MASK,					0,							0 },
 		{ "*mat_efx",	0,							0,								S_MAT_EFX,					S_MAT_MASK,					0,							0 },
 		{ "*mat_blasterbolt",	0,							0,						S_MAT_BLASTERBOLT,			S_MAT_MASK,					0,							0 },
 		{ "*mat_fire",	0,							0,								S_MAT_FIRE,					S_MAT_MASK,					0,							0 },
@@ -203,6 +205,7 @@ game_t struct
 		{ "*mat_fireflies",	0,							0,							S_MAT_FIREFLIES,			S_MAT_MASK,					0,							0 },
 		{ "*mat_magicparticlestree",	0,							0,				S_MAT_MAGIC_PARTICLES_TREE,	S_MAT_MASK,					0,							0 },
 		{ "*mat_magicparticles",	0,							0,					S_MAT_MAGIC_PARTICLES,		S_MAT_MASK,					0,							0 },
+		{ "*mat_portal",	0,							0,							S_MAT_PORTAL,				S_MAT_MASK,					0,							0 },
 		
 		
 		/* null */

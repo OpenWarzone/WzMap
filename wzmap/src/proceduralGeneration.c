@@ -171,6 +171,7 @@ float			STATIC_ANGLE[MAX_STATIC_ENTITY_MODELS] = { 0 };
 float			STATIC_SCALE[MAX_STATIC_ENTITY_MODELS] = { 0 };
 int				STATIC_ALLOW_SIMPLIFY[MAX_STATIC_ENTITY_MODELS] = { 2 };
 int				STATIC_PLANE_SNAP[MAX_STATIC_ENTITY_MODELS] = { 0 };
+int				STATIC_FORCED_FULLSOLID[MAX_STATIC_ENTITY_MODELS] = { 0 };
 
 #define MAP_INFO_TRACEMAP_SIZE 2048
 
@@ -830,9 +831,10 @@ void FOLIAGE_LoadClimateData( char *filename )
 		STATIC_ANGLE[i] = atof(IniRead(filename, "STATIC", va("staticAngle%i", i), "0.0"));
 		STATIC_ALLOW_SIMPLIFY[i] = (qboolean)atoi(IniRead(filename, "STATIC", va("staticAllowSimplify%i", i), "2"));
 		STATIC_PLANE_SNAP[i] = atoi(IniRead(filename, "STATIC", va("staticPlaneSnap%i", i), "4"));
+		STATIC_FORCED_FULLSOLID[i] = atoi(IniRead(filename, "STATIC", va("staticForcedFullSolid%i", i), "0"));
 
 		if (strcmp(STATIC_MODEL[i], ""))
-			Sys_Printf("Static %i. Model %s. Origin %i %i %i. Angle %.4f. Scale %.4f. Plane Snap: %i.\n", i, STATIC_MODEL[i], (int)STATIC_ORIGIN[i][0], (int)STATIC_ORIGIN[i][1], (int)STATIC_ORIGIN[i][2], (float)STATIC_ANGLE[i], (float)STATIC_SCALE[i], STATIC_PLANE_SNAP[i]);
+			Sys_Printf("Static %i. Model %s. Origin %i %i %i. Angle %.4f. Scale %.4f. Plane Snap: %i. Forced Solid: %i.\n", i, STATIC_MODEL[i], (int)STATIC_ORIGIN[i][0], (int)STATIC_ORIGIN[i][1], (int)STATIC_ORIGIN[i][2], (float)STATIC_ANGLE[i], (float)STATIC_SCALE[i], STATIC_PLANE_SNAP[i], STATIC_FORCED_FULLSOLID[i]);
 	}
 
 	//
@@ -4150,15 +4152,13 @@ void GenerateStaticEntities(void)
 			SetKeyValue(mapEnt, "angle", str);
 		}
 
-		SetKeyValue(mapEnt, "_forcedSolid", "1");
+		//SetKeyValue(mapEnt, "_forcedSolid", "1");
 		//SetKeyValue(mapEnt, "_forcedSolid", "0");
 
-		if (STATIC_PLANE_SNAP > 0)
+		/*if (CLIFF_SHADER[0] != '\0')
 		{
-			SetKeyValue(mapEnt, "snap", va("%i", STATIC_PLANE_SNAP));
-		}
-
-		//Sys_Printf( "Generated mapent at %.4f %.4f %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+			SetKeyValue(mapEnt, "_overrideShader", CLIFF_SHADER);
+		}*/
 
 
 		/* ydnar: get classname */
@@ -4169,7 +4169,30 @@ void GenerateStaticEntities(void)
 
 		classname = ValueForKey(mapEnt, "classname");
 
+
+		//Sys_Printf( "Generated mapent at %.4f %.4f %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+
+
 		SetKeyValue(mapEnt, "model", STATIC_MODEL[i]);
+
+		if (STATIC_PLANE_SNAP[i] > 0)
+		{
+			SetKeyValue(mapEnt, "snap", va("%i", STATIC_PLANE_SNAP[i]));
+		}
+
+		if (STATIC_FORCED_FULLSOLID[i] >= 2)
+		{
+			SetKeyValue(mapEnt, "_forcedSolid", "2");
+		}
+		else if (STATIC_FORCED_FULLSOLID[i])
+		{
+			SetKeyValue(mapEnt, "_forcedSolid", "1");
+		}
+		else
+		{
+			SetKeyValue(mapEnt, "_forcedSolid", "0");
+		}
+
 
 		funcGroup = qfalse;
 
