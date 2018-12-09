@@ -552,7 +552,7 @@ float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 							{
 #pragma omp critical
 								{
-									//Sys_Printf("origin %f %f %f. inRangePos %f %f %f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
+									//Sys_Printf("origin %.4f %.4f %.4f. inRangePos %.4f %.4f %.4f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
 									nMins = dv->xyz[2];
 									lsi = si;
 								}
@@ -602,7 +602,7 @@ float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 								{
 #pragma omp critical
 									{
-										//Sys_Printf("origin %f %f %f. inRangePos %f %f %f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
+										//Sys_Printf("origin %.4f %.4f %.4f. inRangePos %.4f %.4f %.4f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
 										nMins = dv->xyz[2];
 										lsi = si;
 									}
@@ -653,7 +653,7 @@ float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 								{
 #pragma omp critical
 									{
-										//Sys_Printf("origin %f %f %f. inRangePos %f %f %f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
+										//Sys_Printf("origin %.4f %.4f %.4f. inRangePos %.4f %.4f %.4f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
 										nMins = dv->xyz[2];
 										lsi = si;
 									}
@@ -704,7 +704,7 @@ float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 								{
 #pragma omp critical
 									{
-										//Sys_Printf("origin %f %f %f. inRangePos %f %f %f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
+										//Sys_Printf("origin %.4f %.4f %.4f. inRangePos %.4f %.4f %.4f.\n", pos[0], pos[1], pos[2], dv->xyz[0], dv->xyz[1], dv->xyz[2]);
 										nMins = dv->xyz[2];
 										lsi = si;
 									}
@@ -724,8 +724,8 @@ float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 
 	nMins -= 128.0;
 
-	//Sys_Printf("model %s. origin %f %f %f.\n", modelName, pos[0], pos[1], pos[2]);
-	//Sys_Printf("LOWEST_NEAR_POINT %f. Lowest found surface shader was %s.\n", nMins, (lsi->shader && lsi->shader[0]) ? lsi->shader : "Unknown");
+	//Sys_Printf("model %s. origin %.4f %.4f %.4f.\n", modelName, pos[0], pos[1], pos[2]);
+	//Sys_Printf("LOWEST_NEAR_POINT %.4f. Lowest found surface shader was %s.\n", nMins, (lsi->shader && lsi->shader[0]) ? lsi->shader : "Unknown");
 
 	return nMins;
 }
@@ -825,6 +825,8 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		transform = identity;
 	}
 
+	//Sys_Printf("Model %s. Matrix: %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f\n", name, identity[0], identity[1], identity[2], identity[3], identity[4], identity[5], identity[6], identity[7], identity[8], identity[9], identity[10], identity[11], identity[12], identity[13], identity[14], identity[15]);
+
 	/* hack: Stable-1_2 and trunk have differing row/column major matrix order
 	   this transpose is necessary with Stable-1_2
 	   uncomment the following line with old m4x4_t (non 1.3/spog_branch) code */
@@ -895,7 +897,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		return;
 	}
 
-	//Sys_Printf("top: %f. bottom: %f.\n", top, bottom);
+	//Sys_Printf("top: %.4f. bottom: %.4f.\n", top, bottom);
 
 	//Sys_Printf( "Model %s has %d surfaces\n", name, numSurfaces );
 
@@ -1623,12 +1625,12 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 						numSolidSurfs++;
 
-						//Sys_Printf("mapmins %f %f %f. mapmaxs %f %f %f.\n", mapPlayableMins[0], mapPlayableMins[1], mapPlayableMins[2], mapPlayableMaxs[0], mapPlayableMaxs[1], mapPlayableMaxs[2]);
-						//Sys_Printf("mins %f %f %f. maxs %f %f %f.\n", mins[0], mins[1], mins[2], maxs[0], maxs[1], maxs[2]);
+						//Sys_Printf("mapmins %.4f %.4f %.4f. mapmaxs %.4f %.4f %.4f.\n", mapPlayableMins[0], mapPlayableMins[1], mapPlayableMins[2], mapPlayableMaxs[0], mapPlayableMaxs[1], mapPlayableMaxs[2]);
+						//Sys_Printf("mins %.4f %.4f %.4f. maxs %.4f %.4f %.4f.\n", mins[0], mins[1], mins[2], maxs[0], maxs[1], maxs[2]);
 
 #ifdef CULL_BY_LOWEST_NEAR_POINT
 						{
-							//Sys_Printf("LOWEST_NEAR_POINT %f.\n", LOWEST_NEAR_POINT);
+							//Sys_Printf("LOWEST_NEAR_POINT %.4f.\n", LOWEST_NEAR_POINT);
 
 							if (LOWEST_NEAR_POINT != 999999.0f && mins[2] < LOWEST_NEAR_POINT && maxs[2] < LOWEST_NEAR_POINT)
 							{// Below map's lowest known near point, definately cull...
@@ -1682,7 +1684,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 							continue;
 						}
 
-						//Sys_Printf("top: %f. bottom: %f.\n", top, bottom);
+						//Sys_Printf("top: %.4f. bottom: %.4f.\n", top, bottom);
 
 						if (!HAS_COLLISION_INFO
 							&& !forcedFullSolid
@@ -1700,11 +1702,11 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 								if (ALLOW_CULL_HALF_SIZE) newtop = bottom + (s / 4.0); // Special case for high pine trees, we can cull much more for FPS yay! :)
 
-								//Sys_Printf("newtop: %f. top: %f. bottom: %f. mins: %f. maxs: %f.\n", newtop, top, bottom, mins[2], maxs[2]);
+								//Sys_Printf("newtop: %.4f. top: %.4f. bottom: %.4f. mins: %.4f. maxs: %.4f.\n", newtop, top, bottom, mins[2], maxs[2]);
 
 								if (mins[2] > newtop || mins[2] > bottom + 512.0) // 512 is > JKA max jump height...
 								{
-									//Sys_Printf("CULLED: %f > %f.\n", maxs[2], newtop);
+									//Sys_Printf("CULLED: %.4f > %.4f.\n", maxs[2], newtop);
 									numHeightCulledSurfs++;
 									continue;
 								}
@@ -1718,7 +1720,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 							if (sz < 36)
 							{
-								//Sys_Printf("CULLED: %f < 30. (%f %f %f)\n", sz, maxs[0] - mins[0], maxs[1] - mins[1], maxs[2] - mins[2]);
+								//Sys_Printf("CULLED: %.4f < 30. (%.4f %.4f %.4f)\n", sz, maxs[0] - mins[0], maxs[1] - mins[1], maxs[2] - mins[2]);
 								numSizeCulledSurfs++;
 								continue;
 							}
@@ -1736,7 +1738,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 							if (sz <= 16)//24)//16)
 							{
-								//Sys_Printf("CULLED: %f < 30. (%f %f %f)\n", sz, maxs[0] - mins[0], maxs[1] - mins[1], maxs[2] - mins[2]);
+								//Sys_Printf("CULLED: %.4f < 30. (%.4f %.4f %.4f)\n", sz, maxs[0] - mins[0], maxs[1] - mins[1], maxs[2] - mins[2]);
 								numSizeCulledSurfs++;
 								continue;
 							}
@@ -2438,7 +2440,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 
 				if (radius < 1024.0) radius = 1024.0;
 
-				//Sys_Printf("%s. mins %f %f %f. maxs %f %f %f. scale %f %f %f. radius %f.\n", model, m->mins[0], m->mins[1], m->mins[2], m->maxs[0], m->maxs[1], m->maxs[2], scale[0], scale[1], scale[2], radius);
+				//Sys_Printf("%s. mins %.4f %.4f %.4f. maxs %.4f %.4f %.4f. scale %.4f %.4f %.4f. radius %.4f.\n", model, m->mins[0], m->mins[1], m->mins[2], m->maxs[0], m->maxs[1], m->maxs[2], scale[0], scale[1], scale[2], radius);
 
 				e3->lowestPointNear = LowestMapPointNear(origin, radius, model);
 			}

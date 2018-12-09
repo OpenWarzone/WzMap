@@ -1402,8 +1402,8 @@ void GenerateCliffFaces(void)
 
 		{
 			char str[32];
-			sprintf(str, "%.4f", irand(0, 360) - 180.0);// cliffAngles[i][1] - 180.0);
-			//sprintf(str, "%.4f", -cliffAngles[i][1] - 180.0);
+			//sprintf(str, "%.4f", irand(0, 360) - 180.0);// cliffAngles[i][1] - 180.0);
+			sprintf(str, "%.4f", cliffAngles[i][1] - 180.0);
 			SetKeyValue(mapEnt, "angle", str);
 		}
 
@@ -3875,12 +3875,6 @@ void GenerateMapForest ( void )
 					SetKeyValue( mapEnt, "modelscale", str );
 				}
 
-				{
-					char str[32];
-					sprintf( str, "%.4f", FOLIAGE_TREE_ANGLES[i] );
-					SetKeyValue( mapEnt, "angle", str );
-				}
-
 				if (TREE_FORCED_FULLSOLID[FOLIAGE_TREE_SELECTION[i]])
 				{
 					SetKeyValue(mapEnt, "_forcedSolid", "1");
@@ -3910,14 +3904,30 @@ void GenerateMapForest ( void )
 				}
 
 				/*{
-				char str[32];
-				vec3_t angles;
-				vectoangles( FOLIAGE_NORMALS[i], angles );
-				angles[PITCH] += 90;
-				angles[YAW] = 270.0 - FOLIAGE_TREE_ANGLES[i];
-				sprintf( str, "%.4f %.4f %.4f", angles[0], angles[1], angles[2] );
-				SetKeyValue( mapEnt, "angles", str );
+					char str[32];
+					sprintf(str, "%.4f", FOLIAGE_TREE_ANGLES[i]);
+					SetKeyValue(mapEnt, "angle", str);
 				}*/
+
+#if 0
+				{
+					char str[32];
+					vec3_t angles;
+					//vectoangles( FOLIAGE_NORMALS[i], angles );
+					//angles[PITCH] += 90;
+					angles[PITCH] = 0.0;
+					angles[ROLL] = 0.0;
+					angles[YAW] = 270.0 - FOLIAGE_TREE_ANGLES[i];
+					sprintf( str, "%.4f %.4f %.4f", angles[0], angles[1], angles[2] );
+					SetKeyValue( mapEnt, "angles", str );
+				}
+#else
+				{
+					char str[32];
+					sprintf(str, "%.4f", irand(0, 360) - 180.0);
+					SetKeyValue(mapEnt, "angle", str);
+				}
+#endif
 
 				/*{
 				char str[32];
