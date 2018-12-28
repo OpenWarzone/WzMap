@@ -168,6 +168,9 @@ void	QCopyFile( const char *from, const char *to );
 extern	qboolean		archive;
 extern	char			archivedir[MAX_OS_PATH];
 
+float mix(float x, float y, float a);
+float sign(float x);
+
 // sleep for the given amount of milliseconds
 void Sys_Sleep(int n);
 

@@ -1499,3 +1499,15 @@ void Sys_Sleep(int n)
   usleep (n * 1000);
 #endif
 }
+
+float mix(float x, float y, float a)
+{
+	return (1 - a)*x + a*y;
+}
+
+float sign(float x)
+{
+	if (x < 0.0) return -1.0;
+	if (x > 0.0) return 1.0;
+	return 0.0;
+}

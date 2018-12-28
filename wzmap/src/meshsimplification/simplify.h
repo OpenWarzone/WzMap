@@ -545,7 +545,7 @@ namespace Simplify
 		vec3f p;
 		loopk(0,v.tcount)
 		{
-			Ref &r=refs[v.tstart+k];
+			Ref r = refs[v.tstart+k];
 			Triangle &t=triangles[r.tid];
 			if(t.deleted)continue;
 			if(deleted[k])
@@ -742,7 +742,6 @@ namespace Simplify
 		double det = q.det(0, 1, 2, 1, 4, 5, 2, 5, 7);
 		if ( det != 0 && !border )
 		{
-
 			// q_delta is invertible
 			p_result.x = -1/det*(q.det(1, 2, 3, 4, 5, 6, 5, 7 , 8));	// vx = A41/det(q_delta)
 			p_result.y =  1/det*(q.det(0, 2, 3, 1, 5, 6, 2, 7 , 8));	// vy = A42/det(q_delta)
@@ -915,7 +914,7 @@ namespace Simplify
 		fprintf(file, "#\n\n");
 
 		fprintf(file, "g collision\n");
-
+		
 		loopi(0,triangles.size()) if(!triangles[i].deleted)
 		{
 			//fprintf(file, "f %d %d %d\n", triangles[i].v[0]+1, triangles[i].v[1]+1, triangles[i].v[2]+1);

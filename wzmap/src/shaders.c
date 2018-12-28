@@ -1025,6 +1025,11 @@ finds a shaderinfo for a named shader
 
 #define MAX_SHADER_DEPRECATION_DEPTH 16
 
+#define MAX_REPLACE_SHADERS 128
+extern int			REPLACE_SHADERS_NUM;
+extern char			REPLACE_SHADERS_ORIGINAL[MAX_REPLACE_SHADERS][128];
+extern char			REPLACE_SHADERS_NEW[MAX_REPLACE_SHADERS][128];
+
 shaderInfo_t *ShaderInfoForShader( const char *shaderName )
 {
 	int				i;
@@ -1047,6 +1052,15 @@ shaderInfo_t *ShaderInfoForShader( const char *shaderName )
 	}
 	else
 	{
+		for (i = 0; i < REPLACE_SHADERS_NUM; i++)
+		{// Check if climate file told us to override this shader...
+			if (!strcmp(REPLACE_SHADERS_ORIGINAL[i], shaderName))
+			{
+				shaderName = REPLACE_SHADERS_NEW[i];
+				break;
+			}
+		}
+
 		/* strip off extension */
 		strcpy(shader, shaderName);
 		StripExtension(shader);

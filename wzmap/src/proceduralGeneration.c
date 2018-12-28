@@ -165,6 +165,8 @@ vec3_t			SKYSCRAPERS_CENTER = { 0 };
 float			SKYSCRAPERS_RADIUS = 0;
 int				SKYSCRAPERS_PLANE_SNAP = 0;
 
+#define STATIC_BUFFER_RANGE 156.0
+
 char			STATIC_MODEL[MAX_STATIC_ENTITY_MODELS][128] = { 0 };
 vec3_t			STATIC_ORIGIN[MAX_STATIC_ENTITY_MODELS] = { 0 };
 float			STATIC_ANGLE[MAX_STATIC_ENTITY_MODELS] = { 0 };
@@ -172,6 +174,11 @@ float			STATIC_SCALE[MAX_STATIC_ENTITY_MODELS] = { 0 };
 int				STATIC_ALLOW_SIMPLIFY[MAX_STATIC_ENTITY_MODELS] = { 2 };
 int				STATIC_PLANE_SNAP[MAX_STATIC_ENTITY_MODELS] = { 0 };
 int				STATIC_FORCED_FULLSOLID[MAX_STATIC_ENTITY_MODELS] = { 0 };
+
+#define MAX_REPLACE_SHADERS 128
+int				REPLACE_SHADERS_NUM = 0;
+char			REPLACE_SHADERS_ORIGINAL[MAX_REPLACE_SHADERS][128] = { 0 };
+char			REPLACE_SHADERS_NEW[MAX_REPLACE_SHADERS][128] = { 0 };
 
 #define MAP_INFO_TRACEMAP_SIZE 2048
 
@@ -580,6 +587,30 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	MAP_ROAD_SCAN_WIDTH_MULTIPLIER = atof(IniRead(filename, "GENERAL", "roadScanWidthMultiplier", "1.0"));
 	Sys_Printf("Roads scan width is %.4f.\n", MAP_ROAD_SCAN_WIDTH_MULTIPLIER);
+
+	//
+	// Replacement shaders...
+	//
+	//char			REPLACE_SHADERS_ORIGINAL[MAX_REPLACE_SHADERS][128] = { 0 };
+	//char			REPLACE_SHADERS_NEW[MAX_REPLACE_SHADERS][128] = { 0 };
+	REPLACE_SHADERS_NUM = 0;
+
+	for (int i = 0; i < MAX_REPLACE_SHADERS; i++)
+	{// Load any replacement shaders...
+		char shaderName[128] = { 0 };
+		strcpy(shaderName, IniRead(filename, "SHADER_REPLACE", va("replaceShaderOriginal%i", i), ""));
+
+		if (shaderName[0] != 0 && strlen(shaderName) > 0)
+		{
+			strcpy(REPLACE_SHADERS_ORIGINAL[REPLACE_SHADERS_NUM], shaderName);
+			strcpy(REPLACE_SHADERS_NEW[REPLACE_SHADERS_NUM], IniRead(filename, "SHADER_REPLACE", va("replaceShaderNew%i", i), ""));
+			REPLACE_SHADERS_NUM++;
+		}
+		else
+		{
+			break;
+		}
+	}
 
 	//
 	// Cliffs...
@@ -1318,7 +1349,7 @@ void GenerateCliffFaces(void)
 
 				float dist = Distance(STATIC_ORIGIN[k], center);
 
-				if (dist <= 256.0 * STATIC_SCALE[k])
+				if (dist <= STATIC_BUFFER_RANGE * STATIC_SCALE[k])
 				{// Not within this static object's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -2969,7 +3000,7 @@ void GenerateLedgeFaces(void)
 
 				float dist = Distance(STATIC_ORIGIN[k], center);
 
-				if (dist <= 256.0 * STATIC_SCALE[k])
+				if (dist <= STATIC_BUFFER_RANGE * STATIC_SCALE[k])
 				{// Not within this static object's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3370,7 +3401,7 @@ void ReassignTreeModels ( void )
 
 				float dist = Distance(STATIC_ORIGIN[k], FOLIAGE_POSITIONS[i]);
 
-				if (dist <= 256.0 * STATIC_SCALE[k])
+				if (dist <= STATIC_BUFFER_RANGE * STATIC_SCALE[k])
 				{// Not within this static object's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3415,7 +3446,7 @@ void ReassignTreeModels ( void )
 					break;
 				}
 
-				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= POSSIBLES_SAME_RANGES[selected])
+				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= TREE_FORCED_DISTANCE_FROM_SAME[POSSIBLES[selected]])
 				{// Not within this object's same type range... OK!
 					bad = qtrue;
 					break;
@@ -3595,7 +3626,7 @@ void ReassignTreeModels ( void )
 
 				float dist = Distance(STATIC_ORIGIN[k], FOLIAGE_POSITIONS[i]);
 
-				if (dist <= 256.0 * STATIC_SCALE[k])
+				if (dist <= STATIC_BUFFER_RANGE * STATIC_SCALE[k])
 				{// Not within this static object's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3646,10 +3677,12 @@ void ReassignTreeModels ( void )
 					break;
 				}
 
-				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= POSSIBLES_SAME_RANGES[selected])
+				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= TREE_FORCED_DISTANCE_FROM_SAME[POSSIBLES[selected]])
 				{// Not within this object's same type range... OK!
-					selected = irand(0, NUM_POSSIBLES - 1);
-					tries++;
+					//selected = irand(0, NUM_POSSIBLES - 1);
+					//tries++;
+					bad = qtrue;
+					break;
 				}
 
 				dist = Distance(CITY_LOCATION, FOLIAGE_POSITIONS[i]);
@@ -4568,7 +4601,8 @@ void ReassignCityModels(void)
 					break;
 				}
 
-				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= POSSIBLES_BUILDING_SAME_RANGES[selected])
+				//if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= POSSIBLES_BUILDING_SAME_RANGES[selected])
+				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= CITY_FORCED_DISTANCE_FROM_SAME[POSSIBLES[selected]])
 				{// Not within this object's same type range... OK!
 					bad = qtrue;
 					//Sys_Printf("DEBUG: Position %i same-range. Dist: %.4f. Range: %.4f.\n", i, dist, POSSIBLES_BUILDING_SAME_RANGES[selected]);
@@ -4756,7 +4790,8 @@ void ReassignCityModels(void)
 					break;
 				}
 
-				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= POSSIBLES_BUILDING_SAME_RANGES[selected])
+				//if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= POSSIBLES_BUILDING_SAME_RANGES[selected])
+				if (FOLIAGE_TREE_SELECTION[j] == POSSIBLES[selected] && dist <= CITY_FORCED_DISTANCE_FROM_SAME[POSSIBLES[selected]])
 				{// Not within this object's same type range... OK!
 					selected = irand(0, NUM_POSSIBLES - 1);
 					tries++;
