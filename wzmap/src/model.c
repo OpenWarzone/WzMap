@@ -1101,13 +1101,33 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 		mapDrawSurface_t *dsFound = NULL;
 
-		if (!si->glow)
-		{// Don't merge glow objects, warzone needs them separate for emissive lighting...
+		//if (!si->glow)
+		{// Don't merge glow objects, warzone needs them separate for emissive lighting... UQ1: Can do this now. wz code now looks at verts...
 			for (int d = 0; d < numMapDrawSurfs; d++)
 			{
 				mapDrawSurface_t *ds2 = &mapDrawSurfs[d];
 
-#if 1
+#if 0
+				if (IS_COLLISION_SURFACE)
+				{// Lighting crap is irrelevant... Distance is irrelevant, this surf wont be drawn...
+					if (ds2->mapEntityNum == mapEntityNum && ds2->shaderInfo == si)
+					{
+						dsFound = ds2;
+						break;
+					}
+					/*else if (forcedSolid)
+					{
+						dsFound = ds2;
+						break;
+					}
+					else if (StringContainsWord(picoShaderName, "system/nodraw_solid") || StringContainsWord(picoShaderName, "collision"))
+					{
+						dsFound = ds2;
+						break;
+					}*/
+				}
+#endif
+				
 				if (ds2->mapEntityNum == mapEntityNum
 					&& ds2->castShadows == castShadows
 					&& ds2->recvShadows == recvShadows
@@ -1125,9 +1145,6 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 					&& (minvertexlight == NULL || VectorCompare(wantedMinvertexLight, ds2->minvertexlight))
 					&& (ambient == NULL || VectorCompare(wantedAmbient, ds2->ambient))
 					&& (colormod == NULL || VectorCompare(wantedColorMod, ds2->colormod)))
-#else
-				if (((si && ds2->shaderInfo && !strcmp(ds2->shaderInfo->shader, si->shader)) || !si && !ds2->shaderInfo))
-#endif
 				{
 					vec3_t xyz;
 					VectorCopy(PicoGetSurfaceXYZ(surface, 0), xyz);
@@ -1704,7 +1721,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 								//Sys_Printf("newtop: %.4f. top: %.4f. bottom: %.4f. mins: %.4f. maxs: %.4f.\n", newtop, top, bottom, mins[2], maxs[2]);
 
-								if (mins[2] > newtop || mins[2] > bottom + 512.0) // 512 is > JKA max jump height...
+								if (mins[2] > newtop || mins[2] > bottom + 768.0/*512.0*/) // 512 is > JKA max jump height...
 								{
 									//Sys_Printf("CULLED: %.4f > %.4f.\n", maxs[2], newtop);
 									numHeightCulledSurfs++;

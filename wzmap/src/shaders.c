@@ -1568,6 +1568,12 @@ static void ParseShaderFile( const char *filename )
 
 		while( 1 )
 		{
+			if (StringContainsWord(shaderText, "glow") && !StringContainsWord(shaderText, "warzone/trees"))
+			{// trees are an exception, let them merge...
+				//Sys_Printf("Shader %s has glow.\n", si->shader);
+				si->glow = qtrue;
+			}
+
 			/* get the next token */
 			if( !GetTokenAppend( shaderText, qtrue ) )
 				break;
@@ -1591,8 +1597,8 @@ static void ParseShaderFile( const char *filename )
 					if( !strcmp( token, "}" ) )
 						break;
 
-					if (!Q_stricmp(token, "glow"))
-					{
+					if (!Q_stricmp(token, "glow") && !StringContainsWord(shaderText, "warzone/trees"))
+					{// trees are an exception, let them merge...
 						//Sys_Printf("Shader %s has glow.\n", name);
 						si->glow = qtrue;
 					}

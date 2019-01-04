@@ -324,17 +324,27 @@ void AddPatchEdges( mapDrawSurface_t *ds ) {
 FixSurfaceJunctions
 ====================
 */
-#define	MAX_SURFACE_VERTS	512
+//#define	MAX_SURFACE_VERTS	524288//512
 void FixSurfaceJunctions( mapDrawSurface_t *ds )
 {
+	int			currentVertPoolSize = 4096;
+
 	int			i, j, k;
 	edgeLine_t	*e;
 	edgePoint_t	*p;
+	bspDrawVert_t	*v1, *v2;
 	int			originalVerts;
-	int			counts[MAX_SURFACE_VERTS];
+	
+	/*int			counts[MAX_SURFACE_VERTS];
 	int			originals[MAX_SURFACE_VERTS];
 	int			firstVert[MAX_SURFACE_VERTS];
-	bspDrawVert_t	verts[MAX_SURFACE_VERTS], *v1, *v2;
+	bspDrawVert_t	verts[MAX_SURFACE_VERTS], *v1, *v2;*/
+
+	int			*counts = (int*)safe_malloc(sizeof(int) * currentVertPoolSize);
+	int			*originals = (int*)safe_malloc(sizeof(int) * currentVertPoolSize);
+	int			*firstVert = (int*)safe_malloc(sizeof(int) * currentVertPoolSize);
+	bspDrawVert_t	*verts = (bspDrawVert_t*)safe_malloc(sizeof(bspDrawVert_t) * currentVertPoolSize);
+
 	int			numVerts;
 	float		start, end, frac, c;
 	vec3_t		delta;
@@ -348,8 +358,18 @@ void FixSurfaceJunctions( mapDrawSurface_t *ds )
 		firstVert[i] = numVerts;
 
 		// copy first vert
-		if ( numVerts == MAX_SURFACE_VERTS )
-			Error( "MAX_SURFACE_VERTS" );
+		/*if ( numVerts == MAX_SURFACE_VERTS )
+			Error( "MAX_SURFACE_VERTS" );*/
+		if (numVerts >= currentVertPoolSize)
+		{// Expand the vert pool...
+			int newVertPoolSize = currentVertPoolSize + 4096;
+			counts = (int*)realloc(counts, sizeof(int) * newVertPoolSize);
+			originals = (int*)realloc(originals, sizeof(int) * newVertPoolSize);
+			firstVert = (int*)realloc(firstVert, sizeof(int) * newVertPoolSize);
+			verts = (bspDrawVert_t*)realloc(verts, sizeof(bspDrawVert_t) * newVertPoolSize);
+			currentVertPoolSize = newVertPoolSize;
+		}
+
 		verts[numVerts] = ds->verts[i];
 		originals[numVerts] = i;
 		numVerts++;
@@ -389,8 +409,18 @@ void FixSurfaceJunctions( mapDrawSurface_t *ds )
 				( start < end && p->intercept > start + ON_EPSILON ) ||
 				( start > end && p->intercept < start - ON_EPSILON ) ) {
 				// insert this point
-				if ( numVerts == MAX_SURFACE_VERTS ) {
+				
+				/*if ( numVerts == MAX_SURFACE_VERTS ) {
 					Error( "MAX_SURFACE_VERTS" );
+				}*/
+				if (numVerts >= currentVertPoolSize)
+				{// Expand the vert pool...
+					int newVertPoolSize = currentVertPoolSize + 65536;
+					counts = (int*)realloc(counts, sizeof(int) * newVertPoolSize);
+					originals = (int*)realloc(originals, sizeof(int) * newVertPoolSize);
+					firstVert = (int*)realloc(firstVert, sizeof(int) * newVertPoolSize);
+					verts = (bspDrawVert_t*)realloc(verts, sizeof(bspDrawVert_t) * newVertPoolSize);
+					currentVertPoolSize = newVertPoolSize;
 				}
 				
 				/* take the exact intercept point */
@@ -459,6 +489,11 @@ void FixSurfaceJunctions( mapDrawSurface_t *ds )
 		ds->verts = (bspDrawVert_t *)safe_malloc( numVerts * sizeof( *ds->verts ) );
 		memcpy( ds->verts, verts, numVerts * sizeof( *ds->verts ) );
 
+		free(counts);
+		free(originals);
+		free(firstVert);
+		free(verts);
+
 		return;
 	}
 	if ( i == numVerts ) {
@@ -491,6 +526,11 @@ void FixSurfaceJunctions( mapDrawSurface_t *ds )
 	for ( j = 0 ; j < ds->numVerts ; j++ ) {
 		ds->verts[j] = verts[ ( j + i ) % ds->numVerts ];
 	}
+
+	free(counts);
+	free(originals);
+	free(firstVert);
+	free(verts);
 }
 
 

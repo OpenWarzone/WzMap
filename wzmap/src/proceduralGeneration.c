@@ -136,6 +136,7 @@ int				TREE_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 2 };
 qboolean		ADD_CITY_ROADS = qfalse;
 float			CITY_SCALE_MULTIPLIER = 2.5;
 float			CITY_CLIFF_CULL_RADIUS = 1.0;
+float			CITY_BUFFER = 1024.0;
 vec3_t			CITY_LOCATION = { 0 };
 float			CITY_RADIUS = 0;
 qboolean		CITY_RANDOM_ANGLES = qfalse;
@@ -150,6 +151,8 @@ float			CITY5_RADIUS = 0;
 char			CITY_MODELS[MAX_FOREST_MODELS][128] = { 0 };
 float			CITY_OFFSETS[MAX_FOREST_MODELS] = { -4.0 };
 float			CITY_SCALES[MAX_FOREST_MODELS] = { 1.0 };
+float			CITY_SCALES_XY[MAX_FOREST_MODELS] = { 1.0 };
+float			CITY_SCALES_Z[MAX_FOREST_MODELS] = { 1.0 };
 qboolean		CITY_CENTRAL_ONCE[MAX_FOREST_MODELS] = { qfalse };
 qboolean		CITY_ALLOW_ROAD[MAX_FOREST_MODELS] = { qfalse };
 float			CITY_FORCED_MAX_ANGLE[MAX_FOREST_MODELS] = { 0.0 };
@@ -786,24 +789,27 @@ void FOLIAGE_LoadClimateData( char *filename )
 		CITY_RADIUS = atof(IniRead(filename, "CITY", "cityRadius", "0"));
 		CITY_CLIFF_CULL_RADIUS = atof(IniRead(filename, "CITY", "cliffFacesCullScale", "1.0"));
 		CITY_RANDOM_ANGLES = (atoi(IniRead(filename, "CITY", "cityRandomizeAngles", "0")) > 0) ? qtrue : qfalse;
+		CITY_BUFFER = atof(IniRead(filename, "CITY", "cityBuffer", "1024.0"));
 
 		for (i = 0; i < MAX_FOREST_MODELS; i++)
 		{
 			strcpy(CITY_MODELS[i], IniRead(filename, "CITY", va("cityModel%i", i), ""));
 			CITY_OFFSETS[i] = atof(IniRead(filename, "CITY", va("cityZoffset%i", i), "-4.0"));
 			CITY_SCALES[i] = atof(IniRead(filename, "CITY", va("cityScale%i", i), "1.0"));
+			CITY_SCALES_XY[i] = atof(IniRead(filename, "CITY", va("cityScaleXY%i", i), "1.0"));
+			CITY_SCALES_Z[i] = atof(IniRead(filename, "CITY", va("cityScaleZ%i", i), "1.0"));
 			CITY_CENTRAL_ONCE[i] = (qboolean)atoi(IniRead(filename, "CITY", va("cityCentralOneOnly%i", i), "0"));
 			CITY_ALLOW_ROAD[i] = (qboolean)atoi(IniRead(filename, "CITY", va("cityAllowOnRoad%i", i), "0"));
 			CITY_FORCED_MAX_ANGLE[i] = atof(IniRead(filename, "CITY", va("cityForcedMaxAngle%i", i), "0.0"));
 			CITY_FORCED_BUFFER_DISTANCE[i] = atof(IniRead(filename, "CITY", va("cityForcedBufferDistance%i", i), "0.0"));
 			CITY_FORCED_DISTANCE_FROM_SAME[i] = atof(IniRead(filename, "CITY", va("cityForcedDistanceFromSame%i", i), "0.0"));
 			CITY_FORCED_FULLSOLID[i] = atoi(IniRead(filename, "CITY", va("cityForcedFullSolid%i", i), "0"));
-			CITY_ALLOW_SIMPLIFY[i] = atoi(IniRead(filename, "CITY", va("cityAllowSimplify%i", i), "2"));
+			CITY_ALLOW_SIMPLIFY[i] = atoi(IniRead(filename, "CITY", va("cityAllowSimplify%i", i), "0"));
 			strcpy(CITY_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "CITY", va("overrideShader%i", i), ""));
-			CITY_PLANE_SNAP[i] = atoi(IniRead(filename, "CITY", va("cityPlaneSnap%i", i), "4"));
+			CITY_PLANE_SNAP[i] = atoi(IniRead(filename, "CITY", va("cityPlaneSnap%i", i), "0"));
 
 			if (strcmp(CITY_MODELS[i], ""))
-				Sys_Printf("Building %i. Model %s. Offset %.4f. Scale %.4f. MaxAngle %i. BufferDist %.4f. InstanceDist %.4f. ForcedSolid: %s. Plane Snap: %i. Shader: %s. OneOnly: %s. AllowRoad: %s.\n", i, CITY_MODELS[i], CITY_OFFSETS[i], CITY_SCALES[i], (int)CITY_FORCED_MAX_ANGLE[i], CITY_FORCED_BUFFER_DISTANCE[i], CITY_FORCED_DISTANCE_FROM_SAME[i], CITY_FORCED_FULLSOLID[i] ? "true" : "false", CITY_PLANE_SNAP[i], CITY_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? CITY_FORCED_OVERRIDE_SHADER[i] : "Default", CITY_CENTRAL_ONCE[i] ? "true" : "false", CITY_ALLOW_ROAD[i] ? "true" : "false");
+				Sys_Printf("Building %i. Model %s. Offset %.4f. Scale %.4f (XY %.4f Z %.4f). MaxAngle %i. BufferDist %.4f. InstanceDist %.4f. ForcedSolid: %s. Plane Snap: %i. Shader: %s. OneOnly: %s. AllowRoad: %s.\n", i, CITY_MODELS[i], CITY_OFFSETS[i], CITY_SCALES[i], CITY_SCALES_XY[i], CITY_SCALES_Z[i], (int)CITY_FORCED_MAX_ANGLE[i], CITY_FORCED_BUFFER_DISTANCE[i], CITY_FORCED_DISTANCE_FROM_SAME[i], CITY_FORCED_FULLSOLID[i] ? "true" : "false", CITY_PLANE_SNAP[i], CITY_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? CITY_FORCED_OVERRIDE_SHADER[i] : "Default", CITY_CENTRAL_ONCE[i] ? "true" : "false", CITY_ALLOW_ROAD[i] ? "true" : "false");
 		}
 	}
 
@@ -1748,7 +1754,7 @@ void GenerateCityRoads(void)
 
 			if (VectorLength(CITY_LOCATION) != 0.0)
 			{
-				if (Distance(center, CITY_LOCATION) <= CITY_RADIUS)
+				if (Distance(center, CITY_LOCATION) <= CITY_RADIUS + CITY_BUFFER)
 				{
 					bad = qfalse;
 				}
@@ -1756,7 +1762,7 @@ void GenerateCityRoads(void)
 
 			if (VectorLength(CITY2_LOCATION) != 0.0)
 			{
-				if (Distance(center, CITY2_LOCATION) <= CITY2_RADIUS)
+				if (Distance(center, CITY2_LOCATION) <= CITY2_RADIUS + CITY_BUFFER)
 				{
 					bad = qfalse;
 				}
@@ -1764,7 +1770,7 @@ void GenerateCityRoads(void)
 
 			if (VectorLength(CITY3_LOCATION) != 0.0)
 			{
-				if (Distance(center, CITY3_LOCATION) <= CITY3_RADIUS)
+				if (Distance(center, CITY3_LOCATION) <= CITY3_RADIUS + CITY_BUFFER)
 				{
 					bad = qfalse;
 				}
@@ -1772,7 +1778,7 @@ void GenerateCityRoads(void)
 
 			if (VectorLength(CITY4_LOCATION) != 0.0)
 			{
-				if (Distance(center, CITY4_LOCATION) <= CITY4_RADIUS)
+				if (Distance(center, CITY4_LOCATION) <= CITY4_RADIUS + CITY_BUFFER)
 				{
 					bad = qfalse;
 				}
@@ -1780,7 +1786,7 @@ void GenerateCityRoads(void)
 
 			if (VectorLength(CITY5_LOCATION) != 0.0)
 			{
-				if (Distance(center, CITY5_LOCATION) <= CITY5_RADIUS)
+				if (Distance(center, CITY5_LOCATION) <= CITY5_RADIUS + CITY_BUFFER)
 				{
 					bad = qfalse;
 				}
@@ -2980,11 +2986,11 @@ void GenerateLedgeFaces(void)
 				continue;
 			}
 
-			if (!(Distance(center, CITY_LOCATION) > CITY_RADIUS
-				&& Distance(center, CITY2_LOCATION) > CITY2_RADIUS
-				&& Distance(center, CITY3_LOCATION) > CITY3_RADIUS
-				&& Distance(center, CITY4_LOCATION) > CITY4_RADIUS
-				&& Distance(center, CITY5_LOCATION) > CITY5_RADIUS))
+			if (!(Distance(center, CITY_LOCATION) > CITY_RADIUS + CITY_BUFFER
+				&& Distance(center, CITY2_LOCATION) > CITY2_RADIUS + CITY_BUFFER
+				&& Distance(center, CITY3_LOCATION) > CITY3_RADIUS + CITY_BUFFER
+				&& Distance(center, CITY4_LOCATION) > CITY4_RADIUS + CITY_BUFFER
+				&& Distance(center, CITY5_LOCATION) > CITY5_RADIUS + CITY_BUFFER))
 			{// Don't add ledges in towns...
 				continue;
 			}
@@ -3454,7 +3460,7 @@ void ReassignTreeModels ( void )
 
 				dist = Distance(CITY_LOCATION, FOLIAGE_POSITIONS[i]);
 				
-				if (dist <= CITY_RADIUS)
+				if (dist <= CITY_RADIUS + CITY_BUFFER)
 				{// Not within this city's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3462,7 +3468,7 @@ void ReassignTreeModels ( void )
 
 				dist = Distance(CITY2_LOCATION, FOLIAGE_POSITIONS[i]);
 
-				if (dist <= CITY2_RADIUS)
+				if (dist <= CITY2_RADIUS + CITY_BUFFER)
 				{// Not within this city's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3470,7 +3476,7 @@ void ReassignTreeModels ( void )
 
 				dist = Distance(CITY3_LOCATION, FOLIAGE_POSITIONS[i]);
 
-				if (dist <= CITY3_RADIUS)
+				if (dist <= CITY3_RADIUS + CITY_BUFFER)
 				{// Not within this city's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3478,7 +3484,7 @@ void ReassignTreeModels ( void )
 
 				dist = Distance(CITY4_LOCATION, FOLIAGE_POSITIONS[i]);
 
-				if (dist <= CITY4_RADIUS)
+				if (dist <= CITY4_RADIUS + CITY_BUFFER)
 				{// Not within this city's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3486,7 +3492,7 @@ void ReassignTreeModels ( void )
 
 				dist = Distance(CITY5_LOCATION, FOLIAGE_POSITIONS[i]);
 
-				if (dist <= CITY5_RADIUS)
+				if (dist <= CITY5_RADIUS + CITY_BUFFER)
 				{// Not within this city's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3687,7 +3693,7 @@ void ReassignTreeModels ( void )
 
 				dist = Distance(CITY_LOCATION, FOLIAGE_POSITIONS[i]);
 
-				if (dist <= CITY_RADIUS)
+				if (dist <= CITY_RADIUS + CITY_BUFFER)
 				{// Not within this city's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3695,7 +3701,7 @@ void ReassignTreeModels ( void )
 
 				dist = Distance(CITY2_LOCATION, FOLIAGE_POSITIONS[i]);
 
-				if (dist <= CITY2_RADIUS)
+				if (dist <= CITY2_RADIUS + CITY_BUFFER)
 				{// Not within this city's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3703,7 +3709,7 @@ void ReassignTreeModels ( void )
 
 				dist = Distance(CITY3_LOCATION, FOLIAGE_POSITIONS[i]);
 
-				if (dist <= CITY3_RADIUS)
+				if (dist <= CITY3_RADIUS + CITY_BUFFER)
 				{// Not within this city's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3711,7 +3717,7 @@ void ReassignTreeModels ( void )
 
 				dist = Distance(CITY4_LOCATION, FOLIAGE_POSITIONS[i]);
 
-				if (dist <= CITY4_RADIUS)
+				if (dist <= CITY4_RADIUS + CITY_BUFFER)
 				{// Not within this city's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -3719,7 +3725,7 @@ void ReassignTreeModels ( void )
 
 				dist = Distance(CITY5_LOCATION, FOLIAGE_POSITIONS[i]);
 
-				if (dist <= CITY5_RADIUS)
+				if (dist <= CITY5_RADIUS + CITY_BUFFER)
 				{// Not within this city's buffer range... OK!
 					bad = qtrue;
 					break;
@@ -4562,7 +4568,7 @@ void ReassignCityModels(void)
 				continue;
 			}
 
-			if (Distance(FOLIAGE_POSITIONS[i], CITY_LOCATION) > CITY_RADIUS 
+			if (Distance(FOLIAGE_POSITIONS[i], CITY_LOCATION) > CITY_RADIUS
 				&& Distance(FOLIAGE_POSITIONS[i], CITY2_LOCATION) > CITY2_RADIUS
 				&& Distance(FOLIAGE_POSITIONS[i], CITY3_LOCATION) > CITY3_RADIUS
 				&& Distance(FOLIAGE_POSITIONS[i], CITY4_LOCATION) > CITY4_RADIUS
@@ -4960,9 +4966,21 @@ void GenerateMapCity(void)
 				}
 
 				{
-					char str[32];
-					sprintf(str, "%.4f", FOLIAGE_TREE_SCALE[i] * 2.0*CITY_SCALE_MULTIPLIER*CITY_SCALES[FOLIAGE_TREE_SELECTION[i]]);
-					SetKeyValue(mapEnt, "modelscale", str);
+					if (CITY_SCALES_XY[FOLIAGE_TREE_SELECTION[i]] == 1.0 && CITY_SCALES_Z[FOLIAGE_TREE_SELECTION[i]] == 1.0)
+					{
+						char str[32];
+						sprintf(str, "%.4f", FOLIAGE_TREE_SCALE[i] * 2.0*CITY_SCALE_MULTIPLIER*CITY_SCALES[FOLIAGE_TREE_SELECTION[i]]);
+						SetKeyValue(mapEnt, "modelscale", str);
+					}
+					else
+					{// Scale X & Y only...
+						char str[128];
+						float XYscale = FOLIAGE_TREE_SCALE[i] * 2.0*CITY_SCALE_MULTIPLIER*CITY_SCALES[FOLIAGE_TREE_SELECTION[i]] * CITY_SCALES_XY[FOLIAGE_TREE_SELECTION[i]];
+						float Zscale = FOLIAGE_TREE_SCALE[i] * 2.0*CITY_SCALE_MULTIPLIER*CITY_SCALES[FOLIAGE_TREE_SELECTION[i]] * CITY_SCALES_Z[FOLIAGE_TREE_SELECTION[i]];
+						sprintf(str, "%.4f %.4f %.4f", XYscale, XYscale, Zscale);
+						//Sys_Printf("%s\n", str);
+						SetKeyValue(mapEnt, "modelscale_vec", str);
+					}
 				}
 
 				/*
@@ -4998,7 +5016,7 @@ void GenerateMapCity(void)
 					SetKeyValue(mapEnt, "_overrideShader", CITY_FORCED_OVERRIDE_SHADER[FOLIAGE_TREE_SELECTION[i]]);
 				}
 
-				if (CITY_PLANE_SNAP[FOLIAGE_TREE_SELECTION[i]] > 0)
+				if (CITY_PLANE_SNAP[FOLIAGE_TREE_SELECTION[i]] >= 0)
 				{
 					SetKeyValue(mapEnt, "snap", va("%i", CITY_PLANE_SNAP[FOLIAGE_TREE_SELECTION[i]]));
 				}
