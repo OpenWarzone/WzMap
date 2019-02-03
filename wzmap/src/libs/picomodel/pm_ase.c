@@ -135,7 +135,7 @@ aseSubMaterial_t* _ase_get_submaterial_or_default ( aseMaterial_t* materials, in
 
 static aseMaterial_t* _ase_add_material( aseMaterial_t **list, int mtlIdParent )
 {
-	aseMaterial_t *mtl = _pico_calloc( 1, sizeof( aseMaterial_t ) );
+	aseMaterial_t *mtl = (aseMaterial_t *)_pico_calloc( 1, sizeof( aseMaterial_t ) );
 	mtl->mtlId = mtlIdParent;
 	mtl->subMtls = NULL;
 	mtl->next = *list;
@@ -147,7 +147,7 @@ static aseMaterial_t* _ase_add_material( aseMaterial_t **list, int mtlIdParent )
 static aseSubMaterial_t* _ase_add_submaterial( aseMaterial_t **list, int mtlIdParent, int subMtlId, picoShader_t* shader )
 {
 	aseMaterial_t *parent = _ase_get_material( *list,  mtlIdParent );
-	aseSubMaterial_t *subMtl = _pico_calloc( 1, sizeof ( aseSubMaterial_t ) );
+	aseSubMaterial_t *subMtl = (aseSubMaterial_t *)_pico_calloc( 1, sizeof ( aseSubMaterial_t ) );
 
 	if ( !parent )
 	{
@@ -527,12 +527,12 @@ static void _ase_submit_triangles( picoModel_t* model , aseMaterial_t* materials
 				/* allocate/grow */
 				if (!v->faceRef) 
 				{
-					v->faceRef = _pico_alloc( (v->numFaceRef + PM_ASE_REBUILD_NORMALS_FACEREF_START) * sizeof(picoIndex_t) );
+					v->faceRef = (picoIndex_t *)_pico_alloc( (v->numFaceRef + PM_ASE_REBUILD_NORMALS_FACEREF_START) * sizeof(picoIndex_t) );
 					v->maxFaceRef = v->numFaceRef + PM_ASE_REBUILD_NORMALS_FACEREF_START;
 				}
 				else
 				{
-					picoIndex_t *newFaceRef = _pico_alloc( (v->numFaceRef + PM_ASE_REBUILD_NORMALS_FACEREF_GROW) * sizeof(picoIndex_t) );
+					picoIndex_t *newFaceRef = (picoIndex_t *)_pico_alloc( (v->numFaceRef + PM_ASE_REBUILD_NORMALS_FACEREF_GROW) * sizeof(picoIndex_t) );
 					memcpy(newFaceRef, v->faceRef, v->numFaceRef * sizeof(picoIndex_t));
 					_pico_free(v->faceRef);
 					v->faceRef = newFaceRef;
@@ -747,7 +747,7 @@ static picoModel_t *_ase_load( PM_PARAMS_LOAD )
 		{
   			if (!_pico_parse_int( p, &numVertices) )
 				_ase_error_return("Missing MESH_NUMVERTEX value");
-			vertices = _pico_calloc(numVertices, sizeof(aseVertex_t));
+			vertices = (aseVertex_t *)_pico_calloc(numVertices, sizeof(aseVertex_t));
 			currentVertexIndex = 0;   
 		}
 		else if (!_pico_stricmp(p->token, "*mesh_numfaces"))
@@ -755,14 +755,14 @@ static picoModel_t *_ase_load( PM_PARAMS_LOAD )
 			if (!_pico_parse_int( p, &numFaces) )
 				_ase_error_return("Missing MESH_NUMFACES value");
 
-			faces = _pico_calloc(numFaces, sizeof(aseFace_t));
+			faces = (aseFace_t *)_pico_calloc(numFaces, sizeof(aseFace_t));
 
 		}
 		else if (!_pico_stricmp(p->token, "*mesh_numtvertex"))
 		{
 			if (!_pico_parse_int( p, &numTextureVertices) )
 				_ase_error_return("Missing MESH_NUMTVERTEX value");
-			texcoords = _pico_calloc(numTextureVertices, sizeof(aseTexCoord_t));
+			texcoords = (aseTexCoord_t *)_pico_calloc(numTextureVertices, sizeof(aseTexCoord_t));
 		}
 		else if (!_pico_stricmp(p->token, "*mesh_numtvfaces"))
 		{
@@ -773,7 +773,7 @@ static picoModel_t *_ase_load( PM_PARAMS_LOAD )
 		{
 			if (!_pico_parse_int( p, &numColorVertices) )
 				_ase_error_return("Missing MESH_NUMCVERTEX value");
-			colors = _pico_calloc(numColorVertices, sizeof( aseColor_t ));
+			colors = (aseColor_t *)_pico_calloc(numColorVertices, sizeof( aseColor_t ));
 			memset( colors, 255, numColorVertices * sizeof( aseColor_t ) );	/* ydnar: force colors to white initially */
 		}
 		else if (!_pico_stricmp(p->token, "*mesh_numcvfaces"))
@@ -1204,7 +1204,7 @@ static picoModel_t *_ase_load( PM_PARAMS_LOAD )
 							char* name = _pico_parse(p,0);
 							if (name == NULL)
 								_ase_error_return("Missing material map bitmap name");
-							mapname = _pico_alloc ( strlen ( name ) + 1 );
+							mapname = (char *)_pico_alloc ( strlen ( name ) + 1 );
 							strcpy ( mapname, name );
 							/* skip rest and continue with next token */
 							_pico_parse_skip_rest( p );

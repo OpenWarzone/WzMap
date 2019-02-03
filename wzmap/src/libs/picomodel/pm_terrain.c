@@ -128,7 +128,7 @@ void _terrain_load_tga_buffer( unsigned char *buffer, unsigned char **pic, int *
 	if (height)
 		*height = rows;
 
-	targa_rgba = _pico_alloc( numPixels * 4 );
+	targa_rgba = (unsigned char *)_pico_alloc( numPixels * 4 );
 	*pic = targa_rgba;
 
 	if (targa_header.id_length != 0)

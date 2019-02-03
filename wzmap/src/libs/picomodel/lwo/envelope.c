@@ -1,3 +1,5 @@
+#if 1
+
 /*
 ======================================================================
 envelope.c
@@ -599,3 +601,5 @@ float evalEnvelope( lwEnvelope *env, float time )
          return offset;
    }
 }
+
+#endif

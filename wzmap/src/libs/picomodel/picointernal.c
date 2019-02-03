@@ -164,7 +164,7 @@ char *_pico_clone_alloc( const char *str )
     return NULL;
 
 	/* allocate memory */
-	cloned = _pico_alloc( strlen(str) + 1 );
+	cloned = (char *)_pico_alloc( strlen(str) + 1 );
 	if (cloned == NULL)
 		return NULL;
 
@@ -748,22 +748,22 @@ picoParser_t *_pico_new_parser( picoByte_t *buffer, int bufSize )
 		return NULL;
 	
 	/* allocate reader */
-	p = _pico_alloc( sizeof(picoParser_t) );
+	p = (picoParser_t *)_pico_alloc( sizeof(picoParser_t) );
 	if (p == NULL) return NULL;
 	memset( p,0,sizeof(picoParser_t) );
 
 	/* allocate token space */
 	p->tokenSize = 0;
 	p->tokenMax = 1024;
-	p->token = _pico_alloc( p->tokenMax );
+	p->token = (char *)_pico_alloc( p->tokenMax );
 	if( p->token == NULL )
 	{
 		_pico_free( p );
 		return NULL;
 	}
 	/* setup */
-	p->buffer 	= buffer;
-	p->cursor 	= buffer;
+	p->buffer 	= (char *)buffer;
+	p->cursor 	= (char *)buffer;
 	p->bufSize	= bufSize;
 	p->max    	= p->buffer + bufSize;
 	p->curLine = 1; /* sea: new */
@@ -1228,7 +1228,7 @@ picoMemStream_t *_pico_new_memstream( picoByte_t *buffer, size_t bufSize )
 		return NULL;
 	
 	/* allocate stream */
-	s = _pico_alloc( sizeof(picoMemStream_t) );
+	s = (picoMemStream_t *)_pico_alloc( sizeof(picoMemStream_t) );
 	if (s == NULL) return NULL;
 	memset( s,0,sizeof(picoMemStream_t) );
 

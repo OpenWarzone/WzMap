@@ -57,6 +57,35 @@ extern const picoModule_t picoModuleLWO;
 extern const picoModule_t picoModuleTerrain;
 
 
+extern int C_assimp_canload(PM_PARAMS_CANLOAD);
+extern picoModel_t *C_assimp_load(PM_PARAMS_LOAD);
+
+static int _assimp_canload(PM_PARAMS_CANLOAD)
+{
+	return C_assimp_canload(fileName, buffer, bufSize);
+}
+
+static picoModel_t *_assimp_load(PM_PARAMS_LOAD)
+{
+	return C_assimp_load(fileName, frameNum, buffer, bufSize);
+}
+
+/* pico file format module definition */
+const picoModule_t picoModuleAssimp =
+{
+	"0.1",						/* module version string */
+	"Assimp",					/* module display name */
+	"UniqueOne",				/* author's name */
+	"2019 UniqueOne",			/* module copyright */
+	{
+		"dae",NULL,NULL,NULL	/* default extensions to use */
+	},
+	_assimp_canload,			/* validation routine */
+	_assimp_load,				/* load routine */
+	NULL,						/* save validation routine */
+	NULL						/* save routine */
+};
+
 
 /* list of all supported file format modules */
 const picoModule_t *picoModules[] =
@@ -70,7 +99,8 @@ const picoModule_t *picoModules[] =
 	&picoModuleFM,		/* heretic2 fm */
 	&picoModuleLWO,		/* lightwave object */
 	&picoModuleTerrain,	/* picoterrain object */
-	&picoModuleOBJ,		/* wavefront object */
+	//&picoModuleOBJ,		/* wavefront object */
+	&picoModuleAssimp,	/* assimp library */
 	NULL				/* arnold */
 };
 

@@ -1415,6 +1415,7 @@ int BSPMain( int argc, char **argv )
 	}
 #endif
 
+	randomizeBSP = qfalse;
 
 	Sys_PrintHeading ( "--- CommandLine ---\n" );
 	
@@ -1677,6 +1678,11 @@ int BSPMain( int argc, char **argv )
 		{
 			Sys_Printf("SDL BSP tree viewer enabled\n");
 			drawBSP = qtrue;
+		}
+		else if (!strcmp(argv[i], "-randomize"))
+		{
+			Sys_Printf("Height randomization enabled\n");
+			randomizeBSP = qtrue;
 		}
 		else if( !strcmp( argv[ i ], "-bsp" ) )
 			Sys_Printf( " -bsp argument unnecessary\n" );

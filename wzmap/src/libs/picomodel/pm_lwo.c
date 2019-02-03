@@ -1,3 +1,5 @@
+#if 1
+
 /* -----------------------------------------------------------------------------
 
 PicoModel Library 
@@ -443,3 +445,5 @@ const picoModule_t picoModuleLWO =
 	 NULL,						/* save validation routine */
 	 NULL						/* save routine */
 };
+
+#endif

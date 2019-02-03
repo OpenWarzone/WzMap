@@ -917,7 +917,78 @@ void QuakeTextureVecs( plane_t *plane, vec_t shift[ 2 ], vec_t rotate, vec_t sca
 	mappingVecs[1][3] = shift[1];
 }
 
+//#define __RANOMIZATION__
 
+#ifdef __RANOMIZATION__
+typedef float					vec2_t[2];
+
+#define HASHSCALE1 .1031
+
+float fract(float x)
+{
+	return x - floor(x);
+}
+
+float trandom(vec2_t p)
+{
+	vec3_t p3, p4;
+	p3[0] = fract(p[0] * HASHSCALE1);
+	p3[1] = fract(p[1] * HASHSCALE1);
+	p3[2] = fract(p[0] * HASHSCALE1);
+
+	p4[0] = p3[1] + 19.19;
+	p4[1] = p3[2] + 19.19;
+	p4[2] = p3[0] + 19.19;
+
+	float dt = DotProduct(p3, p4);
+	p3[0] += dt;
+	p3[1] += dt;
+	p3[2] += dt;
+	return fract((p3[0] + p3[1]) * p3[2]);
+}
+
+/*float mix(float x, float y, float a)
+{
+	return x * (1.0 - a) + y * a;
+}*/
+
+float rnoise(vec2_t st) {
+	vec2_t i;
+	i[0] = floor(st[0]);
+	i[1] = floor(st[1]);
+	vec2_t f;
+	f[0] = fract(st[0]);
+	f[1] = fract(st[1]);
+
+	// Four corners in 2D of a tile
+	float a = trandom(i);
+	vec2_t v;
+	v[0] = 1.0 + i[0];
+	v[1] = 0.0 + i[1];
+	float b = trandom(v);
+	v[0] = 0.0 + i[0];
+	v[1] = 1.0 + i[1];
+	float c = trandom(v);
+	v[0] = 1.0 + i[0];
+	v[1] = 1.0 + i[1];
+	float d = trandom(v);
+
+	// Smooth Interpolation
+
+	// Cubic Hermine Curve.  Same as SmoothStep()
+	vec2_t u;
+	u[0] = f[0] * f[0] * (3.0 - 2.0*f[0]);
+	u[1] = f[1] * f[1] * (3.0 - 2.0*f[1]);
+	u[2] = f[2] * f[2] * (3.0 - 2.0*f[2]);
+	// u = smoothstep(0.,1.,f);
+
+	// Mix 4 coorners percentages
+
+	return mix(a, b, u[0]) +
+		(c - a)* u[1] * (1.0 - u[0]) +
+		(d - b) * u[0] * u[1];
+}
+#endif //__RANDOMIZATION__
 
 /*
 ParseRawBrush()
@@ -989,10 +1060,36 @@ static void ParseRawBrush( )
 		Parse1DMatrix( 3, planePoints[ 0 ] );
 		Parse1DMatrix( 3, planePoints[ 1 ] );
 		Parse1DMatrix( 3, planePoints[ 2 ] );
-		
+
 		/* bp: read the texture matrix */
 		if( g_bBrushPrimit == BPRIMIT_NEWBRUSHES )
 			Parse2DMatrix( 2, 3, (float*) side->texMat );
+
+/*#ifdef __RANOMIZATION__
+		if (randomizeBSP)
+		{
+			vec2_t st, st2, st3;
+			st[0] = planePoints[0][0] * 0.00875;
+			st[1] = planePoints[0][1] * 0.00875;
+
+			st2[0] = planePoints[0][0] * 0.003875;
+			st2[1] = planePoints[0][1] * 0.003875;
+
+			st3[0] = planePoints[0][0] * 0.000875;
+			st3[1] = planePoints[0][1] * 0.000875;
+
+			float offset1 = rnoise(st);
+			float offset2 = rnoise(st2);
+			float offset3 = rnoise(st3);
+
+			float offset = (offset1 + offset2 + offset3) / 3.0;
+			offset *= 1024.0;
+
+			planePoints[0][2] += offset;
+			planePoints[1][2] += offset;
+			planePoints[2][2] += offset;
+		}
+#endif //__RANOMIZATION__*/
 		
 		/* read shader name */
 		GetToken( qfalse );
@@ -1080,6 +1177,33 @@ static void ParseRawBrush( )
 		side->contentFlags = si->contentFlags;
 		side->compileFlags = si->compileFlags;
 		side->value = si->value;
+
+#ifdef __RANOMIZATION__
+		extern qboolean StringContainsWord(const char *haystack, const char *needle);
+		if (randomizeBSP && !(si->compileFlags & C_SKY) && !StringContainsWord(si->shader, "skies/"))
+		{
+			vec2_t st, st2, st3;
+			st[0] = planePoints[0][0] * 0.00875;
+			st[1] = planePoints[0][1] * 0.00875;
+
+			st2[0] = planePoints[0][0] * 0.003875;
+			st2[1] = planePoints[0][1] * 0.003875;
+
+			st3[0] = planePoints[0][0] * 0.000875;
+			st3[1] = planePoints[0][1] * 0.000875;
+
+			float offset1 = rnoise(st);
+			float offset2 = rnoise(st2);
+			float offset3 = rnoise(st3);
+
+			float offset = (offset1 + offset2 + offset3) / 3.0;
+			offset *= 1024.0;
+
+			planePoints[0][2] += offset;
+			planePoints[1][2] += offset;
+			planePoints[2][2] += offset;
+		}
+#endif //__RANOMIZATION__
 
 		/* ydnar: gs mods: bias texture shift */
 		if( si->globalTexture == qfalse )

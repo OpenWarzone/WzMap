@@ -1,3 +1,5 @@
+#if 1
+
 /*
 ======================================================================
 surface.c
@@ -1003,3 +1005,5 @@ Fail:
    if ( surf ) lwFreeSurface( surf );
    return NULL;
 }
+
+#endif

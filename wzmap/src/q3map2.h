@@ -2321,6 +2321,7 @@ Q_EXTERN qboolean			noHint Q_ASSIGN( qfalse );				/* ydnar */
 Q_EXTERN qboolean			renameModelShaders Q_ASSIGN( qfalse );	/* ydnar */
 Q_EXTERN qboolean			skyFixHack Q_ASSIGN( qfalse );			/* ydnar */
 Q_EXTERN qboolean			drawBSP Q_ASSIGN(qfalse);				/* UQ1 */
+Q_EXTERN qboolean			randomizeBSP Q_ASSIGN(qfalse);			/* UQ1 */
 
 Q_EXTERN float				patchSubdivisions Q_ASSIGN( 8.0f );		/* ydnar: -patchmeta subdivisions */
 

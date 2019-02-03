@@ -1,3 +1,5 @@
+#if 1
+
 /*
 ======================================================================
 vmap.c
@@ -242,3 +244,5 @@ int lwGetPolyVMaps( lwPolygonList *polygon, lwVMap *vmap )
 
    return 1;
 }
+
+#endif

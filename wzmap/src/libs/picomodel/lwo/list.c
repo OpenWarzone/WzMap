@@ -1,3 +1,5 @@
+#if 1
+
 /*
 ======================================================================
 list.c
@@ -99,3 +101,5 @@ void lwListInsert( void **vlist, void *vitem, int ( *compare )( void *, void * )
       node->prev = item;
    }
 }
+
+#endif

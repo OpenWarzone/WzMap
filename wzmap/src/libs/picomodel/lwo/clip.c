@@ -1,3 +1,5 @@
+#if 1
+
 /*
 ======================================================================
 clip.c
@@ -276,3 +278,4 @@ lwClip *lwFindClip( lwClip *list, int index )
    }
    return clip;
 }
+#endif

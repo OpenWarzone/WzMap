@@ -1,3 +1,5 @@
+#if 1
+
 /*
 ======================================================================
 pntspols.c
@@ -537,3 +539,5 @@ int lwGetPolygonTags( picoMemStream_t *fp, int cksize, lwTagList *tlist,
 
    return 1;
 }
+
+#endif

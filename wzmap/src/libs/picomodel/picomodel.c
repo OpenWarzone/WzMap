@@ -173,7 +173,7 @@ int PicoModuleLoadModel( const picoModule_t* pm, char* fileName, picoByte_t* buf
 		if( strlen( modelFileName ) )
 		{
 			/* alloc copy of model file name */
-			remapFileName = _pico_alloc( strlen( modelFileName ) + 20 );
+			remapFileName = (char *)_pico_alloc( strlen( modelFileName ) + 20 );
 			if( remapFileName != NULL )
 			{
 				/* copy model file name and change extension */
@@ -300,7 +300,7 @@ picoModel_t	*PicoModuleLoadModelStream( const picoModule_t* module, void* inputS
 		return NULL;
 	}
 	
-	buffer = _pico_alloc(streamLength + 1);
+	buffer = (picoByte_t *)_pico_alloc(streamLength + 1);
 	bufSize = (int)inputStreamRead(inputStream, buffer, streamLength);
 	buffer[bufSize] = '\0';
 	{
@@ -334,7 +334,7 @@ picoModel_t *PicoNewModel( void )
 	picoModel_t	*model;
 	
 	/* allocate */
-	model = _pico_alloc( sizeof(picoModel_t) );
+	model = (picoModel_t *)_pico_alloc( sizeof(picoModel_t) );
 	if( model == NULL )
 		return NULL;
 
@@ -420,7 +420,7 @@ int PicoAdjustModel( picoModel_t *model, int numShaders, int numSurfaces, int nu
 	while( numShaders > model->maxShaders )
 	{
 		model->maxShaders += PICO_GROW_SHADERS;
-		if( !_pico_realloc( (void *) &model->shader, model->numShaders * sizeof( *model->shader ), model->maxShaders * sizeof( *model->shader ) ) )
+		if( !_pico_realloc( (void **) &model->shader, model->numShaders * sizeof( *model->shader ), model->maxShaders * sizeof( *model->shader ) ) )
 			return 0;
 	}
 	
@@ -432,7 +432,7 @@ int PicoAdjustModel( picoModel_t *model, int numShaders, int numSurfaces, int nu
 	while( numSurfaces > model->maxSurfaces )
 	{
 		model->maxSurfaces += PICO_GROW_SURFACES;
-		if( !_pico_realloc( (void *) &model->surface, model->numSurfaces * sizeof( *model->surface ), model->maxSurfaces * sizeof( *model->surface ) ) )
+		if( !_pico_realloc( (void **) &model->surface, model->numSurfaces * sizeof( *model->surface ), model->maxSurfaces * sizeof( *model->surface ) ) )
 			return 0;
 	}
 
@@ -444,7 +444,7 @@ int PicoAdjustModel( picoModel_t *model, int numShaders, int numSurfaces, int nu
 	while( numSkins > model->maxSkins )
 	{
 		model->maxSkins += PICO_GROW_SKINS;
-		if( !_pico_realloc( (void *) &model->skin, model->numSkins * sizeof( *model->skin ), model->maxSkins * sizeof( *model->skin ) ) )
+		if( !_pico_realloc( (void **) &model->skin, model->numSkins * sizeof( *model->skin ), model->maxSkins * sizeof( *model->skin ) ) )
 			return 0;
 	}
 
@@ -473,7 +473,7 @@ picoShader_t *PicoNewShader( picoModel_t *model )
 	
 	
 	/* allocate and clear */
-	shader = _pico_alloc( sizeof(picoShader_t) );
+	shader = (picoShader_t *)_pico_alloc( sizeof(picoShader_t) );
 	if( shader == NULL )
 		return NULL;
 	memset( shader, 0, sizeof(picoShader_t) );
@@ -584,7 +584,7 @@ picoSurface_t *PicoNewSurface( picoModel_t *model )
 	char surfaceName[64];
 	
 	/* allocate and clear */
-	surface = _pico_alloc( sizeof( *surface ) );
+	surface = (picoSurface_t *)_pico_alloc( sizeof( *surface ) );
 	if( surface == NULL )
 		return NULL;
 	memset( surface, 0, sizeof( *surface ) );
@@ -680,17 +680,17 @@ int PicoAdjustSurface( picoSurface_t *surface, int numVertexes, int numSTArrays,
 	while( numVertexes > surface->maxVertexes ) /* fix */
 	{
 		surface->maxVertexes += PICO_GROW_VERTEXES;
-		if( !_pico_realloc( (void *) &surface->xyz, surface->numVertexes * sizeof( *surface->xyz ), surface->maxVertexes * sizeof( *surface->xyz ) ) )
+		if( !_pico_realloc( (void **) &surface->xyz, surface->numVertexes * sizeof( *surface->xyz ), surface->maxVertexes * sizeof( *surface->xyz ) ) )
 			return 0;
-		if( !_pico_realloc( (void *) &surface->normal, surface->numVertexes * sizeof( *surface->normal ), surface->maxVertexes * sizeof( *surface->normal ) ) )
+		if( !_pico_realloc( (void **) &surface->normal, surface->numVertexes * sizeof( *surface->normal ), surface->maxVertexes * sizeof( *surface->normal ) ) )
 			return 0;
-		if( !_pico_realloc( (void *) &surface->smoothingGroup, surface->numVertexes * sizeof( *surface->smoothingGroup ), surface->maxVertexes * sizeof( *surface->smoothingGroup ) ) )
+		if( !_pico_realloc( (void **) &surface->smoothingGroup, surface->numVertexes * sizeof( *surface->smoothingGroup ), surface->maxVertexes * sizeof( *surface->smoothingGroup ) ) )
 			return 0;
 		for( i = 0; i < surface->numSTArrays; i++ )
-			if( !_pico_realloc( (void*) &surface->st[ i ], surface->numVertexes * sizeof( *surface->st[ i ] ), surface->maxVertexes * sizeof( *surface->st[ i ] ) ) )
+			if( !_pico_realloc( (void **) &surface->st[ i ], surface->numVertexes * sizeof( *surface->st[ i ] ), surface->maxVertexes * sizeof( *surface->st[ i ] ) ) )
 			return 0;
 		for( i = 0; i < surface->numColorArrays; i++ )
-			if( !_pico_realloc( (void*) &surface->color[ i ], surface->numVertexes * sizeof( *surface->color[ i ] ), surface->maxVertexes * sizeof( *surface->color[ i ] ) ) )
+			if( !_pico_realloc( (void **) &surface->color[ i ], surface->numVertexes * sizeof( *surface->color[ i ] ), surface->maxVertexes * sizeof( *surface->color[ i ] ) ) )
 			return 0;
 	}
 	
@@ -702,11 +702,11 @@ int PicoAdjustSurface( picoSurface_t *surface, int numVertexes, int numSTArrays,
 	while( numSTArrays > surface->maxSTArrays ) /* fix */
 	{
 		surface->maxSTArrays += PICO_GROW_ARRAYS;
-		if( !_pico_realloc( (void*) &surface->st, surface->numSTArrays * sizeof( *surface->st ), surface->maxSTArrays * sizeof( *surface->st ) ) )
+		if( !_pico_realloc( (void **) &surface->st, surface->numSTArrays * sizeof( *surface->st ), surface->maxSTArrays * sizeof( *surface->st ) ) )
 			return 0;
 		while( surface->numSTArrays < numSTArrays )
 		{
-			surface->st[ surface->numSTArrays ] = _pico_alloc( surface->maxVertexes * sizeof( *surface->st[ 0 ] ) );
+			surface->st[ surface->numSTArrays ] = (picoVec2_t *)_pico_alloc( surface->maxVertexes * sizeof( *surface->st[ 0 ] ) );
 			memset( surface->st[ surface->numSTArrays ], 0, surface->maxVertexes * sizeof( *surface->st[ 0 ] ) );
 			surface->numSTArrays++;
 		}
@@ -716,11 +716,11 @@ int PicoAdjustSurface( picoSurface_t *surface, int numVertexes, int numSTArrays,
 	while( numColorArrays > surface->maxColorArrays ) /* fix */
 	{
 		surface->maxColorArrays += PICO_GROW_ARRAYS;
-		if( !_pico_realloc( (void*) &surface->color, surface->numColorArrays * sizeof( *surface->color ), surface->maxColorArrays * sizeof( *surface->color ) ) )
+		if( !_pico_realloc( (void **) &surface->color, surface->numColorArrays * sizeof( *surface->color ), surface->maxColorArrays * sizeof( *surface->color ) ) )
 			return 0;
 		while( surface->numColorArrays < numColorArrays )
 		{
-			surface->color[ surface->numColorArrays ] = _pico_alloc( surface->maxVertexes * sizeof( *surface->color[ 0 ] ) );
+			surface->color[ surface->numColorArrays ] = (picoColor_t *)_pico_alloc( surface->maxVertexes * sizeof( *surface->color[ 0 ] ) );
 			memset( surface->color[ surface->numColorArrays ], 0, surface->maxVertexes * sizeof( *surface->color[ 0 ] ) );
 			surface->numColorArrays++;
 		}
@@ -730,7 +730,7 @@ int PicoAdjustSurface( picoSurface_t *surface, int numVertexes, int numSTArrays,
 	while( numIndexes > surface->maxIndexes ) /* fix */
 	{
 		surface->maxIndexes += PICO_GROW_INDEXES;
-		if( !_pico_realloc( (void*) &surface->index, surface->numIndexes * sizeof( *surface->index ), surface->maxIndexes * sizeof( *surface->index ) ) )
+		if( !_pico_realloc( (void **) &surface->index, surface->numIndexes * sizeof( *surface->index ), surface->maxIndexes * sizeof( *surface->index ) ) )
 			return 0;
 	}
 	
@@ -742,7 +742,7 @@ int PicoAdjustSurface( picoSurface_t *surface, int numVertexes, int numSTArrays,
 	while( numFaceNormals > surface->maxFaceNormals ) /* fix */
 	{
 		surface->maxFaceNormals += PICO_GROW_FACES;
-		if( !_pico_realloc( (void *) &surface->faceNormal, surface->numFaceNormals * sizeof( *surface->faceNormal ), surface->maxFaceNormals * sizeof( *surface->faceNormal ) ) )
+		if( !_pico_realloc( (void **) &surface->faceNormal, surface->numFaceNormals * sizeof( *surface->faceNormal ), surface->maxFaceNormals * sizeof( *surface->faceNormal ) ) )
 			return 0;
 	}
 
@@ -803,7 +803,7 @@ picoSkin_t *PicoNewSkin( picoModel_t *model )
 	picoSkin_t	*skin;
 	
 	/* allocate and clear */
-	skin = _pico_alloc( sizeof(picoSkin_t) );
+	skin = (picoSkin_t *)_pico_alloc( sizeof(picoSkin_t) );
 	if( skin == NULL )
 		return NULL;
 	memset( skin, 0, sizeof(picoSkin_t) );
@@ -870,7 +870,7 @@ int PicoAdjustSkin( picoSkin_t *skin, int numItems )
 	while( numItems > skin->maxItems )
 	{
 		skin->maxItems += PICO_GROW_SKINS;
-		if( !_pico_realloc( (void *) &skin->item, skin->numItems * sizeof( *skin->item ), skin->maxItems * sizeof( *skin->item ) ) )
+		if( !_pico_realloc( (void **) &skin->item, skin->numItems * sizeof( *skin->item ), skin->maxItems * sizeof( *skin->item ) ) )
 			return 0;
 	}
 	
@@ -892,7 +892,7 @@ picoSkinItem_t *PicoNewSkinItem( picoSkin_t *skin )
 	picoSkinItem_t *skinItem;
 
 	/* allocate and clear */
-	skinItem = _pico_alloc( sizeof(picoSkinItem_t) );
+	skinItem = (picoSkinItem_t *)_pico_alloc( sizeof(picoSkinItem_t) );
 	if( skinItem == NULL )
 		return NULL;
 	memset( skinItem, 0, sizeof(picoSkinItem_t) );
@@ -1589,8 +1589,8 @@ picoShader_t *PicoDefaultShader(picoModel_t *model)
 	if (defaultPicoShaderInitialized) return &defaultPicoShader;
 
 	// Make one...
-	defaultPicoShader.name = _pico_alloc(sizeof(char) * 64);
-	defaultPicoShader.mapName = _pico_alloc(sizeof(char) * 64);
+	defaultPicoShader.name = (char *)_pico_alloc(sizeof(char) * 64);
+	defaultPicoShader.mapName = (char *)_pico_alloc(sizeof(char) * 64);
 	strcpy(defaultPicoShader.name, "defaultshader");
 	strcpy(defaultPicoShader.mapName, "defaultshader");
 	defaultPicoShader.model = model;
@@ -1720,7 +1720,7 @@ unsigned int PicoVertexCoordGenerateHash( picoVec3_t xyz )
 
 picoVertexCombinationHash_t **PicoNewVertexCombinationHashTable( void )
 {
-	picoVertexCombinationHash_t	**hashTable = _pico_alloc( HASHTABLE_SIZE * sizeof(picoVertexCombinationHash_t*) );
+	picoVertexCombinationHash_t	**hashTable = (picoVertexCombinationHash_t **)_pico_alloc( HASHTABLE_SIZE * sizeof(picoVertexCombinationHash_t*) );
 
 	memset( hashTable, 0, HASHTABLE_SIZE * sizeof(picoVertexCombinationHash_t*) );
 
@@ -1822,7 +1822,7 @@ picoVertexCombinationHash_t *PicoAddVertexCombinationToHashTable( picoVertexComb
 	if (hashTable == NULL || xyz == NULL || normal == NULL || st == NULL || color == NULL )
 		return NULL;
 
-	vertexCombinationHash = _pico_alloc( sizeof(picoVertexCombinationHash_t) );
+	vertexCombinationHash = (picoVertexCombinationHash_t *)_pico_alloc( sizeof(picoVertexCombinationHash_t) );
 
 	if (!vertexCombinationHash)
 		return NULL;
@@ -1937,7 +1937,7 @@ size_t indexarray_size(IndexArray* self)
 
 void indexarray_reserve(IndexArray* self, size_t size)
 {
-	self->data = self->last = _pico_calloc(size, sizeof(picoIndex_t));
+	self->data = self->last = (picoIndex_t *)_pico_calloc(size, sizeof(picoIndex_t));
 }
 
 void indexarray_clear(IndexArray* self)
@@ -1973,7 +1973,7 @@ size_t binarytree_size(BinaryTree* self)
 
 void binarytree_reserve(BinaryTree* self, size_t size)
 {
-	self->data = self->last = _pico_calloc(size, sizeof(BinaryTreeNode));
+	self->data = self->last = (BinaryTreeNode *)_pico_calloc(size, sizeof(BinaryTreeNode));
 }
 
 void binarytree_clear(BinaryTree* self)
@@ -2082,7 +2082,7 @@ struct picoSmoothVertices_s
 
 int lessSmoothVertex(void* data, picoIndex_t first, picoIndex_t second)
 {
-	picoSmoothVertices_t* smoothVertices = data;
+	picoSmoothVertices_t* smoothVertices = (picoSmoothVertices_t *)data;
 	
 	if(smoothVertices->xyz[first][0] != smoothVertices->xyz[second][0])
 	{
@@ -2740,7 +2740,7 @@ void PicoLoadSkinFiles(char *fileName, picoModel_t *model)
 		PicoSetSkinNum( skin, i );
 
 		/* parse file */
-		data = buffer;
+		data = (char *)buffer;
 		for(line = 0;;line++)
 		{
 			/* parse line */

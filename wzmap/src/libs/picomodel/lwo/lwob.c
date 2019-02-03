@@ -1,3 +1,5 @@
+#if 1
+
 /*
 ======================================================================
 lwob.c
@@ -722,3 +724,5 @@ int lwValidateObject5( char *filename, picoMemStream_t *fp, unsigned int *failID
 
    return PICO_PMV_OK;
 }
+
+#endif

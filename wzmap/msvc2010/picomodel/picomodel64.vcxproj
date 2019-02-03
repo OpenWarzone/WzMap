@@ -30,6 +30,7 @@
     <ProjectName>picomodel</ProjectName>
     <ProjectGuid>{253D9D21-DF0F-4822-87E9-0957125B17E6}</ProjectGuid>
     <Keyword>x64Proj</Keyword>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -48,6 +49,7 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -94,6 +96,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>..\build\release\x64\picomodel\</OutDir>
     <IntDir>..\build\release\x64\picomodel\</IntDir>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);./../../src/libs/picomodel/</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">
     <OutDir>..\build\release\x64\picomodel\</OutDir>
@@ -137,16 +140,16 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>./../../src/libs/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./../../src/libs/;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_DEPRECATE;WIN64;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling />
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Precise</FloatingPointModel>
-      <PrecompiledHeader />
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <AssemblerOutput />
       <AssemblerListingLocation>..\build\release\x64\picomodel\</AssemblerListingLocation>
       <ObjectFileName>..\build\release\x64\picomodel\</ObjectFileName>
@@ -158,11 +161,16 @@
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <OpenMPSupport>true</OpenMPSupport>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Lib>
       <OutputFile>$(OutDir)picomodel.lib</OutputFile>
       <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+      <AdditionalDependencies>..\..\dependencies\assimp-vc140-mt.lib</AdditionalDependencies>
     </Lib>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">
     <BuildLog>
@@ -222,52 +230,53 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\libs\picomodel\lwo\clip.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
+      <SmallerTypeCheck Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</SmallerTypeCheck>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\lwo\envelope.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\lwo\list.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\lwo\lwio.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\lwo\lwo2.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\lwo\lwob.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\lwo\pntspols.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\lwo\surface.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\lwo\vecmath.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\lwo\vmap.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\picointernal.c">
@@ -282,7 +291,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\picomodules.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
-      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsC</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\pm_3ds.c">
@@ -294,6 +303,9 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\pm_assimp.cpp">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\pm_fm.c">
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Default</CompileAs>
@@ -338,6 +350,77 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\libs\picomodel.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\ai_assert.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\anim.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\BaseImporter.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Bitmap.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\BlobIOSystem.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\ByteSwapper.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\camera.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\cexport.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\cfileio.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\cimport.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\color4.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\config.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\CreateAnimMesh.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\DefaultIOStream.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\DefaultIOSystem.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\DefaultLogger.hpp" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Defines.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\defs.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Exceptional.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Exporter.hpp" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\fast_atof.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\GenericProperty.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Hash.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Importer.hpp" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\importerdesc.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\IOStream.hpp" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\IOStreamBuffer.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\IOSystem.hpp" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\irrXMLWrapper.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\light.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\LineSplitter.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\LogAux.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Logger.hpp" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\LogStream.hpp" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Macros.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\material.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\MathFunctions.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\matrix3x3.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\matrix4x4.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\MemoryIOWrapper.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\mesh.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\metadata.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\NullLogger.hpp" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\ParsingUtils.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\pbrmaterial.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\postprocess.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Profiler.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\ProgressHandler.hpp" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\qnan.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\quaternion.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\RemoveComments.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\scene.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\SceneCombiner.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\SGSpatialSort.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\SkeletonMeshBuilder.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\SmoothingGroups.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\SpatialSort.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\StandardShapes.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\StreamReader.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\StreamWriter.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\StringComparison.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\StringUtils.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Subdivision.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\texture.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\TinyFormatter.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\types.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\vector2.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\vector3.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\version.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\Vertex.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\assimp\XMLTools.h" />
     <ClInclude Include="..\..\src\libs\picomodel\lwo\lwo2.h" />
     <ClInclude Include="..\..\src\libs\picomodel\picointernal.h" />
     <ClInclude Include="..\..\src\libs\picomodel\pm_fm.h" />
