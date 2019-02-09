@@ -207,15 +207,19 @@ void rcCalcBounds(const float* verts, int nv, float* bmin, float* bmax)
 	rcVcopy(bmax, verts);
 	for (int i = 1; i < nv; ++i)
 	{
-		/*const*/ float* v = (float *)&verts[i*3];
-		if (v[0] > 524288.0) v[0] = 524288.0;
+		///*const*/ float* v = (float *)&verts[i*3];
+		const float* v = &verts[i * 3];
+		/*if (v[0] > 524288.0) v[0] = 524288.0;
 		if (v[1] > 524288.0) v[1] = 524288.0;
 		if (v[2] > 524288.0) v[2] = 524288.0;
 		if (v[0] < -524288.0) v[0] = -524288.0;
 		if (v[1] < -524288.0) v[1] = -524288.0;
-		if (v[2] < -524288.0) v[2] = -524288.0;
+		if (v[2] < -524288.0) v[2] = -524288.0;*/
 		rcVmin(bmin, v);
 		rcVmax(bmax, v);
+//#define MAX_SIZE_CHECK 50000//32768
+//		if (v[0] > MAX_SIZE_CHECK || v[1] > MAX_SIZE_CHECK || v[2] > MAX_SIZE_CHECK || v[0] < -MAX_SIZE_CHECK || v[1] < -MAX_SIZE_CHECK || v[2] < -MAX_SIZE_CHECK)
+//			printf("vec: %f %f %f.\n", v[0], v[1], v[2]);
 	}
 }
 

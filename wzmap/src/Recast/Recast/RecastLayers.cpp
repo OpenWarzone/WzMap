@@ -29,7 +29,7 @@
 
 // Must be 255 or smaller (not 256) because layer IDs are stored as
 // a byte where 255 is a special value.
-static const int RC_MAX_LAYERS = 127;// 63;
+static const int RC_MAX_LAYERS = 255;// 127;// 63;
 static const int RC_MAX_NEIS = 32;// 16;
 
 struct rcLayerRegion

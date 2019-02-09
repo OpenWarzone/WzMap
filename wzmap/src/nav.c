@@ -34,6 +34,7 @@ Geometry geo;
 #define STEPSIZE 18
 
 float cellHeight = 2.0f;
+qboolean ignoreSmallTriangles = qfalse;
 qboolean ignoreRock = qfalse;
 qboolean ignoreTreeLeaves = qfalse;
 float tileSizeMult = 1.0;
@@ -135,13 +136,17 @@ static void WriteNavMeshFile( const char* agentname, const dtTileCache *tileCach
 
 	fwrite( &header, sizeof( header ), 1, file );
 
-	float *bmin = (float *)geo.getMins();
-	float *bmax = (float *)geo.getMaxs();
+	vec3_t bmin;
+	VectorCopy(geo.getMins(), bmin);
+	vec3_t bmax;
+	VectorCopy(geo.getMaxs(), bmax);
 	recast2quake(bmin);
 	recast2quake(bmax);
+	
 	//printf("mins: %f %f %f. maxs: %f %f %f.\n", bmin[0], bmin[1], bmin[2], bmax[0], bmax[1], bmax[2]);
-	fwrite(&bmin, sizeof(vec3_t), 1, file);
-	fwrite(&bmax, sizeof(vec3_t), 1, file);
+
+	fwrite(bmin, sizeof(vec3_t), 1, file);
+	fwrite(bmax, sizeof(vec3_t), 1, file);
 
 	for( int i = 0; i < maxTiles; i++ )
 	{
@@ -205,6 +210,7 @@ qboolean isTreeSolid( char *strippedName )
 	return qfalse;
 }
 
+#if 0
 static void LoadBrushTris(std::vector<float> &verts, std::vector<int> &tris) {
 	int             j;
 
@@ -223,6 +229,7 @@ static void LoadBrushTris(std::vector<float> &verts, std::vector<int> &tris) {
 
 	/* get model, index 0 is worldspawn entity */
 	bspModel_t *model = &bspModels[0];
+	
 	if(model->numBSPBrushes == 0)
 	{
 		std::cout << "0 Brushes Found Exiting..." << std::endl;
@@ -329,6 +336,18 @@ static void LoadBrushTris(std::vector<float> &verts, std::vector<int> &tris) {
 			if(w) {
 				for(int j=2;j<w->numpoints;j++) {
 					AddTri(verts, tris, w->p[0], w->p[j-1], w->p[j]);
+							vec3_t v;
+							VectorCopy(w->p[0], v);
+#define MAX_SIZE_CHECK 50000//32768
+							if (v[0] > MAX_SIZE_CHECK || v[1] > MAX_SIZE_CHECK || v[2] > MAX_SIZE_CHECK || v[0] < -MAX_SIZE_CHECK || v[1] < -MAX_SIZE_CHECK || v[2] < -MAX_SIZE_CHECK)
+								printf("vec0: %f %f %f.\n", v[0], v[1], v[2]);
+							VectorCopy(w->p[j - 1], v);
+							if (v[0] > MAX_SIZE_CHECK || v[1] > MAX_SIZE_CHECK || v[2] > MAX_SIZE_CHECK || v[0] < -MAX_SIZE_CHECK || v[1] < -MAX_SIZE_CHECK || v[2] < -MAX_SIZE_CHECK)
+								printf("vec1: %f %f %f.\n", v[0], v[1], v[2]);
+							VectorCopy(w->p[j], v);
+							if (v[0] > MAX_SIZE_CHECK || v[1] > MAX_SIZE_CHECK || v[2] > MAX_SIZE_CHECK || v[0] < -MAX_SIZE_CHECK || v[1] < -MAX_SIZE_CHECK || v[2] < -MAX_SIZE_CHECK)
+								printf("vec2: %f %f %f.\n", v[0], v[1], v[2]);
+
 				}
 				FreeWinding(w);
 			}
@@ -674,15 +693,20 @@ static void LoadPatchTris(std::vector<float> &verts, std::vector<int> &tris) {
 
 	vec3_t tmin, tmax;
 
+#if 0
 	// need to recalculate mins and maxs because they no longer represent
 	// the minimum and maximum vector components respectively
-	ClearBounds( tmin, tmax );
+	//ClearBounds( tmin, tmax );
 
-	AddPointToBounds( mins, tmin, tmax );
-	AddPointToBounds( maxs, tmin, tmax );
+	//AddPointToBounds( mins, tmin, tmax );
+	//AddPointToBounds( maxs, tmin, tmax );
 
-	VectorCopy( tmin, mins );
-	VectorCopy( tmax, maxs );
+	//VectorCopy( tmin, mins );
+	//VectorCopy( tmax, maxs );
+#else
+	VectorCopy( mins, tmin );
+	VectorCopy( maxs, tmax );
+#endif
 
 	/* get model, index 0 is worldspawn entity */
 	const bspModel_t *model = &bspModels[0];
@@ -801,6 +825,8 @@ static void LoadPatchTris(std::vector<float> &verts, std::vector<int> &tris) {
 		}
 	}
 }
+#endif
+
 static void LoadGeometry()
 {
 	std::vector<float> verts;
@@ -810,9 +836,72 @@ static void LoadGeometry()
 	Sys_PrintHeading("--- Loading geometry ---\n");
 	int numVerts, numTris;
 
+#if 0
 	//count surfaces
 	LoadBrushTris( verts, tris );
 	LoadPatchTris( verts, tris );
+#else
+	int solidFlags = C_SOLID;
+
+	for (int i = 0; i < numBSPDrawSurfaces; i++)
+	{
+		printLabelledProgress("LoadGeometry", i, numBSPDrawSurfaces);
+
+		bspDrawSurface_t *surf = &bspDrawSurfaces[i];
+		bspShader_t *shader = &bspShaders[surf->shaderNum];
+		
+		if (!(shader->contentFlags & solidFlags)) {
+			continue;
+		}
+
+#ifdef __IGNORE_EXTRA_SURFACES__
+		if (ignoreRock && StringContainsWord(shader->shader, "warzone/rock"))
+		{
+			continue;
+		}
+
+		if (ignoreTreeLeaves && StringContainsWord(shader->shader, "warzone/tree") && !isTreeSolid(shader->shader))
+		{
+			continue;
+		}
+
+		if (excludeCaulk && StringContainsWord(shader->shader, "caulk"))
+		{
+			continue;
+		}
+
+		if (excludeCaulk && StringContainsWord(shader->shader, "skip"))
+		{
+			continue;
+		}
+#endif //__IGNORE_EXTRA_SURFACES__
+
+		extern float Distance(vec3_t pos1, vec3_t pos2);
+
+		for (int j = 0; j < surf->numIndexes; j+=3)
+		{
+			if (ignoreSmallTriangles)
+			{
+				float d1 = Distance(bspDrawVerts[bspDrawIndexes[j + surf->firstIndex]].xyz, bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 1]].xyz);
+				float d2 = Distance(bspDrawVerts[bspDrawIndexes[j + surf->firstIndex]].xyz, bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 2]].xyz);
+				float d3 = Distance(bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 1]].xyz, bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 1]].xyz);
+
+				if (max(d1, max(d2, d3)) < 16.0)
+				{
+					continue;
+				}
+			}
+
+			AddTri(verts, tris, bspDrawVerts[bspDrawIndexes[j + surf->firstIndex]].xyz, 
+				bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 1]].xyz,
+				bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 2]].xyz);
+		}
+	}
+	/*for (int i = 0; i < numBSPDrawIndexes; i += 3)
+	{
+		AddTri(verts, tris, bspDrawVerts[bspDrawIndexes[i]].xyz, bspDrawVerts[bspDrawIndexes[i + 1]].xyz, bspDrawVerts[bspDrawIndexes[i + 2]].xyz);
+	}*/
+#endif
 
 	numTris = tris.size() / 3;
 	numVerts = verts.size() / 3;
@@ -1296,16 +1385,24 @@ static void BuildNavMesh( int characterNum )
 	const float *bmin = geo.getMins();
 	const float *bmax = geo.getMaxs();
 	int gw = 0, gh = 0;
-	const float cellSize = (agent.radius / 4.0f);
-
-	rcCalcGridSize( bmin, bmax, cellSize, &gw, &gh );
-
-	const int ts = tileSize * tileSizeMult;
-	const int tw = ( gw + ts - 1 ) / ts;
-	const int th = ( gh + ts - 1 ) / ts;
 
 	rcConfig cfg;
 	memset( &cfg, 0, sizeof ( cfg ) );
+
+#if 0
+	gw = 512.0;
+	gh = 256.0;
+
+	const float cellSize = (agent.radius / 2.0f);
+	cellHeight = (agent.height / 32.0f);// cellSize * 0.333;// (agent.height / 8.0f);
+
+	rcCalcGridSize(bmin, bmax, cellSize, &gw, &gh);
+
+	tileSize = 32.0;
+
+	const int ts = tileSize;
+	const int tw = (gw + ts - 1) / ts;
+	const int th = (gh + ts - 1) / ts;
 
 	cfg.cs = cellSize;
 	cfg.ch = cellHeight;
@@ -1313,10 +1410,10 @@ static void BuildNavMesh( int characterNum )
 	cfg.walkableHeight = ( int ) ceilf( agent.height / cfg.ch );
 	cfg.walkableClimb = ( int ) floorf( stepSize / cfg.ch );
 	cfg.walkableRadius = ( int ) ceilf( agent.radius / cfg.cs );
-	cfg.maxEdgeLen = 0;// 12 / cfg.cs; //0;
+	cfg.maxEdgeLen = (int)ceilf(agent.radius / cfg.cs); //12 / cfg.cs; //0;
 	cfg.maxSimplificationError = 1.3f;
 	cfg.minRegionArea = rcSqr(25);
-	cfg.mergeRegionArea = rcSqr(50) * mergeSizeMult;
+	cfg.mergeRegionArea = rcSqr(50);// *mergeSizeMult;
 	cfg.maxVertsPerPoly = 6;
 	cfg.tileSize = ts;
 	cfg.borderSize = cfg.walkableRadius * 2;
@@ -1324,10 +1421,95 @@ static void BuildNavMesh( int characterNum )
 	cfg.height = cfg.tileSize + cfg.borderSize * 2;
 	cfg.detailSampleDist = cfg.cs * 6.0f;
 	cfg.detailSampleMaxError = cfg.ch * 1.0f;
+#elif 1
+	gw = 0;
+	gh = 0;
+
+	float r = agent.radius;
+	float h = agent.height;
+
+	const float cellSize = r / 2.0;// r / 3.0;
+	cellHeight = cellSize / 3.0; //cellSize / 2.0; // dec if holes
+
+	rcCalcGridSize(bmin, bmax, cellSize, &gw, &gh);
+
+	tileSize = 64.0;// 32.0;// 96.0;// 1500.0;// 2048.0;// 512.0;// 64.0;// cellSize * 32.0;
+
+	const int ts = tileSize;
+	const int tw = (gw + ts - 1) / ts;
+	const int th = (gh + ts - 1) / ts;
+
+	cfg.cs = cellSize;
+	cfg.ch = cellHeight;
+	cfg.walkableSlopeAngle = 47.0;// RAD2DEG(acosf(MIN_WALK_NORMAL));
+	cfg.walkableHeight = (int)ceilf(agent.height / cfg.ch);
+	cfg.walkableClimb = (int)floorf(stepSize / cfg.ch);
+	cfg.walkableRadius = (int)ceilf(agent.radius / cfg.cs);
+	cfg.maxEdgeLen = cfg.walkableRadius * 8.0;
+	cfg.maxSimplificationError = 1.3f;
+	cfg.minRegionArea = rcSqr(25);
+	cfg.mergeRegionArea = rcSqr(50);
+	cfg.maxVertsPerPoly = 131072;// 6;
+	cfg.tileSize = ts;
+	cfg.borderSize = cfg.walkableRadius * 2;
+	cfg.width = cfg.tileSize + cfg.borderSize * 2;
+	cfg.height = cfg.tileSize + cfg.borderSize * 2;
+	cfg.detailSampleDist = cfg.cs * 6.0f;
+	cfg.detailSampleMaxError = cfg.ch * 1.0f;
+#else
+	const float TileSize = (1600.0 / 3.0) * 60;//533.0f + (1.0f / 3.0f);
+	const int VoxelCount = 1778;
+	const float CellSize = TileSize / (float)VoxelCount;
+	const float CellHeight = (TileSize / (float)VoxelCount) / 5.0;
+
+	const float cellSize = CellSize;
+
+	/* Xyc's settings */
+	cfg.ch = CellHeight;// 3.0f;
+	cfg.cs = CellSize;// 15.0f;
+
+	rcCalcGridSize(bmin, bmax, cfg.cs, &gw, &gh);
+
+	const int ts = TileSize;
+	const int tw = (gw + ts - 1) / ts;
+	const int th = (gh + ts - 1) / ts;
+
+	cfg.walkableSlopeAngle = 45.0f; // worked out from MIN_WALK_NORMAL - i think it's correct? :x
+	cfg.walkableHeight = 64 / cfg.ch;
+	cfg.walkableClimb = STEPSIZE / cfg.ch;
+	cfg.walkableRadius = 15 / cfg.cs;
+	cfg.maxEdgeLen = 12 / cfg.cs;
+	cfg.maxSimplificationError = 1.3f;
+	cfg.minRegionArea = 64;
+	cfg.mergeRegionArea = 400;
+	cfg.maxVertsPerPoly = 6;
+	cfg.detailSampleDist = 6.0f * cfg.cs;
+	cfg.detailSampleMaxError = 1.0f * cfg.ch;
+
+
+	cfg.tileSize = (int)TileSize;
+	cfg.borderSize = cfg.walkableRadius + 3; // Reserve enough padding.
+	cfg.width = cfg.tileSize;// + m_cfg.borderSize*2;
+	cfg.height = cfg.tileSize;// + m_cfg.borderSize*2;
+#endif
+
+	Sys_Printf("Cell size: %0.2f\n", cfg.cs);
+	Sys_Printf("Cell height: %0.2f\n", cfg.ch);
+	Sys_Printf("Walkable slope angle : %0.2f\n", cfg.walkableSlopeAngle);
+	Sys_Printf("Walkable height: %d\n", cfg.walkableHeight);
+	Sys_Printf("Walkable climb: %d\n", cfg.walkableClimb);
+	Sys_Printf("Walkable radius: %d\n", cfg.walkableRadius);
+	Sys_Printf("Max edge length : %d\n", cfg.maxEdgeLen);
+	Sys_Printf("Tile size: %d\n", cfg.tileSize);
+	Sys_Printf("Border size: %d\n", cfg.borderSize);
+	Sys_Printf("Height: %d\n", cfg.height);
+	Sys_Printf("Width: %d\n", cfg.width);
+	Sys_Printf("Max edge length float: %0.2f\n", 1.0f / cfg.cs);
 
 	rcVcopy( cfg.bmin, bmin );
 	rcVcopy( cfg.bmax, bmax );
 
+#if 1
 	dtTileCacheParams tcparams;
 	memset( &tcparams, 0, sizeof( tcparams ) );
 	rcVcopy( tcparams.orig, bmin );
@@ -1341,6 +1523,21 @@ static void BuildNavMesh( int characterNum )
 	tcparams.maxSimplificationError = 1.3;
 	tcparams.maxTiles = tw * th * EXPECTED_LAYERS_PER_TILE;
 	tcparams.maxObstacles = 256;
+#else
+	dtTileCacheParams tcparams;
+	memset(&tcparams, 0, sizeof(tcparams));
+	rcVcopy(tcparams.orig, bmin);
+	tcparams.cs = cfg.cs;
+	tcparams.ch = cfg.ch;
+	tcparams.width = cfg.width;// ts;
+	tcparams.height = cfg.height;// ts;
+	tcparams.walkableHeight = cfg.walkableHeight;// agent.height;
+	tcparams.walkableRadius = cfg.walkableRadius;// agent.radius;
+	tcparams.walkableClimb = cfg.walkableClimb;// stepSize;
+	tcparams.maxSimplificationError = 1.3;
+	tcparams.maxTiles = tw * th * EXPECTED_LAYERS_PER_TILE;
+	tcparams.maxObstacles = 256;
+#endif
 
 	tileCache = dtAllocTileCache();
 
@@ -1372,12 +1569,16 @@ static void BuildNavMesh( int characterNum )
 	int currentCount = 0;
 	int totalCount = th*tw;
 
+#pragma omp parallel for schedule(dynamic) num_threads(numthreads)
 	for ( int y = 0; y < th; y++ )
 	{
 		for ( int x = 0; x < tw; x++ )
 		{
-			printLabelledProgress("BuildNavMesh", currentCount, totalCount);
-			currentCount++;
+#pragma omp critical (BuildNavMesh)
+			{
+				printLabelledProgress("BuildNavMesh", currentCount, totalCount);
+				currentCount++;
+			}
 
 			TileCacheData tiles[ MAX_LAYERS ];
 			memset( tiles, 0, sizeof( tiles ) );
@@ -1387,8 +1588,8 @@ static void BuildNavMesh( int characterNum )
 			for ( int i = 0; i < ntiles; i++ )
 			{
 				TileCacheData *tile = &tiles[ i ];
-				status = tileCache->addTile( tile->data, tile->dataSize, DT_COMPRESSEDTILE_FREE_DATA, 0 );
-				if ( dtStatusFailed( status ) )
+				dtStatus this_status = tileCache->addTile( tile->data, tile->dataSize, DT_COMPRESSEDTILE_FREE_DATA, 0 );
+				if ( dtStatusFailed(this_status) )
 				{
 					dtFree( tile->data );
 					tile->data = 0;
@@ -1432,6 +1633,9 @@ extern int NavMain(int argc, char **argv)
 	/* note it */
 	Sys_PrintHeading("--- Nav ---\n");
 
+	game = GetGame("ja");
+	printf("* Game forced to %s (bspIdent %s - bspVersion %i).\n", game->arg, game->bspIdent, game->bspVersion);
+
 	/* process arguments */
 	for(i = 1; i < (argc - 1); i++)
 	{
@@ -1467,6 +1671,9 @@ extern int NavMain(int argc, char **argv)
 					stepSize = temp;
 				}
 			}
+		}
+		else if (!Q_stricmp(argv[i], "-ignoreSmallTriangles")) {
+			ignoreSmallTriangles = qtrue;
 		} else if (!Q_stricmp(argv[i], "-ignoreRock")) {
 			ignoreRock = qtrue;
 		} else if (!Q_stricmp(argv[i], "-ignoreTreeLeaves")) {
@@ -1489,7 +1696,7 @@ extern int NavMain(int argc, char **argv)
 	//LoadShaderInfo();
 
 	Sys_Printf("Loading %s\n", source);
-
+	
 	LoadBSPFile(source);
 
 	ParseEntities();
