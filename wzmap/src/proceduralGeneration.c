@@ -2980,6 +2980,11 @@ void GenerateLedgeFaces(void)
 			center[1] = (mins[1] + maxs[1]) * 0.5f;
 			center[2] = (mins[2] + maxs[2]) * 0.5f;
 
+			if (center[2] + 32.0 <= MAP_WATER_LEVEL)
+			{
+				continue;
+			}
+
 			if (RoadExistsAtPoint(center, 4))
 			{// There's a road here...
 				numLedgesRoadCulled++;
@@ -3387,6 +3392,11 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
+			if (FOLIAGE_POSITIONS[i][2] - 8.0 <= MAP_WATER_LEVEL)
+			{
+				continue;
+			}
+
 			if (MapEntityNear(FOLIAGE_POSITIONS[i]))
 			{// Don't spawn stuff near map entities...
 				continue;
@@ -3608,6 +3618,11 @@ void ReassignTreeModels ( void )
 			}
 
 			if (FOLIAGE_ASSIGNED[i])
+			{
+				continue;
+			}
+
+			if (FOLIAGE_POSITIONS[i][2] - 8.0 <= MAP_WATER_LEVEL)
 			{
 				continue;
 			}
@@ -4713,8 +4728,8 @@ void ReassignCityModels(void)
 		}
 
 		POSSIBLES[NUM_POSSIBLES] = i;
-		POSSIBLES_BUFFERS[NUM_POSSIBLES] = TREE_FORCED_BUFFER_DISTANCE[i];
-		POSSIBLES_BUILDING_SAME_RANGES[NUM_POSSIBLES] = TREE_FORCED_DISTANCE_FROM_SAME[i];
+		POSSIBLES_BUFFERS[NUM_POSSIBLES] = CITY_FORCED_BUFFER_DISTANCE[i];
+		POSSIBLES_BUILDING_SAME_RANGES[NUM_POSSIBLES] = CITY_FORCED_DISTANCE_FROM_SAME[i];
 		NUM_POSSIBLES++;
 	}
 

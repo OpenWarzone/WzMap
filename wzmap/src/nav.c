@@ -37,7 +37,6 @@ float cellHeight = 2.0f;
 qboolean ignoreSmallTriangles = qfalse;
 qboolean ignoreRock = qfalse;
 qboolean ignoreTreeLeaves = qfalse;
-float tileSizeMult = 1.0;
 float mergeSizeMult = 1.0;
 float stepSize = STEPSIZE;
 int   tileSize = 64;
@@ -878,23 +877,32 @@ static void LoadGeometry()
 
 		extern float Distance(vec3_t pos1, vec3_t pos2);
 
+		bspDrawVert_t *vs = &bspDrawVerts[surf->firstVert];
+		int *idxs = &bspDrawIndexes[surf->firstIndex];
+
 		for (int j = 0; j < surf->numIndexes; j+=3)
 		{
+			vec3_t iverts[3];
+
+			VectorCopy(vs[idxs[j]].xyz, iverts[0]);
+			VectorCopy(vs[idxs[j + 1]].xyz, iverts[1]);
+			VectorCopy(vs[idxs[j + 2]].xyz, iverts[2]);
+
 			if (ignoreSmallTriangles)
 			{
-				float d1 = Distance(bspDrawVerts[bspDrawIndexes[j + surf->firstIndex]].xyz, bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 1]].xyz);
-				float d2 = Distance(bspDrawVerts[bspDrawIndexes[j + surf->firstIndex]].xyz, bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 2]].xyz);
-				float d3 = Distance(bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 1]].xyz, bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 1]].xyz);
+				float d1 = Distance(iverts[0], iverts[1]);
+				float d2 = Distance(iverts[0], iverts[2]);
+				float d3 = Distance(iverts[1], iverts[2]);
 
-				if (max(d1, max(d2, d3)) < 16.0)
+				float tringleSize = max(d1, max(d2, d3));
+
+				if (tringleSize < 16.0)
 				{
 					continue;
 				}
 			}
 
-			AddTri(verts, tris, bspDrawVerts[bspDrawIndexes[j + surf->firstIndex]].xyz, 
-				bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 1]].xyz,
-				bspDrawVerts[bspDrawIndexes[j + surf->firstIndex + 2]].xyz);
+			AddTri(verts, tris, iverts[0], iverts[1], iverts[2]);
 		}
 	}
 	/*for (int i = 0; i < numBSPDrawIndexes; i += 3)
@@ -1449,7 +1457,7 @@ static void BuildNavMesh( int characterNum )
 	cfg.maxSimplificationError = 1.3f;
 	cfg.minRegionArea = rcSqr(25);
 	cfg.mergeRegionArea = rcSqr(50);
-	cfg.maxVertsPerPoly = 131072;// 6;
+	cfg.maxVertsPerPoly = 6;// 131072;// 6;
 	cfg.tileSize = ts;
 	cfg.borderSize = cfg.walkableRadius * 2;
 	cfg.width = cfg.tileSize + cfg.borderSize * 2;
@@ -1457,10 +1465,10 @@ static void BuildNavMesh( int characterNum )
 	cfg.detailSampleDist = cfg.cs * 6.0f;
 	cfg.detailSampleMaxError = cfg.ch * 1.0f;
 #else
-	const float TileSize = (1600.0 / 3.0) * 60;//533.0f + (1.0f / 3.0f);
+	const float TileSize = /*(1600.0 / 3.0) * 60;*/533.0f + (1.0f / 3.0f);
 	const int VoxelCount = 1778;
-	const float CellSize = TileSize / (float)VoxelCount;
-	const float CellHeight = (TileSize / (float)VoxelCount) / 5.0;
+	const float CellSize = 1.5;// 3.0;// TileSize / (float)VoxelCount;
+	const float CellHeight = 7.5;// 15.0;// (TileSize / (float)VoxelCount) / 5.0;
 
 	const float cellSize = CellSize;
 
@@ -1619,14 +1627,14 @@ static void BuildNavMesh( int characterNum )
 NavMain
 ===========
 */
-extern int NavMain(int argc, char **argv)
+int NavMain(int argc, char **argv)
 {
 	float temp;
 	int i;
 
 	if(argc < 2)
 	{
-		Sys_Printf("Usage: wzmap -nav [-ignoreRock] [-ignoreTreeLeaves] [-cellheight F] [-tileSizeMult F] [-mergeSizeMult F] [-stepsize F] [-includecaulk] [-includesky] [-nogapfilter] MAPNAME\n");
+		Sys_Printf("Usage: wzmap -nav [-ignoreRock] [-ignoreTreeLeaves] [-cellheight F] [-mergeSizeMult F] [-stepsize F] [-includecaulk] [-includesky] [-nogapfilter] MAPNAME\n");
 		return 0;
 	}
 
@@ -1645,14 +1653,6 @@ extern int NavMain(int argc, char **argv)
 				temp = atof(argv[i]);
 				if (temp > 0) {
 					cellHeight = temp;
-				}
-			}
-		} else if (!Q_stricmp(argv[i], "-tileSizeMult")) {
-			i++;
-			if (i < (argc - 1)) {
-				temp = atof(argv[i]);
-				if (temp > 0) {
-					tileSizeMult = temp;
 				}
 			}
 		} else if (!Q_stricmp(argv[i], "-mergeSizeMult")) {

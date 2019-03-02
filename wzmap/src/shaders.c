@@ -813,7 +813,7 @@ AllocShaderInfo()
 allocates and initializes a new shader
 */
 
-static shaderInfo_t	*AllocShaderInfo( void )
+/*static*/ shaderInfo_t	*AllocShaderInfo( void )
 {
 	shaderInfo_t	*si;
 
@@ -1430,6 +1430,7 @@ void ParseMaterial(shaderInfo_t *si, const char *token)
 		{
 			//shader.surfaceFlags |= i;
 			si->materialType = i;
+			//Sys_Printf("setting material %s for shader '%s'\n", materialNames[i], si->shader);
 			break;
 		}
 	}
@@ -2756,11 +2757,11 @@ static void ParseShaderFile( const char *filename )
 				else if( !Q_stricmp( token, "q3map_material" ) )
 				{
 					GetTokenAppend( shaderText, qfalse );
-					sprintf( temp, "*mat_%s", token );
-					if (ApplySurfaceParm(temp, &si->contentFlags, &si->surfaceFlags, &si->compileFlags) == qfalse)
-					{
+					//sprintf( temp, "*mat_%s", token );
+					//if (ApplySurfaceParm(temp, &si->contentFlags, &si->surfaceFlags, &si->compileFlags) == qfalse)
+					//{
 						ParseMaterial(si, token);
-					}
+					//}
 				}
 
 				/* ydnar: q3map_clipmodel (autogenerate clip brushes for model triangles using this shader) */

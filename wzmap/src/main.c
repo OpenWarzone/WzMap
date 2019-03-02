@@ -765,6 +765,7 @@ q3map mojo...
 float subdivisionMult;				/* default face subdivisions multipier */
 
 extern int NavMain(int argc, char **argv);
+extern int GenFoliageMain(int argc, char **argv);
 
 int main(int argc, char **argv)
 {
@@ -1027,6 +1028,12 @@ int main(int argc, char **argv)
 	{
 		Sys_Printf("Usage: wzmap -nav [-cellheight F] [-cellSizeMult F] [-stepsize F] [-includecaulk] [-includesky] [-nogapfilter] MAPNAME\n");
 		exit(2);
+	}
+
+	/* UQ1: Generate warzone foliage points... */
+	else if (!strcmp(argv[1], "-genfoliage"))
+	{
+		r = GenFoliageMain(argc - 1, argv + 1);
 	}
 
 	/* ydnar: lightmap export */
