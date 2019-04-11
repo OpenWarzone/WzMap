@@ -181,6 +181,7 @@ struct picoModel_s
 	const picoModule_t			*module;		/* sea */
 
 	int							isCollisionModel;
+	int							hasCollisionGeometry;
 };
 
 

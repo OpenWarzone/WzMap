@@ -501,7 +501,7 @@ abstracted bsp file
 #define	MAX_MAP_MODELS			0x1000
 #define	MAX_MAP_BRUSHES			0x200000//0x100000//0x400000
 #define	MAX_MAP_ENTITIES		0x80000
-#define	MAX_MAP_ENTSTRING		0x800000//0x80000
+#define	MAX_MAP_ENTSTRING		0x4000000//0x800000//0x80000
 #define	MAX_MAP_SHADERS			0x800
 
 #define	MAX_MAP_AREAS			0x100		/* MAX_MAP_AREA_BYTES in q_shared must match! */

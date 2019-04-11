@@ -683,6 +683,9 @@ qboolean FloodEntities( tree_t *tree, qboolean quiet )
 	picoModel_t *m;
 	entity_t	*e;
 	qboolean    tripped;
+	int			reachedFromOutsideNum = 0;
+	vec3_t		reachedFromOutsideOrigin[64] = { { 0 } };
+	char		reachedFromOutsideName[64][128] = { { 0 } };
 	
 	if( !quiet )
 		Sys_PrintHeadingVerbose( "--- FloodEntities ---\n" );
@@ -830,11 +833,21 @@ qboolean FloodEntities( tree_t *tree, qboolean quiet )
 		{
 			if (tree->outside_node.occupied)
 			{
-				if( !quiet )
-					Sys_Warning( origin, "FloodEntities: entity '%s' reached from outside\n", classname );
+				if (!quiet)
+				{
+					//Sys_Warning(origin, "FloodEntities: entity '%s' reached from outside\n", classname);
+
+					if (reachedFromOutsideNum < 64)
+					{
+						sprintf(reachedFromOutsideName[reachedFromOutsideNum], "%s", classname);
+						VectorCopy(origin, reachedFromOutsideOrigin[reachedFromOutsideNum]);
+					}
+					reachedFromOutsideNum++;
+				}
+
 				tripped = qtrue;
 			}
-			if( !r || tree->outside_node.occupied)
+			/*if( !r || tree->outside_node.occupied)
 			{
 				if( !quiet )
 				{
@@ -843,12 +856,22 @@ qboolean FloodEntities( tree_t *tree, qboolean quiet )
 					else
 						Sys_Warning( e->mapEntityNum, "Entity leaked" );
 				}
-			}
+			}*/
 		}
 	}
-	
+
 	if( !quiet )
 	{
+		for (int i = 0; i < reachedFromOutsideNum && i < 64; i++)
+		{
+			Sys_Warning(reachedFromOutsideOrigin[i], "FloodEntities: entity '%s' possibly reached from outside\n", reachedFromOutsideName[i]);
+		}
+
+		if (reachedFromOutsideNum >= 64)
+		{
+			Sys_Warning("FloodEntities: %i more were also possibly reached from outside\n", reachedFromOutsideNum - 63);
+		}
+
 		Sys_Printf( "%9d flooded leafs\n", c_floodedleafs );
 		if( !inside )
 			Sys_FPrintf( SYS_VRB, "FloodEntities: no entities in open -- no filling\n" );

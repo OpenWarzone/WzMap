@@ -59,6 +59,10 @@ bool SaveOBJ(std::string fileName, float *verts, unsigned int numPoints, unsigne
 		fout << "#############################################################\n";
 
 		fout << "#\n";
+		fout << "g collision\n";
+		fout << "#\n";
+
+		fout << "#\n";
 		fout << "# Verts...\n";
 		fout << "#\n\n";
 
@@ -74,8 +78,6 @@ bool SaveOBJ(std::string fileName, float *verts, unsigned int numPoints, unsigne
 		fout << "#\n";
 		fout << "# Tris...\n";
 		fout << "#\n\n";
-
-		fout << "g collision\n";
 
         for(size_t f = 0; f < numTris; f+=3)
         {

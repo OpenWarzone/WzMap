@@ -603,6 +603,23 @@ int ScaleBSPMain( int argc, char **argv )
 			sprintf( str, "%f", f );
 			SetKeyValue( &entities[ i ], "lip", str );
 		}
+
+		/* UQ1: scale modelScale's ffs */
+		f = FloatForKey(&entities[i], "modelscale");
+		if (f)
+		{
+			f *= scale;
+			sprintf(str, "%f", f);
+			SetKeyValue(&entities[i], "modelscale", str);
+		}
+
+		GetVectorForKey(&entities[i], "modelscale_vec", vec);
+		if ((vec[0] + vec[1] + vec[2]))
+		{
+			VectorScale(vec, scale, vec);
+			sprintf(str, "%f %f %f", vec[0], vec[1], vec[2]);
+			SetKeyValue(&entities[i], "modelscale_vec", str);
+		}
 	}
 	
 	/* scale models */

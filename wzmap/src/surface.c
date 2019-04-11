@@ -1662,6 +1662,43 @@ CullSides() - ydnar
 culls obscured or buried brushsides from the map
 */
 
+extern qboolean USE_FAST_CULLSIDES;
+
+void CullSidesFast(entity_t *e)
+{
+	int count = 0;
+	int done = 0;
+
+	g_numHiddenFaces = 0;
+	g_numCoinFaces = 0;
+
+	for (brush_t *b1 = e->brushes; b1; b1 = b1->next)
+		count++;
+
+	/* brush interator */
+#pragma omp parallel for ordered num_threads(numthreads)
+	for (int current = 0; current < count; current++)
+	{
+		brush_t		*b1 = e->brushes;
+
+#pragma omp critical (__PROGRESS_BAR__)
+		{
+			printLabelledProgress("CullSides", done, count);
+		}
+		done++;
+
+		for (int i = 0; i < b1->numsides; i++)
+		{
+			if (!b1->sides[i].culled && (b1->sides[i].compileFlags & C_TRANSLUCENT) || (b1->sides[i].compileFlags & C_NODRAW))
+			{
+				b1->sides[i].culled = qtrue;
+				g_numCoinFaces++;
+				continue;
+			}
+		}
+	}
+}
+
 void CullSides( entity_t *e )
 {
 	int			numPoints;
@@ -1670,6 +1707,12 @@ void CullSides( entity_t *e )
 	
 	g_numHiddenFaces = 0;
 	g_numCoinFaces = 0;
+
+	if (USE_FAST_CULLSIDES)
+	{
+		CullSidesFast(e);
+		return;
+	}
 
 	for(brush_t *b1 = e->brushes; b1; b1 = b1->next )
 		count++;
@@ -1730,11 +1773,27 @@ void CullSides( entity_t *e )
 
 			/* cull inside sides */
 //#pragma omp parallel for ordered num_threads(numthreads)
-			for( i = 0; i < b1->numsides; i++ )
-				SideInBrush( &b1->sides[ i ], b2 );
+			for (i = 0; i < b1->numsides; i++)
+			{
+				if (!b1->sides[i].culled && (b1->sides[i].compileFlags & C_TRANSLUCENT) || (b1->sides[i].compileFlags & C_NODRAW))
+				{
+					b1->sides[i].culled = qtrue;
+					continue;
+				}
+
+				SideInBrush(&b1->sides[i], b2);
+			}
 //#pragma omp parallel for ordered num_threads(numthreads)
-			for( i = 0; i < b2->numsides; i++ )
-				SideInBrush( &b2->sides[ i ], b1 );
+			for (i = 0; i < b2->numsides; i++)
+			{
+				if (!b2->sides[i].culled && (b2->sides[i].compileFlags & C_TRANSLUCENT) || (b2->sides[i].compileFlags & C_NODRAW))
+				{
+					b2->sides[i].culled = qtrue;
+					continue;
+				}
+
+				SideInBrush(&b2->sides[i], b1);
+			}
 			
 			/* side iterator 1 */
 //#pragma omp parallel for ordered num_threads(numthreads)
@@ -1754,6 +1813,19 @@ void CullSides( entity_t *e )
 				if (side1->shaderInfo == NULL)
 					continue;
 
+				if (side1->culled == qtrue)
+				{// UQ1: Added...
+					g_numCoinFaces++;
+					continue; // UQ1: Early skip these as they can't get culled anyway...
+				}
+
+				if ((side1->compileFlags & C_TRANSLUCENT) || (side1->compileFlags & C_NODRAW))
+				{// UQ1: Added...
+					g_numCoinFaces++;
+					side1->culled = qtrue;
+					continue; // UQ1: Early skip these as they can't get culled anyway...
+				}
+
 				numPoints = w1->numpoints;
 				
 				/* side iterator 2 */
@@ -1772,11 +1844,18 @@ void CullSides( entity_t *e )
 					if( w1->numpoints != w2->numpoints )
 						continue;
 
-					if( side1->culled == qtrue && side2->culled == qtrue )
+					if (side1->culled == qtrue && side2->culled == qtrue)
+					{// UQ1: Added...
+						g_numCoinFaces++;
 						continue;
+					}
 
-					if (((side1->compileFlags & C_TRANSLUCENT) || (side1->compileFlags & C_NODRAW)) && ((side2->compileFlags & C_TRANSLUCENT) || (side2->compileFlags & C_NODRAW)))
+					if ((side2->compileFlags & C_TRANSLUCENT) || (side2->compileFlags & C_NODRAW))
+					{// UQ1: Added...
+						g_numCoinFaces++;
+						side2->culled = qtrue;
 						continue; // UQ1: Early skip these as they can't get culled anyway...
+					}
 					
 					/* compare planes */
 					if( (side1->planenum & ~0x00000001) != (side2->planenum & ~0x00000001) )

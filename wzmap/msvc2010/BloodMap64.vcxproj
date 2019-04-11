@@ -345,6 +345,7 @@
     <ClCompile Include="..\src\fog.c" />
     <ClCompile Include="..\src\genfoliage.c" />
     <ClCompile Include="..\src\meshOptimization\triListOpt.cpp" />
+    <ClCompile Include="..\src\modelCollisionBox.cpp" />
     <ClCompile Include="..\src\proceduralGeneration.c" />
     <ClCompile Include="..\src\gldraw.c" />
     <ClCompile Include="..\src\image.c" />

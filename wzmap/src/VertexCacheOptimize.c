@@ -321,17 +321,25 @@ void OptimizeDrawSurfs( void )
 extern float Distance(vec3_t pos1, vec3_t pos2);
 
 #ifdef __REGENERATE_BSP_NORMALS__
-void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds)
+void GenerateNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
 {
 	qboolean smoothOnly = qfalse;
 
-	if (ds->shaderInfo && ds->shaderInfo->smoothOnly) 
+	if (ds->shaderInfo && ds->shaderInfo->smoothOnly)
 		smoothOnly = qtrue;
+
+	if (!ds->shaderInfo || ds->shaderInfo == caulkShader)
+		return;
 
 	if (!smoothOnly)
 	{
+		bool broken = false;
+
+#pragma omp parallel for ordered num_threads(numthreads)
 		for (int i = 0; i < ds->numIndexes; i += 3)
 		{
+			if (broken) continue;
+
 			int tri[3];
 			tri[0] = ds->indexes[i];
 			tri[1] = ds->indexes[i + 1];
@@ -340,17 +348,23 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds)
 			if (tri[0] >= ds->numVerts)
 			{
 				//ri->Printf(PRINT_WARNING, "Shitty BSP index data - Bad index in face surface (vert) %i >=  (maxVerts) %i.", tri[0], cv->numVerts);
-				return;
+				//return;
+				broken = true;
+				continue;
 			}
 			if (tri[1] >= ds->numVerts)
 			{
 				//ri->Printf(PRINT_WARNING, "Shitty BSP index data - Bad index in face surface (vert) %i >=  (maxVerts) %i.", tri[1], cv->numVerts);
-				return;
+				//return;
+				broken = true;
+				continue;
 			}
 			if (tri[2] >= ds->numVerts)
 			{
 				//ri->Printf(PRINT_WARNING, "Shitty BSP index data - Bad index in face surface (vert) %i >=  (maxVerts) %i.", tri[2], cv->numVerts);
-				return;
+				//return;
+				broken = true;
+				continue;
 			}
 
 			float* a = (float *)ds->verts[tri[0]].xyz;
@@ -366,7 +380,7 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds)
 
 			//ri->Printf(PRINT_WARNING, "OLD: %f %f %f. NEW: %f %f %f.\n", cv->verts[tri[0]].normal[0], cv->verts[tri[0]].normal[1], cv->verts[tri[0]].normal[2], normal[0], normal[1], normal[2]);
 
-	//#pragma omp critical
+#pragma omp critical (__SET_NORMAL__)
 			{
 				VectorCopy(normal, ds->verts[tri[0]].normal);
 				VectorCopy(normal, ds->verts[tri[1]].normal);
@@ -376,138 +390,154 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds)
 			//ForceCrash();
 		}
 	}
+}
 
-	// Now the hard part, make smooth normals...
-//#pragma omp parallel for schedule(dynamic)
-	for (int i = 0; i < ds->numVerts; i++)
+#define MAX_SMOOTH_ERROR 1.0
+
+bool ValidForSmoothing(vec3_t v1, vec3_t n1, vec3_t v2, vec3_t n2)
+{
+	if (v1[0] == v2[0] 
+		&& v1[1] == v2[1]
+		&& v1[2] == v2[2]
+		&& Distance(n1, n2) < MAX_SMOOTH_ERROR)
 	{
-		int verticesFound[65536];
-		int numVerticesFound = 0;
+		return true;
+	}
 
-		// Get all vertices that share this one ...
-		for (int v = 0; v < ds->numIndexes; v += 3)
+	return false;
+}
+
+#define __MULTIPASS_SMOOTHING__ // Looks better, but takes a lot longer...
+
+void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
+{
+	if (!ds->shaderInfo)
+		return;
+
+	if (ds->type == SURFACE_BAD)
+		return;
+
+	if (ds->shaderInfo == caulkShader)
+		return;
+
+	if ((ds->shaderInfo->contentFlags & C_TRANSLUCENT)
+		|| (ds->shaderInfo->contentFlags & C_NODRAW))
+		return;
+
+	if ((ds->shaderInfo->materialType == MATERIAL_LONGGRASS 
+		|| ds->shaderInfo->materialType == MATERIAL_SHORTGRASS 
+		|| ds->shaderInfo->materialType == MATERIAL_SAND
+		|| ds->shaderInfo->materialType == MATERIAL_DIRT)
+		&& !ds->shaderInfo->isTreeSolid
+		&& !ds->shaderInfo->isMapObjectSolid)
+	{// Whole map smoothing...
+#ifdef __MULTIPASS_SMOOTHING__
+		for (int pass = 0; pass < 3; pass++)
+#endif //__MULTIPASS_SMOOTHING__
 		{
-			int tri[3];
-			tri[0] = ds->indexes[v];
-			tri[1] = ds->indexes[v + 1];
-			tri[2] = ds->indexes[v + 2];
-
-			if (tri[0] == i && Distance(ds->verts[i].normal, ds->verts[tri[0]].normal) <= 1.0)
+#pragma omp parallel for ordered num_threads(numthreads)
+			for (int i = 0; i < ds->numVerts; i++)
 			{
-//#pragma omp critical
-				{
-					verticesFound[numVerticesFound] = tri[0];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[1];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[2];
-					numVerticesFound++;
-				}
-				continue;
-			}
+				vec3_t accumNormal, finalNormal;
+				VectorCopy(ds->verts[i].normal, accumNormal);
 
-			if (tri[1] == i && Distance(ds->verts[i].normal, ds->verts[tri[1]].normal) <= 1.0)
-			{
-//#pragma omp critical
+				for (int s = 0; s < numMapDrawSurfs; s++)
 				{
-					verticesFound[numVerticesFound] = tri[0];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[1];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[2];
-					numVerticesFound++;
-				}
-				continue;
-			}
+					mapDrawSurface_t *ds2 = &mapDrawSurfs[s];
+					//mapDrawSurface_t *ds2 = ds;
 
-			if (tri[2] == i && Distance(ds->verts[i].normal, ds->verts[tri[2]].normal) <= 1.0)
-			{
-//#pragma omp critical
-				{
-					verticesFound[numVerticesFound] = tri[0];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[1];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[2];
-					numVerticesFound++;
-				}
-				continue;
-			}
+					if (ds2->type == SURFACE_BAD)
+						continue;
 
-			// Also merge close normals...
-			if (tri[0] != i
-				&& Distance(ds->verts[i].xyz, ds->verts[tri[0]].xyz) <= 4.0
-				&& Distance(ds->verts[i].normal, ds->verts[tri[0]].normal) <= 1.0)
-			{
-//#pragma omp critical
-				{
-					verticesFound[numVerticesFound] = tri[0];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[1];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[2];
-					numVerticesFound++;
-				}
-				continue;
-			}
+					if (!ds2->shaderInfo || ds->shaderInfo != ds2->shaderInfo || ds2->shaderInfo == caulkShader)
+						continue;
 
-			if (tri[1] != i
-				&& Distance(ds->verts[i].xyz, ds->verts[tri[1]].xyz) <= 4.0
-				&& Distance(ds->verts[i].normal, ds->verts[tri[1]].normal) <= 1.0)
-			{
-//#pragma omp critical
-				{
-					verticesFound[numVerticesFound] = tri[0];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[1];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[2];
-					numVerticesFound++;
-				}
-				continue;
-			}
+					if ((ds2->shaderInfo->contentFlags & C_TRANSLUCENT)
+						|| (ds2->shaderInfo->contentFlags & C_NODRAW))
+						continue;
 
-			if (tri[2] != i
-				&& Distance(ds->verts[i].xyz, ds->verts[tri[2]].xyz) <= 4.0
-				&& Distance(ds->verts[i].normal, ds->verts[tri[2]].normal) <= 1.0)
-			{
-//#pragma omp critical
-				{
-					verticesFound[numVerticesFound] = tri[0];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[1];
-					numVerticesFound++;
-					verticesFound[numVerticesFound] = tri[2];
-					numVerticesFound++;
+					for (int i2 = 0; i2 < ds2->numVerts; i2++)
+					{
+						if (ds2 == ds && i2 == i) continue;
+
+						if (ValidForSmoothing(ds->verts[i].xyz, ds->verts[i].normal, ds2->verts[i2].xyz, ds2->verts[i2].normal))
+						{
+							VectorAdd(accumNormal, ds2->verts[i2].normal, accumNormal);
+#ifndef __MULTIPASS_SMOOTHING__
+							VectorAdd(accumNormal, ds2->verts[i2].normal, accumNormal);
+							VectorAdd(accumNormal, ds2->verts[i2].normal, accumNormal);
+							VectorAdd(accumNormal, ds2->verts[i2].normal, accumNormal);
+							VectorAdd(accumNormal, ds2->verts[i2].normal, accumNormal);
+#endif //__MULTIPASS_SMOOTHING__
+						}
+					}
 				}
-				continue;
+
+				VectorNormalize(accumNormal, finalNormal);
+
+#pragma omp critical (__SET_SMOOTH_NORMAL__)
+				{
+					VectorCopy(finalNormal, ds->verts[i].normal);
+				}
 			}
 		}
-
-		vec3_t pcNor;
-		VectorSet(pcNor, ds->verts[i].normal[0], ds->verts[i].normal[1], ds->verts[i].normal[2]);
-		int numAdded = 1;
-		for (unsigned int a = 0; a < numVerticesFound; ++a) {
-			vec3_t thisNor;
-			VectorSet(thisNor, ds->verts[verticesFound[a]].normal[0], ds->verts[verticesFound[a]].normal[1], ds->verts[verticesFound[a]].normal[2]);
-			pcNor[0] += thisNor[0];
-			pcNor[1] += thisNor[1];
-			pcNor[2] += thisNor[2];
-			numAdded++;
-		}
-		pcNor[0] /= numAdded;
-		pcNor[1] /= numAdded;
-		pcNor[2] /= numAdded;
-		VectorNormalize(pcNor, pcNor);
-
-//#pragma omp critical
+	}
+	else
+	{// Local smoothing only... for speed...
+#ifdef __MULTIPASS_SMOOTHING__
+		for (int pass = 0; pass < 3; pass++)
+#endif //__MULTIPASS_SMOOTHING__
 		{
-			ds->verts[i].normal[0] = pcNor[0];
-			ds->verts[i].normal[1] = pcNor[1];
-			ds->verts[i].normal[2] = pcNor[2];
+#pragma omp parallel for ordered num_threads(numthreads)
+			for (int i = 0; i < ds->numVerts; i++)
+			{
+				vec3_t accumNormal, finalNormal;
+				VectorCopy(ds->verts[i].normal, accumNormal);
+
+				//for (int s = 0; s < numMapDrawSurfs; s++)
+				{
+					//mapDrawSurface_t *ds2 = &mapDrawSurfs[s];
+					mapDrawSurface_t *ds2 = ds;
+
+					if (ds2->type == SURFACE_BAD)
+						continue;
+
+					if (!ds2->shaderInfo || ds->shaderInfo != ds2->shaderInfo || ds2->shaderInfo == caulkShader)
+						continue;
+
+					if ((ds2->shaderInfo->contentFlags & C_TRANSLUCENT)
+						|| (ds2->shaderInfo->contentFlags & C_NODRAW))
+						continue;
+
+					for (int i2 = 0; i2 < ds2->numVerts; i2++)
+					{
+						if (ds2 == ds && i2 == i) continue;
+
+						if (ValidForSmoothing(ds->verts[i].xyz, ds->verts[i].normal, ds2->verts[i2].xyz, ds2->verts[i2].normal))
+						{
+							VectorAdd(accumNormal, ds2->verts[i2].normal, accumNormal);
+#ifndef __MULTIPASS_SMOOTHING__
+							VectorAdd(accumNormal, ds2->verts[i2].normal, accumNormal);
+							VectorAdd(accumNormal, ds2->verts[i2].normal, accumNormal);
+							VectorAdd(accumNormal, ds2->verts[i2].normal, accumNormal);
+							VectorAdd(accumNormal, ds2->verts[i2].normal, accumNormal);
+#endif //__MULTIPASS_SMOOTHING__
+						}
+					}
+				}
+
+				VectorNormalize(accumNormal, finalNormal);
+
+#pragma omp critical (__SET_SMOOTH_NORMAL__)
+				{
+					VectorCopy(finalNormal, ds->verts[i].normal);
+				}
+			}
 		}
 	}
 }
+
+extern qboolean MAP_SMOOTH_NORMALS;
 
 void GenerateSmoothNormals(void)
 {
@@ -515,14 +545,14 @@ void GenerateSmoothNormals(void)
 
 	int numCompleted = 0;
 
-	Sys_PrintHeading("--- GenerateSmoothNormals ---\n");
+	Sys_PrintHeading("--- GenerateNormals ---\n");
 
-#pragma omp parallel for ordered num_threads(numthreads)
+	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
+
 	for (int s = 0; s < numMapDrawSurfs; s++)
 	{
-#pragma omp critical
 		{
-			printLabelledProgress("GenerateSmoothNormals", numCompleted, numMapDrawSurfs);
+			printLabelledProgress("GenerateNormals", numCompleted, numMapDrawSurfs);
 			numCompleted++;
 		}
 
@@ -530,7 +560,26 @@ void GenerateSmoothNormals(void)
 
 		if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
 
-		GenerateSmoothNormalsForMesh(ds);
+		GenerateNormalsForMesh(ds, caulkShader);
+	}
+
+	if (MAP_SMOOTH_NORMALS)
+	{
+		numCompleted = 0;
+
+		for (int s = 0; s < numMapDrawSurfs; s++)
+		{
+			{
+				printLabelledProgress("SmoothNormals", numCompleted, numMapDrawSurfs);
+				numCompleted++;
+			}
+
+			mapDrawSurface_t *ds = &mapDrawSurfs[s];
+
+			if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
+
+			GenerateSmoothNormalsForMesh(ds, caulkShader);
+		}
 	}
 }
 #else //!__REGENERATE_BSP_NORMALS__

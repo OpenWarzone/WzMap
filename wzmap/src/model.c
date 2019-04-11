@@ -37,6 +37,7 @@ several games based on the Quake III Arena engine, in the form of "Q3Map2."
 
 extern qboolean USE_LODMODEL;
 extern qboolean USE_CONVEX_HULL_MODELS;
+extern qboolean USE_BOX_MODELS;
 extern qboolean FORCED_STRUCTURAL;
 
 extern qboolean StringContainsWord(const char *haystack, const char *needle);
@@ -818,6 +819,8 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 	qboolean haveLodModel = qfalse;
 
+	HAS_COLLISION_INFO = model->hasCollisionGeometry ? true : false;
+
 	/* handle null matrix */
 	if (transform == NULL)
 	{
@@ -892,7 +895,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		}
 	}
 
-	if (USE_LODMODEL && isLodModel && !HAS_COLLISION_INFO)
+	if (USE_LODMODEL && isLodModel && !HAS_COLLISION_INFO && !(forcedSolid || forcedFullSolid))
 	{
 		return;
 	}
@@ -973,7 +976,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		{// We have actual solid information for this model, don't generate planes for the other crap...
 			IS_COLLISION_SURFACE = true;
 		}
-		else if (forcedSolid)
+		else if (forcedSolid || forcedFullSolid)
 		{
 			IS_COLLISION_SURFACE = true;
 		}
@@ -2021,6 +2024,68 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 	{// Skip the collision model loading, this is a collision model...
 
 	}
+	else if (allowSimplify == 4)
+	{// Generate a collsion box model...
+		// UQ1: Testing... Simple box for collision planes...
+		char			tempCollisionModel[512] = { 0 };
+		char			collisionModelObj[512] = { 0 };
+
+		sprintf(tempCollisionModel, "%s", model);
+		StripExtension(tempCollisionModel);
+		sprintf(collisionModelObj, "%s_collision_box.%s", tempCollisionModel, "obj");
+
+		/* try to find model */
+		picoModel_t	*picoModel2 = FindModel(collisionModelObj, frame);
+
+		if (picoModel2)
+		{
+			Sys_Printf("loaded model %s. collision box model %s.\n", model, collisionModelObj);
+			picoModel2->isCollisionModel = qtrue;
+			return;
+		}
+
+		/* get model */
+		picoModel2 = LoadModel(collisionModelObj, frame);
+
+		if (picoModel2)
+		{
+			Sys_Printf("loaded model %s. collision box model %s.\n", model, collisionModelObj);
+			picoModel2->isCollisionModel = qtrue;
+			*numLoadedModels++;
+			return;
+		}
+		else
+		{
+			// None exists, so go ahead and generate a new collision box...
+			Sys_Printf("Generating collision box model for model %s.\n", model);
+
+			extern void CollisionBox(picoModel_t *model, char *fileNameOut);
+			CollisionBox(picoModel, collisionModelObj);
+
+			/* try to find model */
+			picoModel_t	*picoModel2 = FindModel(collisionModelObj, frame);
+
+			if (picoModel2)
+			{
+				Sys_Printf("loaded model %s. collision box model %s.\n", model, collisionModelObj);
+				picoModel2->isCollisionModel = qtrue;
+				return;
+			}
+
+			/* get model */
+			picoModel2 = LoadModel(collisionModelObj, frame);
+
+			if (picoModel2)
+			{
+				Sys_Printf("loaded model %s. collision box model %s.\n", model, collisionModelObj);
+				picoModel2->isCollisionModel = qtrue;
+				*numLoadedModels++;
+				return;
+			}
+		}
+
+		Sys_Printf("loaded model %s, but a collision box model failed to be generated!??!?!??!\n", model);
+	}
 	else
 	{
 		/* debug */
@@ -2145,10 +2210,13 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 				{
 					int				skin = 0;
 
+					picoModel->hasCollisionGeometry = qfalse;
+
 					/* get surface */
 					picoSurface_t	*surface = PicoGetModelSurface(picoModel, s);
 
 					if (StringContainsWord(surface->name, "collision")) {
+						picoModel->hasCollisionGeometry = qtrue;
 						Sys_Printf("loaded model %s contains collision geometry (surface name: collision).\n", model);
 						return; // Collision is built into this model...
 					}
@@ -2163,6 +2231,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 					char			*picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
 
 					if (StringContainsWord(picoShaderName, "system/nodraw_solid") || StringContainsWord(picoShaderName, "collision")) {
+						picoModel->hasCollisionGeometry = qtrue;
 						Sys_Printf("loaded model %s contains collision geometry (shader name: system/nodraw_solid).\n", model);
 						return; // Collision is built into this model...
 					}
@@ -2423,7 +2492,10 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 
 		if (atoi(ValueForKey(e3, "_originAsLowPoint")) > 0)
 		{// Marked by the generator and mapInfo to use the model origin (but down a little) as the lowest point near for culling...
-			e3->lowestPointNear = origin[2]-128.0;
+			float zOffset = FloatForKey(e3, "_originOffset");
+			if (zOffset < 0) zOffset = -zOffset;
+			if (zOffset < 16.0) zOffset = 16.0;
+			e3->lowestPointNear = origin[2] - zOffset; //origin[2]-128.0;
 		}
 		else
 		{
@@ -2515,9 +2587,96 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 		if (KeyExists(e2, "_frame"))
 			frame = IntForKey(e2, "_frame");
 
+		qboolean HAVE_COLLISION_GEOMETRY = qfalse;
+
+		if (1)
+		{
+			picoModel_t *picoModel = FindModel((char*)model, frame);
+
+			if (!picoModel)
+			{
+				picoModel = LoadModel((char*)model, frame);
+				picoModel = FindModel((char*)model, frame);
+			}
+
+			if (picoModel)
+			{
+				if (picoModel->hasCollisionGeometry)
+				{
+					HAVE_COLLISION_GEOMETRY = qtrue;
+				}
+			}
+		}
+
 		char *COLLISION_MODEL = NULL;
 
-		if (USE_CONVEX_HULL_MODELS)
+		if (USE_BOX_MODELS)
+		{
+			char tempCollisionModel[512] = { 0 };
+			char collisionModel[512] = { 0 };
+			char collisionModelObj[512] = { 0 };
+			char collisionModelMd3[512] = { 0 };
+			char tempCollisionModelExt[32] = { 0 };
+
+			sprintf(tempCollisionModel, "%s", model);
+			ExtractFileExtension(tempCollisionModel, tempCollisionModelExt);
+			StripExtension(tempCollisionModel);
+
+			sprintf(collisionModel, "%s_collision_box.%s", tempCollisionModel, tempCollisionModelExt);
+			sprintf(collisionModelObj, "%s_collision_box.obj", tempCollisionModel);
+			sprintf(collisionModelMd3, "%s_collision_box.md3", tempCollisionModel);
+
+			picoModel_t *picoModel = FindModel((char*)collisionModel, frame);
+
+			if (!picoModel)
+			{
+				picoModel = LoadModel((char*)collisionModel, frame);
+				picoModel = FindModel((char*)collisionModel, frame);
+			}
+
+			if (picoModel)
+			{
+				COLLISION_MODEL = collisionModel;
+			}
+			else
+			{
+				picoModel = FindModel((char*)collisionModelObj, frame);
+
+				if (!picoModel)
+				{
+					picoModel = LoadModel((char*)collisionModelObj, frame);
+					picoModel = FindModel((char*)collisionModelObj, frame);
+				}
+
+				if (picoModel)
+				{
+					COLLISION_MODEL = collisionModelObj;
+					//Sys_Printf("Found box model %s.\n", COLLISION_MODEL);
+				}
+				else
+				{
+					picoModel = FindModel((char*)collisionModelMd3, frame);
+
+					if (!picoModel)
+					{
+						picoModel = LoadModel((char*)collisionModelMd3, frame);
+						picoModel = FindModel((char*)collisionModelMd3, frame);
+					}
+
+					if (picoModel)
+					{
+						COLLISION_MODEL = collisionModelMd3;
+						//Sys_Printf("Found box model %s.\n", COLLISION_MODEL);
+					}
+					else
+					{
+						//Sys_Printf("Did not find box models %s or %s.\n", collisionModel, collisionModelObj);
+					}
+				}
+			}
+		}
+
+		if (COLLISION_MODEL == NULL && USE_CONVEX_HULL_MODELS)
 		{// Check if there is a convex hull collision model first...
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };
@@ -2832,7 +2991,9 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 		}
 		else
 		{
-			if (!USE_LODMODEL || !isLodModel) // misc_lodmodel doesn't output map surfaces other then the collision objects...
+			if (HAVE_COLLISION_GEOMETRY)
+				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear, isLodModel);
+			else if (!USE_LODMODEL || !isLodModel) // misc_lodmodel doesn't output map surfaces other then the collision objects...
 				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, ledgeOverride, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear, isLodModel);
 		}
 #else //!CULL_BY_LOWEST_NEAR_POINT

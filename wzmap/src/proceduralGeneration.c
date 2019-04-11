@@ -89,13 +89,17 @@ int irand(int min, int max)
 
 float			MAP_WATER_LEVEL = -999999.9;
 
+qboolean		MAP_SMOOTH_NORMALS = qtrue;
+
 qboolean		USE_LODMODEL = qfalse;
 qboolean		FORCED_STRUCTURAL = qfalse;
 qboolean		FORCED_MODEL_META = qfalse;
 qboolean		CAULKIFY_CRAP = qfalse;
 qboolean		REMOVE_CAULK = qfalse;
+qboolean		USE_FAST_CULLSIDES = qfalse;
 qboolean		CULLSIDES_AFTER_MODEL_ADITION = qfalse;
 qboolean		USE_CONVEX_HULL_MODELS = qfalse;
+qboolean		USE_BOX_MODELS = qfalse;
 float			MAP_ROAD_SCAN_WIDTH_MULTIPLIER = 1.0;
 
 qboolean		ADD_CLIFF_FACES = qfalse;
@@ -120,6 +124,9 @@ char			LEDGE_SHADER[MAX_QPATH] = { 0 };
 char			LEDGE_CHECK_SHADER[MAX_QPATH] = { 0 };
 float			TREE_SCALE_MULTIPLIER = 2.5;
 int				TREE_PERCENTAGE = 100;
+qboolean		TREE_CLUSTER = qfalse;
+float			TREE_CLUSTER_SEED = 0.01;
+float			TREE_CLUSTER_MINIMUM = 0.5;
 float			TREE_CLIFF_CULL_RADIUS = 1.0;
 char			TREE_MODELS[MAX_FOREST_MODELS][128] = { 0 };
 float			TREE_OFFSETS[MAX_FOREST_MODELS] = { -4.0 };
@@ -535,6 +542,17 @@ void FOLIAGE_LoadClimateData( char *filename )
 		Sys_Printf("Forcing map water level to %.4f.\n", MAP_WATER_LEVEL);
 	}
 
+	MAP_SMOOTH_NORMALS = atoi(IniRead(filename, "GENERAL", "smoothNormals", "1")) > 0 ? qtrue : qfalse;
+
+	if (MAP_SMOOTH_NORMALS)
+	{
+		Sys_Printf("Smoothing normals for this map.\n");
+	}
+	else
+	{
+		Sys_Printf("Not smoothing normals for this map.\n");
+	}
+
 	USE_LODMODEL = (qboolean)atoi(IniRead(filename, "GENERAL", "useLodModel", "0"));
 
 	if (USE_LODMODEL)
@@ -570,6 +588,13 @@ void FOLIAGE_LoadClimateData( char *filename )
 		Sys_Printf("Removing all caulk surfaces from bsp.\n");
 	}
 
+	USE_FAST_CULLSIDES = (qboolean)atoi(IniRead(filename, "GENERAL", "fastCullSides", "0"));
+
+	if (USE_FAST_CULLSIDES)
+	{
+		Sys_Printf("Fast Cullsides will be used.\n");
+	}
+
 	CULLSIDES_AFTER_MODEL_ADITION = (qboolean)atoi(IniRead(filename, "GENERAL", "cullSidesAfterModelAddition", "0"));
 
 	if (CULLSIDES_AFTER_MODEL_ADITION)
@@ -586,6 +611,17 @@ void FOLIAGE_LoadClimateData( char *filename )
 	else
 	{
 		Sys_Printf("Convex hull collision models will not be used.\n");
+	}
+
+	USE_BOX_MODELS = (qboolean)atoi(IniRead(filename, "GENERAL", "useBoxModels", "0"));
+
+	if (USE_BOX_MODELS)
+	{
+		Sys_Printf("Allowed to use collision box models.\n");
+	}
+	else
+	{
+		Sys_Printf("Collision box models will not be used.\n");
 	}
 
 	MAP_ROAD_SCAN_WIDTH_MULTIPLIER = atof(IniRead(filename, "GENERAL", "roadScanWidthMultiplier", "1.0"));
@@ -746,6 +782,10 @@ void FOLIAGE_LoadClimateData( char *filename )
 	TREE_SCALE_MULTIPLIER = atof(IniRead(filename, "TREES", "treeScaleMultiplier", "1.0"));
 
 	TREE_PERCENTAGE = atof(IniRead(filename, "TREES", "treeAssignPercent", "100"));
+
+	TREE_CLUSTER = atoi(IniRead(filename, "LEDGES", "treeCluster", "0")) > 0 ? qtrue : qfalse;
+	TREE_CLUSTER_MINIMUM = atof(IniRead(filename, "TREES", "treeClusterMinimum", "0.5"));
+	TREE_CLUSTER_SEED = atof(IniRead(filename, "TREES", "treeClusterSeed", "0.0"));
 
 	//Sys_Printf("Tree scale for this climate is %.4f.\n", TREE_SCALE_MULTIPLIER);
 
@@ -1114,6 +1154,45 @@ int				FOLIAGE_TREE_SELECTION[FOLIAGE_MAX_FOLIAGES];
 float			FOLIAGE_TREE_SCALE[FOLIAGE_MAX_FOLIAGES];
 float			FOLIAGE_TREE_BUFFER[FOLIAGE_MAX_FOLIAGES];
 
+float			FOLIAGE_TREE_PITCH[FOLIAGE_MAX_FOLIAGES];
+
+void FOLIAGE_PrecalculateFoliagePitches(void)
+{
+	if (FOLIAGE_NUM_POSITIONS > 0)
+	{
+		//Sys_PrintHeading("--- PrecalculatePitches ---\n");
+
+		int done = 0;
+
+#pragma omp parallel for num_threads(numthreads)
+		for (int i = 0; i < FOLIAGE_NUM_POSITIONS; i++)
+		{
+			vec3_t angles;
+
+#pragma omp critical
+			{
+				printLabelledProgress("PrecalculatePitches", done, FOLIAGE_NUM_POSITIONS);
+				done++;
+			}
+
+			vectoangles(FOLIAGE_NORMALS[i], angles);
+
+			float pitch = angles[0];
+			if (pitch > 180)
+				pitch -= 360;
+
+			if (pitch < -180)
+				pitch += 360;
+
+			pitch += 90.0f;
+
+			FOLIAGE_TREE_PITCH[i] = pitch;
+		}
+
+		printLabelledProgress("PrecalculatePitches", FOLIAGE_NUM_POSITIONS, FOLIAGE_NUM_POSITIONS);
+	}
+}
+
 qboolean FOLIAGE_LoadFoliagePositions( char *filename )
 {
 	FILE			*f;
@@ -1160,6 +1239,8 @@ qboolean FOLIAGE_LoadFoliagePositions( char *filename )
 	fclose(f);
 
 	Sys_Printf("%d positions loaded from %s.\n", FOLIAGE_NUM_POSITIONS, filename);
+
+	FOLIAGE_PrecalculateFoliagePitches();
 
 	return qtrue;
 }
@@ -1335,6 +1416,10 @@ void GenerateCliffFaces(void)
 			center[1] = (mins[1] + maxs[1]) * 0.5f;
 			center[2] = cliffTop;// (mins[2] + maxs[2]) * 0.5f;
 
+			if (maxs[2] < MAP_WATER_LEVEL)
+			{
+				continue;
+			}
 
 			size[0] = (maxs[0] - mins[0]);
 			size[1] = (maxs[1] - mins[1]);
@@ -2980,10 +3065,15 @@ void GenerateLedgeFaces(void)
 			center[1] = (mins[1] + maxs[1]) * 0.5f;
 			center[2] = (mins[2] + maxs[2]) * 0.5f;
 
-			if (center[2] + 32.0 <= MAP_WATER_LEVEL)
+			if (maxs[2] < MAP_WATER_LEVEL)
 			{
 				continue;
 			}
+
+			/*if (center[2] + 32.0 <= MAP_WATER_LEVEL)
+			{
+				continue;
+			}*/
 
 			if (RoadExistsAtPoint(center, 4))
 			{// There's a road here...
@@ -3322,6 +3412,89 @@ void GenerateLedgeFaces(void)
 	}
 }
 
+#define __EARLY_PERCENTAGE_CHECK__
+
+typedef vec_t vec2_t[3];
+
+#define HASHSCALE1 .1031
+
+float fract(float x)
+{
+	return x - floor(x);
+}
+
+float trandom(vec2_t p)
+{
+	vec3_t p3, p4;
+	p3[0] = fract(p[0] * HASHSCALE1);
+	p3[1] = fract(p[1] * HASHSCALE1);
+	p3[2] = fract(p[0] * HASHSCALE1);
+
+	p4[0] = p3[1] + 19.19;
+	p4[1] = p3[2] + 19.19;
+	p4[2] = p3[0] + 19.19;
+
+	float dt = DotProduct(p3, p4);
+	p3[0] += dt;
+	p3[1] += dt;
+	p3[2] += dt;
+	return fract((p3[0] + p3[1]) * p3[2]);
+}
+
+float noise(vec2_t st) {
+	vec2_t i;
+	i[0] = floor(st[0]);
+	i[1] = floor(st[1]);
+	vec2_t f;
+	f[0] = fract(st[0]);
+	f[1] = fract(st[1]);
+
+	// Four corners in 2D of a tile
+	float a = trandom(i);
+	vec2_t v;
+	v[0] = 1.0 + i[0];
+	v[1] = 0.0 + i[1];
+	float b = trandom(v);
+	v[0] = 0.0 + i[0];
+	v[1] = 1.0 + i[1];
+	float c = trandom(v);
+	v[0] = 1.0 + i[0];
+	v[1] = 1.0 + i[1];
+	float d = trandom(v);
+
+	// Smooth Interpolation
+
+	// Cubic Hermine Curve.  Same as SmoothStep()
+	vec2_t u;
+	u[0] = f[0] * f[0] * (3.0 - 2.0*f[0]);
+	u[1] = f[1] * f[1] * (3.0 - 2.0*f[1]);
+	u[2] = f[2] * f[2] * (3.0 - 2.0*f[2]);
+	// u = smoothstep(0.,1.,f);
+
+	// Mix 4 coorners percentages
+
+	return mix(a, b, u[0]) +
+		(c - a)* u[1] * (1.0 - u[0]) +
+		(d - b) * u[0] * u[1];
+}
+
+bool CheckTreeClusters(vec3_t origin)
+{
+	if (!TREE_CLUSTER)
+		return true;
+
+	vec2_t pos;
+	pos[0] = origin[0] * TREE_CLUSTER_SEED;
+	pos[1] = origin[1] * TREE_CLUSTER_SEED;
+
+	float seed = noise(pos);
+
+	if (seed < TREE_CLUSTER_MINIMUM)
+		return false;
+
+	return true;
+}
+
 void ReassignTreeModels ( void )
 {
 	int				i;
@@ -3396,6 +3569,18 @@ void ReassignTreeModels ( void )
 			{
 				continue;
 			}
+
+			if (!CheckTreeClusters(FOLIAGE_POSITIONS[i]))
+			{
+				continue;
+			}
+
+#ifdef __EARLY_PERCENTAGE_CHECK__
+			if (irand(0, 100) > TREE_PERCENTAGE)
+			{
+				continue;
+			}
+#endif //__EARLY_PERCENTAGE_CHECK__
 
 			if (MapEntityNear(FOLIAGE_POSITIONS[i]))
 			{// Don't spawn stuff near map entities...
@@ -3522,7 +3707,7 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
-			vec3_t angles;
+			/*vec3_t angles;
 			vectoangles( FOLIAGE_NORMALS[i], angles );
 			pitch = angles[0];
 			if (pitch > 180)
@@ -3531,7 +3716,8 @@ void ReassignTreeModels ( void )
 			if (pitch < -180)
 				pitch += 360;
 
-			pitch += 90.0f;
+			pitch += 90.0f;*/
+			pitch = FOLIAGE_TREE_PITCH[i];
 
 			if (pitch > POSSIBLES_MAX_ANGLE[selected] || pitch < -POSSIBLES_MAX_ANGLE[selected])
 			{// Bad slope...
@@ -3557,7 +3743,9 @@ void ReassignTreeModels ( void )
 
 			//Sys_Printf("Position %i angles OK! (%.4f).\n", i, pitch);
 
+#ifndef __EARLY_PERCENTAGE_CHECK__
 			if (irand(0, 100) <= TREE_PERCENTAGE)
+#endif //__EARLY_PERCENTAGE_CHECK__
 			{
 				FOLIAGE_TREE_SELECTION[i] = POSSIBLES[selected];
 				FOLIAGE_TREE_BUFFER[i] = BUFFER_RANGES[i] = POSSIBLES_BUFFERS[selected];
@@ -3626,6 +3814,18 @@ void ReassignTreeModels ( void )
 			{
 				continue;
 			}
+
+			if (!CheckTreeClusters(FOLIAGE_POSITIONS[i]))
+			{
+				continue;
+			}
+
+#ifdef __EARLY_PERCENTAGE_CHECK__
+			if (irand(0, 100) > TREE_PERCENTAGE)
+			{
+				continue;
+			}
+#endif //__EARLY_PERCENTAGE_CHECK__
 
 			if (MapEntityNear(FOLIAGE_POSITIONS[i]))
 			{// Don't spawn stuff near map entities...
@@ -3781,7 +3981,9 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
+#ifndef __EARLY_PERCENTAGE_CHECK__
 			if (irand(0, 100) <= TREE_PERCENTAGE)
+#endif //__EARLY_PERCENTAGE_CHECK__
 			{
 				FOLIAGE_TREE_SELECTION[i] = POSSIBLES[selected];
 				FOLIAGE_TREE_BUFFER[i] = BUFFER_RANGES[i] = POSSIBLES_BUFFERS[selected];
@@ -3943,9 +4145,13 @@ void GenerateMapForest ( void )
 					SetKeyValue(mapEnt, "_overrideShader", TREE_FORCED_OVERRIDE_SHADER[FOLIAGE_TREE_SELECTION[i]]);
 				}
 
-				if (TREE_USE_ORIGIN_AS_LOWPOINT[i])
+				if (TREE_USE_ORIGIN_AS_LOWPOINT[FOLIAGE_TREE_SELECTION[i]])
 				{
 					SetKeyValue(mapEnt, "_originAsLowPoint", "1");
+
+					char str[32];
+					sprintf(str, "%.4f", TREE_OFFSETS[FOLIAGE_TREE_SELECTION[i]]);
+					SetKeyValue(mapEnt, "_originOffset", str);
 				}
 				else
 				{
@@ -4445,7 +4651,7 @@ void ReassignCityModels(void)
 
 					if (CITY_FORCED_MAX_ANGLE[i] != 0.0)
 					{// Need to check angles...
-						vec3_t angles;
+						/*vec3_t angles;
 						vectoangles(FOLIAGE_NORMALS[j], angles);
 						float pitch = angles[0];
 						if (pitch > 180)
@@ -4454,7 +4660,8 @@ void ReassignCityModels(void)
 						if (pitch < -180)
 							pitch += 360;
 
-						pitch += 90.0f;
+						pitch += 90.0f;*/
+						float pitch = FOLIAGE_TREE_PITCH[i];
 
 						if (pitch > CITY_FORCED_MAX_ANGLE[i] || pitch < -CITY_FORCED_MAX_ANGLE[i])
 						{// Bad slope...
@@ -4637,7 +4844,7 @@ void ReassignCityModels(void)
 				continue;
 			}
 
-			vec3_t angles;
+			/*vec3_t angles;
 			vectoangles(FOLIAGE_NORMALS[i], angles);
 			pitch = angles[0];
 			if (pitch > 180)
@@ -4646,7 +4853,8 @@ void ReassignCityModels(void)
 			if (pitch < -180)
 				pitch += 360;
 
-			pitch += 90.0f;
+			pitch += 90.0f;*/
+			pitch = FOLIAGE_TREE_PITCH[i];
 
 			if (pitch > POSSIBLES_MAX_ANGLE[selected] || pitch < -POSSIBLES_MAX_ANGLE[selected])
 			{// Bad slope...

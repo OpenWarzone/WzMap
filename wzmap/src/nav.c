@@ -33,7 +33,10 @@ Geometry geo;
 
 #define STEPSIZE 18
 
+float NAVMESH_SCALE = 1.0f;
+
 float cellHeight = 2.0f;
+float cellheightDivisor = 3.0f;
 qboolean ignoreSmallTriangles = qfalse;
 qboolean ignoreRock = qfalse;
 qboolean ignoreTreeLeaves = qfalse;
@@ -146,6 +149,11 @@ static void WriteNavMeshFile( const char* agentname, const dtTileCache *tileCach
 
 	fwrite(bmin, sizeof(vec3_t), 1, file);
 	fwrite(bmax, sizeof(vec3_t), 1, file);
+
+	if (NAVMESHSET_VERSION >= 4)
+	{// UQ1: Added in NAVMESHSET_VERSION 4
+		fwrite(&NAVMESH_SCALE, sizeof(float), 1, file);
+	}
 
 	for( int i = 0; i < maxTiles; i++ )
 	{
@@ -888,6 +896,21 @@ static void LoadGeometry()
 			VectorCopy(vs[idxs[j + 1]].xyz, iverts[1]);
 			VectorCopy(vs[idxs[j + 2]].xyz, iverts[2]);
 
+			if (NAVMESH_SCALE != 1.0)
+			{
+				iverts[0][0] *= NAVMESH_SCALE;
+				iverts[0][1] *= NAVMESH_SCALE;
+				iverts[0][2] *= NAVMESH_SCALE;
+
+				iverts[1][0] *= NAVMESH_SCALE;
+				iverts[1][1] *= NAVMESH_SCALE;
+				iverts[1][2] *= NAVMESH_SCALE;
+
+				iverts[2][0] *= NAVMESH_SCALE;
+				iverts[2][1] *= NAVMESH_SCALE;
+				iverts[2][2] *= NAVMESH_SCALE;
+			}
+
 			if (ignoreSmallTriangles)
 			{
 				float d1 = Distance(iverts[0], iverts[1]);
@@ -1437,7 +1460,7 @@ static void BuildNavMesh( int characterNum )
 	float h = agent.height;
 
 	const float cellSize = r / 2.0;// r / 3.0;
-	cellHeight = cellSize / 3.0; //cellSize / 2.0; // dec if holes
+	cellHeight = cellSize / cellheightDivisor;//3.0; //cellSize / 2.0; // dec if holes
 
 	rcCalcGridSize(bmin, bmax, cellSize, &gw, &gh);
 
@@ -1647,12 +1670,12 @@ int NavMain(int argc, char **argv)
 	/* process arguments */
 	for(i = 1; i < (argc - 1); i++)
 	{
-		if (!Q_stricmp(argv[i], "-cellheight")) {
+		if (!Q_stricmp(argv[i], "-cellheightDivisor")) {
 			i++;
 			if (i < (argc - 1)) {
 				temp = atof(argv[i]);
 				if (temp > 0) {
-					cellHeight = temp;
+					cellheightDivisor = temp;
 				}
 			}
 		} else if (!Q_stricmp(argv[i], "-mergeSizeMult")) {
@@ -1669,6 +1692,15 @@ int NavMain(int argc, char **argv)
 				temp = atof(argv[i]);
 				if(temp > 0) {
 					stepSize = temp;
+				}
+			}
+		}
+		else if (!Q_stricmp(argv[i], "-scale")) {
+			i++;
+			if (i<(argc - 1)) {
+				temp = atof(argv[i]);
+				if (temp > 0) {
+					NAVMESH_SCALE = temp;
 				}
 			}
 		}
@@ -1703,7 +1735,7 @@ int NavMain(int argc, char **argv)
 
 	LoadGeometry();
 
-	float height = rcAbs(geo.getMaxs()[1]) + rcAbs(geo.getMins()[1]);
+	/*float height = rcAbs(geo.getMaxs()[1]) + rcAbs(geo.getMins()[1]);
 	if(height / cellHeight > RC_SPAN_MAX_HEIGHT) {
 		Sys_Printf("WARNING: Map geometry is too tall for specified cell height. Increasing cell height to compensate. This may cause a less accurate navmesh.\n");
 		float prevCellHeight = cellHeight;
@@ -1724,7 +1756,7 @@ int NavMain(int argc, char **argv)
 
 		Sys_Printf("Previous cellheight: %f\n", prevCellHeight);
 		Sys_Printf("New cellheight: %f\n", cellHeight);
-	}
+	}*/
 
 	//RunThreadsOnIndividual( "Nav", sizeof( navcharacters ) / sizeof( navcharacters[ 0 ] ), qtrue, BuildNavMesh );
 	for (i = 0; i < sizeof(navcharacters) / sizeof(navcharacters[0]); i++)
