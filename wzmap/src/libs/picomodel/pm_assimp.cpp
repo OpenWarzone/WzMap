@@ -302,6 +302,320 @@ Assimp::Importer assImpImporter;
 	return PICO_PMV_OK;
 }
 
+void StripFilename2(char *path)
+{
+	size_t length;
+
+	length = strlen(path) - 1;
+	while (length > 0 && path[length] != '/' && path[length] != '\\')
+		length--;
+	path[length] = 0;
+}
+
+int				objShadersNum = 0;
+picoShader_t	*objShaders[512] = { NULL };
+
+static int _obj_mtl_load(picoModel_t *model)
+{
+	picoShader_t *curShader = NULL;
+	picoParser_t *p;
+	picoByte_t   *mtlBuffer;
+	int			  mtlBufSize;
+	char		 *fileName;
+
+	objShadersNum = 0;
+
+	for (int i = 0; i < 512; i++)
+		objShaders[i] = NULL;
+
+	/* sanity checks */
+	if (model == NULL || model->fileName == NULL)
+		return 0;
+
+	/* skip if we have a zero length model file name */
+	if (!strlen(model->fileName))
+		return 0;
+
+	/* helper */
+#define _obj_mtl_error_return \
+	{ \
+		_pico_free_parser( p ); \
+		_pico_free_file( mtlBuffer ); \
+		_pico_free( fileName ); \
+		return 0; \
+	}
+	/* alloc copy of model file name */
+	fileName = _pico_clone_alloc(model->fileName);
+	if (fileName == NULL)
+		return 0;
+
+	/* change extension of model file to .mtl */
+	_pico_setfext(fileName, "mtl");
+
+	/* load .mtl file contents */
+	_pico_load_file(fileName, &mtlBuffer, &mtlBufSize);
+
+	/* check result */
+	if (mtlBufSize == 0) return 1;		/* file is empty: no error */
+	if (mtlBufSize  < 0) return 0;		/* load failed: error */
+
+										/* create a new pico parser */
+	p = _pico_new_parser(mtlBuffer, mtlBufSize);
+	if (p == NULL)
+		_obj_mtl_error_return;
+
+	/* doo teh .mtl parse */
+	while (1)
+	{
+		/* get next token in material file */
+		if (_pico_parse(p, 1) == NULL)
+			break;
+#if 1
+
+		/* skip empty lines */
+		if (p->token == NULL || !strlen(p->token))
+			continue;
+
+		/* skip comment lines */
+		if (p->token[0] == '#')
+		{
+			_pico_parse_skip_rest(p);
+			continue;
+		}
+		/* new material */
+		if (!_pico_stricmp(p->token, "newmtl"))
+		{
+			picoShader_t *shader;
+			char *name;
+
+			/* get material name */
+			name = _pico_parse(p, 0);
+
+			/* validate material name */
+			if (name == NULL || !strlen(name))
+			{
+				_pico_printf(PICO_ERROR, "Missing material name in MTL, line %d.", p->curLine);
+				_obj_mtl_error_return;
+			}
+			/* create a new pico shader */
+			shader = PicoNewShader(model);
+			if (shader == NULL)
+				_obj_mtl_error_return;
+
+			/* set shader name */
+			PicoSetShaderMapName(shader, name);
+
+			/* assign pointer to current shader */
+			curShader = shader;
+
+			// UQ1: And store it in a way we can actually use the damn info...
+			objShaders[objShadersNum] = curShader;
+			objShadersNum++;
+		}
+		/* diffuse map name */
+		else if (!_pico_stricmp(p->token, "map_kd"))
+		{
+			picoShader_t *shader;
+			char *mapName;
+
+			/* pointer to current shader must be valid */
+			if (curShader == NULL)
+			{
+				_pico_printf(PICO_ERROR, "curShader undefined while mapping diffuse texture in MTL, line %d.", p->curLine);
+				_obj_mtl_error_return;
+			}
+
+			/* get material's diffuse map name */
+			mapName = _pico_parse(p, 0);
+
+			/* validate map name */
+			if (mapName == NULL || !strlen(mapName))
+			{
+				_pico_printf(PICO_ERROR, "Missing material map name in MTL, line %d.", p->curLine);
+				_obj_mtl_error_return;
+			}
+
+			/* create a new pico shader */
+			//shader = PicoNewShader( model );
+			//if (shader == NULL)
+			//	_obj_mtl_error_return;
+
+			//
+			// Fix path...
+			//
+
+			char		basePath[256] = { 0 };
+			char		shaderPath[256] = { 0 };
+
+			strcpy(basePath, fileName);
+			StripFilename2(basePath);
+
+			strcpy(shaderPath, mapName);
+
+			if (!StringContainsWord(shaderPath, "/") && !StringContainsWord(shaderPath, "\\") && !StringContainsWord(shaderPath, "collision"))
+			{// Missing any folder info, use model's base path...
+				memset(shaderPath, 0, sizeof(shaderPath));
+				sprintf(shaderPath, "%s/%s", basePath, mapName);
+			}
+
+			/* set shader map name */
+			PicoSetShaderName(curShader, shaderPath);
+		}
+		/* dissolve factor (pseudo transparency 0..1) */
+		/* where 0 means 100% transparent and 1 means opaque */
+		else if (!_pico_stricmp(p->token, "d"))
+		{
+			picoByte_t *diffuse;
+			float value;
+
+
+			/* get dissolve factor */
+			if (!_pico_parse_float(p, &value))
+				_obj_mtl_error_return;
+
+			/* set shader transparency */
+			PicoSetShaderTransparency(curShader, value);
+
+			/* get shader's diffuse color */
+			diffuse = PicoGetShaderDiffuseColor(curShader);
+
+			/* set diffuse alpha to transparency */
+			diffuse[3] = (picoByte_t)(value * 255.0);
+
+			/* set shader's new diffuse color */
+			PicoSetShaderDiffuseColor(curShader, diffuse);
+		}
+		/* shininess (phong specular component) */
+		else if (!_pico_stricmp(p->token, "ns"))
+		{
+			/* remark:
+			* - well, this is some major obj spec fuckup once again. some
+			*   apps store this in 0..1 range, others use 0..100 range,
+			*   even others use 0..2048 range, and again others use the
+			*   range 0..128, some even use 0..1000, 0..200, 400..700,
+			*   honestly, what's up with the 3d app coders? happens when
+			*   you smoke too much weed i guess. -sea
+			*/
+			float value;
+
+			/* pointer to current shader must be valid */
+			if (curShader == NULL)
+				_obj_mtl_error_return;
+
+			/* get totally screwed up shininess (a random value in fact ;) */
+			if (!_pico_parse_float(p, &value))
+				_obj_mtl_error_return;
+
+			/* okay, there is no way to set this correctly, so we simply */
+			/* try to guess a few ranges (most common ones i have seen) */
+
+			/* assume 0..2048 range */
+			if (value > 1000)
+				value = 128.0 * (value / 2048.0);
+			/* assume 0..1000 range */
+			else if (value > 200)
+				value = 128.0 * (value / 1000.0);
+			/* assume 0..200 range */
+			else if (value > 100)
+				value = 128.0 * (value / 200.0);
+			/* assume 0..100 range */
+			else if (value > 1)
+				value = 128.0 * (value / 100.0);
+			/* assume 0..1 range */
+			else {
+				value *= 128.0;
+			}
+			/* negative shininess is bad (yes, i have seen it...) */
+			if (value < 0.0) value = 0.0;
+
+			/* set the pico shininess value in range 0..127 */
+			/* geez, .obj is such a mess... */
+			PicoSetShaderShininess(curShader, value);
+		}
+		/* kol0r ambient (wut teh fuk does "ka" stand for?) */
+		else if (!_pico_stricmp(p->token, "ka"))
+		{
+			picoColor_t color;
+			picoVec3_t  v;
+
+			/* pointer to current shader must be valid */
+			if (curShader == NULL)
+				_obj_mtl_error_return;
+
+			/* get color vector */
+			if (!_pico_parse_vec(p, v))
+				_obj_mtl_error_return;
+
+			/* scale to byte range */
+			color[0] = (picoByte_t)(v[0] * 255);
+			color[1] = (picoByte_t)(v[1] * 255);
+			color[2] = (picoByte_t)(v[2] * 255);
+			color[3] = (picoByte_t)(255);
+
+			/* set ambient color */
+			PicoSetShaderAmbientColor(curShader, color);
+		}
+		/* kol0r diffuse */
+		else if (!_pico_stricmp(p->token, "kd"))
+		{
+			picoColor_t color;
+			picoVec3_t  v;
+
+			/* pointer to current shader must be valid */
+			if (curShader == NULL)
+				_obj_mtl_error_return;
+
+			/* get color vector */
+			if (!_pico_parse_vec(p, v))
+				_obj_mtl_error_return;
+
+			/* scale to byte range */
+			color[0] = (picoByte_t)(v[0] * 255);
+			color[1] = (picoByte_t)(v[1] * 255);
+			color[2] = (picoByte_t)(v[2] * 255);
+			color[3] = (picoByte_t)(255);
+
+			/* set diffuse color */
+			PicoSetShaderDiffuseColor(curShader, color);
+		}
+		/* kol0r specular */
+		else if (!_pico_stricmp(p->token, "ks"))
+		{
+			picoColor_t color;
+			picoVec3_t  v;
+
+			/* pointer to current shader must be valid */
+			if (curShader == NULL)
+				_obj_mtl_error_return;
+
+			/* get color vector */
+			if (!_pico_parse_vec(p, v))
+				_obj_mtl_error_return;
+
+			/* scale to byte range */
+			color[0] = (picoByte_t)(v[0] * 255);
+			color[1] = (picoByte_t)(v[1] * 255);
+			color[2] = (picoByte_t)(v[2] * 255);
+			color[3] = (picoByte_t)(255);
+
+			/* set specular color */
+			PicoSetShaderSpecularColor(curShader, color);
+		}
+#endif
+		/* skip rest of line */
+		_pico_parse_skip_rest(p);
+	}
+
+	/* free parser, file buffer, and file name */
+	_pico_free_parser(p);
+	_pico_free_file(mtlBuffer);
+	_pico_free(fileName);
+
+	/* return with success */
+	return 1;
+}
+
+
 /* _assimp_load:
  *	loads a milkshape3d model file.
 */
@@ -383,12 +697,35 @@ Assimp::Importer assImpImporter;
 		}
 
 		aiString		shaderPath;	// filename
+		
+		
+		/*for (int x = 0; x < scene->mNumMaterials; x++)
+		{
+			printf("DEBUG: =======================================\n");
+			printf("DEBUG: Material %i.\n", x);
+			printf("DEBUG: =======================================\n");
+			for (int z = 0; z < 12; z++)
+			{
+				scene->mMaterials[x]->GetTexture((aiTextureType)z, 0, &shaderPath);
+				printf("DEBUG: shaderPath %i: %s.\n", z, shaderPath.C_Str());
+			}
+		}*/
+
+		//printf("DEBUG: %s.\n", aiSurf->mName.C_Str());
+
 		scene->mMaterials[aiSurf->mMaterialIndex]->GetTexture(aiTextureType_DIFFUSE, 0, &shaderPath);
+
+		//printf("DEBUG: shaderPath: %s.\n", shaderPath.C_Str());
 		
 		// Clean up the shaderpath string, make sure it's in textures/whatever/whatever format, not crap like "..\textures\whatever\whatever.jpg"...
 		shaderPath = StripExtension(shaderPath.C_Str()).c_str();
+
+		//printf("DEBUG: shaderPathExtSrt: %s.\n", shaderPath.C_Str());
+
 		std::string sp = replace_all(replace_all(shaderPath.C_Str(), "\\", "/"), "../", "");
 		shaderPath = sp.c_str();
+
+		//printf("DEBUG: shaderPath_replaced: %s.\n", shaderPath.C_Str());
 
 		// Now make sure we have a nice clean surface name (using the shader name if needed)...
 		if (StringContainsWord(fileName, "_collision"))
@@ -410,6 +747,8 @@ Assimp::Importer assImpImporter;
 			}
 		}
 
+		//printf("DEBUG: aiSurf->mName: %s.\n", aiSurf->mName.C_Str());
+		
 		/* do surface setup */
 		PicoSetSurfaceType( surface, PICO_TRIANGLES );
 		PicoSetSurfaceName( surface, (char *)aiSurf->mName.C_Str() );
@@ -486,7 +825,7 @@ Assimp::Importer assImpImporter;
 
 		bool foundName = false;
 
-		if (!StringContainsWord(shaderPath.C_Str(), "/") && !StringContainsWord(shaderPath.C_Str(), "\\") && !StringContainsWord(shaderPath.C_Str(), "collision"))
+		if (shaderPath.length > 0 && !StringContainsWord(shaderPath.C_Str(), "/") && !StringContainsWord(shaderPath.C_Str(), "\\") && !StringContainsWord(shaderPath.C_Str(), "collision"))
 		{// Missing any folder info, use model's base path...
 			shaderPath = basePath + shaderPath.C_Str();
 			origShaderPath = shaderPath;
@@ -596,6 +935,32 @@ Assimp::Importer assImpImporter;
 				//}
 			}
 
+			/*if (shaderPath.length == 0 && StringContainsWord(fileName, ".obj"))
+			{// Try using obj loader code's .mtr lookup...
+				_obj_mtl_load(model);
+
+				for (int i = 0; i < model->numSurfaces; i++)
+				{
+					bool found = false;
+
+					for (int j = 0; j < objShadersNum; j++)
+					{
+						if (!strcmp(PicoGetSurfaceName(model->surface[i]), objShaders[j]->mapName))
+						{
+							shaderPath = objShaders[j]->name;
+							//printf("Shader %s used for surface %s.\n", objShaders[j]->mapName, PicoGetSurfaceName(model->surface[i]));
+							found = true;
+							break;
+						}
+					}
+
+					if (!found)
+					{
+						//printf("No shader found for surface %s.\n", PicoGetSurfaceName(model->surface[i]));
+					}
+				}
+			}*/
+
 			if (shaderPath.length == 0)
 			{// We failed... Set name do "unknown".
 				shaderPath = origShaderPath;// "unknown";
@@ -603,9 +968,14 @@ Assimp::Importer assImpImporter;
 		}
 
 
+		shader = PicoFindShader(model, (char *)shaderPath.C_Str(), 0);
 
-		/* create new pico shader */
-		shader = PicoNewShader( model );
+		if (shader == NULL)
+		{
+			/* create new pico shader */
+			shader = PicoNewShader(model);
+		}
+
 		if (shader == NULL)
 		{
 			PicoFreeModel( model );

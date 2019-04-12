@@ -215,6 +215,19 @@ static void FreeObjVertexData( TObjVertexData *vertexData )
 	}
 }
 
+void StripFilename(char *path)
+{
+	size_t length;
+
+	length = strlen(path) - 1;
+	while (length > 0 && path[length] != '/' && path[length] != '\\')
+		length--;
+	path[length] = 0;
+}
+
+int				objShadersNum = 0;
+picoShader_t	*objShaders[512] = { NULL };
+
 static int _obj_mtl_load( picoModel_t *model )
 {
 	picoShader_t *curShader = NULL;
@@ -222,6 +235,11 @@ static int _obj_mtl_load( picoModel_t *model )
 	picoByte_t   *mtlBuffer;
 	int			  mtlBufSize;
 	char		 *fileName;
+
+	objShadersNum = 0;
+
+	for (int i = 0; i < 512; i++)
+		objShaders[i] = NULL;
 
 	/* sanity checks */
 	if( model == NULL || model->fileName == NULL )
@@ -265,7 +283,7 @@ static int _obj_mtl_load( picoModel_t *model )
 		/* get next token in material file */
 		if (_pico_parse( p,1 ) == NULL)
 			break;
-#if 0
+#if 1
 
 		/* skip empty lines */
 		if (p->token == NULL || !strlen( p->token ))
@@ -298,10 +316,14 @@ static int _obj_mtl_load( picoModel_t *model )
 				_obj_mtl_error_return;
 
 			/* set shader name */
-			PicoSetShaderName( shader,name );
+			PicoSetShaderMapName( shader, name );
 
 			/* assign pointer to current shader */
 			curShader = shader;
+
+			// UQ1: And store it in a way we can actually use the damn info...
+			objShaders[objShadersNum] = curShader;
+			objShadersNum++;
 		}
 		/* diffuse map name */
 		else if (!_pico_stricmp(p->token,"map_kd"))
@@ -311,7 +333,10 @@ static int _obj_mtl_load( picoModel_t *model )
 
 			/* pointer to current shader must be valid */
 			if (curShader == NULL)
+			{
+				_pico_printf(PICO_ERROR, "curShader undefined while mapping diffuse texture in MTL, line %d.", p->curLine);
 				_obj_mtl_error_return;
+			}
 
 			/* get material's diffuse map name */
 			mapName = _pico_parse( p,0 );
@@ -324,11 +349,30 @@ static int _obj_mtl_load( picoModel_t *model )
 			}
 
 			/* create a new pico shader */
-			shader = PicoNewShader( model );
-			if (shader == NULL)
-				_obj_mtl_error_return;
+			//shader = PicoNewShader( model );
+			//if (shader == NULL)
+			//	_obj_mtl_error_return;
+
+			//
+			// Fix path...
+			//
+
+			char		basePath[256] = { 0 };
+			char		shaderPath[256] = { 0 };
+				
+			strcpy(basePath, fileName);
+			StripFilename(basePath);
+				
+			strcpy(shaderPath, mapName);
+
+			if (!StringContainsWord(shaderPath, "/") && !StringContainsWord(shaderPath, "\\") && !StringContainsWord(shaderPath, "collision"))
+			{// Missing any folder info, use model's base path...
+				memset(shaderPath, 0, sizeof(shaderPath));
+				sprintf(shaderPath, "%s/%s", basePath, mapName);
+			}
+
 			/* set shader map name */
-			PicoSetShaderMapName( shader,mapName );
+			PicoSetShaderName(curShader, shaderPath);
 		}
 		/* dissolve factor (pseudo transparency 0..1) */
 		/* where 0 means 100% transparent and 1 means opaque */
@@ -526,11 +570,6 @@ static picoModel_t *_obj_load( PM_PARAMS_LOAD )
 	PicoSetModelName( model,fileName );
 	PicoSetModelFileName( model,fileName );
 
-	/* try loading the materials; we don't handle the result */
-#if 0
-	_obj_mtl_load( model );
-#endif
-
 	/* parse obj line by line */
 	while( 1 )
 	{
@@ -614,45 +653,83 @@ static picoModel_t *_obj_load( PM_PARAMS_LOAD )
 			printf("Normal: x: %f y: %f z: %f\n",n[0],n[1],n[2]);
 #endif
 		}
+		else if (!_pico_stricmp(p->token, "usemtl"))
+		{// UQ1: How about we actually handle this shit? Damn this half-ass code...
+			char *materialName = _pico_parse(p, 0);
+
+			//printf("usemtl %s\n", materialName);
+
+			if (materialName == NULL || strlen(materialName) == 0)
+			{
+				_obj_error_return("Invalid or missing usemtl name");
+				_pico_parse_skip_rest(p);
+			}
+			else
+			{// Override the "g" specified name... Maybe use 2 names and check both for fallback?!?!?!?
+				/* allocate a pico surface */
+				picoSurface_t *newSurface = PicoNewSurface(model);
+				if (newSurface == NULL)
+					_obj_error_return("Error allocating surface");
+
+				/* reset face index for surface */
+				curFace = 0;
+
+				/* set ptr to current surface */
+				curSurface = newSurface;
+
+				/* we use triangle meshes */
+				PicoSetSurfaceType(newSurface, PICO_TRIANGLES);
+
+
+				PicoSetSurfaceName(curSurface, materialName);
+			}
+		}
 		/* new group (for us this means a new surface) */
 		else if (!_pico_stricmp(p->token,"g"))
 		{
-			picoSurface_t *newSurface;
-			char *groupName;
-
-			/* get first group name (ignore 2nd,3rd,etc.) */
-			groupName = _pico_parse( p,0 );
-			if (groupName == NULL || !strlen(groupName))
+			if (!curSurface || !curSurface->name)
 			{
-				/* some obj exporters feel like they don't need to */
-				/* supply a group name. so we gotta handle it here */
+				picoSurface_t *newSurface;
+				char *groupName;
+
+				/* get first group name (ignore 2nd,3rd,etc.) */
+				groupName = _pico_parse(p, 0);
+				if (groupName == NULL || !strlen(groupName))
+				{
+					/* some obj exporters feel like they don't need to */
+					/* supply a group name. so we gotta handle it here */
 #if 1
-				strcpy( p->token,"default" );
-				groupName = p->token;
+					strcpy(p->token, "default");
+					groupName = p->token;
 #else
-				_obj_error_return("Invalid or missing group name");
+					_obj_error_return("Invalid or missing group name");
 #endif
-			}
-			/* allocate a pico surface */
-			newSurface = PicoNewSurface( model );
-			if (newSurface == NULL)
-				_obj_error_return("Error allocating surface");
+				}
+				/* allocate a pico surface */
+				newSurface = PicoNewSurface(model);
+				if (newSurface == NULL)
+					_obj_error_return("Error allocating surface");
 
-			/* reset face index for surface */
-			curFace = 0;
+				/* reset face index for surface */
+				curFace = 0;
 
-			/* set ptr to current surface */
-			curSurface = newSurface;
+				/* set ptr to current surface */
+				curSurface = newSurface;
 
-			/* we use triangle meshes */
-			PicoSetSurfaceType( newSurface,PICO_TRIANGLES );
+				/* we use triangle meshes */
+				PicoSetSurfaceType(newSurface, PICO_TRIANGLES);
 
-			/* set surface name */
-			PicoSetSurfaceName( newSurface,groupName );
+				/* set surface name */
+				PicoSetSurfaceName(newSurface, groupName);
 
 #ifdef DEBUG_PM_OBJ_EX
-			printf("Group: '%s'\n",groupName);
+				printf("Group: '%s'\n", groupName);
 #endif
+			}
+			else
+			{// Already named by usemtl
+				_pico_parse_skip_rest(p);
+			}
 		}
 		/* face (oh jesus, hopefully this will do the job right ;) */
 		else if (!_pico_stricmp(p->token,"f"))
@@ -841,6 +918,64 @@ static picoModel_t *_obj_load( PM_PARAMS_LOAD )
 	}
 	/* free memory used by temporary vertexdata */
 	FreeObjVertexData( vertexData );
+
+	/* try loading the materials; we don't handle the result - UQ1: We fucking do now... */
+#if 1
+	_obj_mtl_load(model);
+
+	//printf("Obj model %s.\n", model->fileName);
+
+	for (int i = 0; i < model->numSurfaces; i++)
+	{
+		int found = 0;
+
+		if (StringContainsWord(PicoGetSurfaceName(model->surface[i]), "collision"))
+		{
+			picoShader_t *shader = PicoFindShader(model, "collision", 0);
+
+			if (shader == NULL)
+			{
+				/* create new pico shader */
+				shader = PicoNewShader(model);
+			}
+
+			/* set shader name */
+			PicoSetShaderName(shader, "collision");
+
+			/* set shader texture map name */
+			PicoSetShaderMapName(shader, "collision");
+
+			PicoSetSurfaceShader(model->surface[i], shader);
+			continue;
+		}
+
+		//printf("%s: ", PicoGetSurfaceName(model->surface[i]));
+
+		for (int j = 0; j < objShadersNum; j++)
+		{
+			if (!strcmp(PicoGetSurfaceName(model->surface[i]), objShaders[j]->mapName))
+			{
+				PicoSetSurfaceShader(model->surface[i], objShaders[j]);
+				//printf("mapped to shader %s.\n", objShaders[j]->name);
+				found = 1;
+				break;
+			}
+		}
+		
+		if (!found)
+		{
+			/*printf("Did not find a matching shader for surface!\n");
+			printf("Known names are:\n");
+			for (int j = 0; j < objShadersNum; j++)
+			{
+				printf("map: %s. shader: %s.\n", objShaders[j]->mapName, objShaders[j]->name);
+			}*/
+
+			printf("Did not find a shader for surface %s of model %s.\n", PicoGetSurfaceName(model->surface[i]), model->fileName);
+		}
+		
+	}
+#endif
 
 	/* return allocated pico model */
 	return model;
