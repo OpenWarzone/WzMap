@@ -2128,6 +2128,9 @@ void                        GetExternalLightmapPath(char *source, char *prefixPa
 /* optimize.c */
 int                         OptimizeBSPMain( int argc, char **argv );
 
+/* smoothnormals.c */
+int							SmoothBSPMain(int argc, char **argv);
+
 /* patchbsp.c */
 int                         PatchBSPMain( int argc, char **argv );
 

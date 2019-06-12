@@ -1087,6 +1087,13 @@ int main(int argc, char **argv)
 		r = OptimizeBSPMain( argc - 1, argv + 1 );
 	}
 
+	/* UQ1: bsp normals smoothing */
+	else if (!strcmp(argv[1], "-smooth"))
+	{
+		mapplanes = (plane_t*)malloc(sizeof(plane_t)*MAX_MAP_PLANES);
+		r = SmoothBSPMain(argc - 1, argv + 1);
+	}
+
 	/* vortex: entity compile */
 	else if( !strcmp( argv[ 1 ], "-patch" ) )
 		r = PatchBSPMain( argc - 1, argv + 1 );

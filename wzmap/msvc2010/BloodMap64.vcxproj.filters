@@ -414,6 +414,9 @@
     <ClCompile Include="..\src\modelCollisionBox.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\smoothnormals.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\games\darkplaces.h">

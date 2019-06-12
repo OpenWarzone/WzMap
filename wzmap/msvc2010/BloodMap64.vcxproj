@@ -413,6 +413,7 @@
     <ClCompile Include="..\src\Recast\SampleInterfaces.cpp" />
     <ClCompile Include="..\src\Recast\ValueHistory.cpp" />
     <ClCompile Include="..\src\shaders.c" />
+    <ClCompile Include="..\src\smoothnormals.c" />
     <ClCompile Include="..\src\surface.c" />
     <ClCompile Include="..\src\surface_extra.c" />
     <ClCompile Include="..\src\surface_foliage.c" />
