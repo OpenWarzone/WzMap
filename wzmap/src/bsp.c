@@ -1690,7 +1690,7 @@ int BSPMain( int argc, char **argv )
 			Sys_Warning( "Unknown option \"%s\"", argv[ i ] );
 	}
 
-#if 1
+#if 0
 	if (bevelSnap <= 2)
 	{// UQ1: Snap bevel planes to minimum of 2 Q3 units to reduce waste.
 		bevelSnap = 2;

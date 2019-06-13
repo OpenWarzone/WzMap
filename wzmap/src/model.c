@@ -1391,45 +1391,76 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		int numIndexesFinal = ds->currentNumIndexes;
 		int numIndexesOriginal = ds->currentNumIndexes;
 
-		for (i = ds->currentNumIndexes; i < ds->numIndexes; i += 3)
+		if (LOWEST_NEAR_POINT > -9999999.9)
 		{
-			// Assume that we can cull them all... Add exceptions as found...
-			qboolean shouldLowestPointCull = qtrue;
+			int j;
 
-			numIndexesOriginal += 3;
-
-			for (int j = 0; j < 3; j++)
+			for (j = ds->currentNumIndexes; j < ds->numIndexes; j += 3)
 			{
-				bspDrawVert_t		*dv = &ds->verts[indexes[i + j - ds->currentNumIndexes]] + ds->currentNumVerts;
+				// Assume that we can cull them all... Add exceptions as found...
+				qboolean shouldLowestPointCull = qtrue;
 
-				if (LOWEST_NEAR_POINT == 999999.0f || dv->xyz[2] >= LOWEST_NEAR_POINT)
+				numIndexesOriginal += 3;
+
+				for (int k = 0; k < 3; k++)
+				{
+					bspDrawVert_t		*dv = &ds->verts[indexes[j + k - ds->currentNumIndexes]] + ds->currentNumVerts;
+
+					if (LOWEST_NEAR_POINT == 999999.0f || dv->xyz[2] >= LOWEST_NEAR_POINT)
+					{// If any surface is above the found lowest map point, then we need to draw this triangle...
+						shouldLowestPointCull = qfalse;
+						break;
+					}
+				}
+
+				if (!shouldLowestPointCull)
 				{// If any surface is above the found lowest map point, then we need to draw this triangle...
-					shouldLowestPointCull = qfalse;
-					break;
+					ds->indexes[numIndexesFinal] = indexes[j - ds->currentNumIndexes] + ds->currentNumVerts;
+					numIndexesFinal++;
+					ds->indexes[numIndexesFinal] = indexes[j + 1 - ds->currentNumIndexes] + ds->currentNumVerts;
+					numIndexesFinal++;
+					ds->indexes[numIndexesFinal] = indexes[j + 2 - ds->currentNumIndexes] + ds->currentNumVerts;
+					numIndexesFinal++;
+				}
+				else
+				{
+					numIndexesCulled += 3;
 				}
 			}
 
-			if (!shouldLowestPointCull)
-			{// If any surface is above the found lowest map point, then we need to draw this triangle...
-				ds->indexes[numIndexesFinal] = indexes[i - ds->currentNumIndexes] + ds->currentNumVerts;
-				numIndexesFinal++;
-				ds->indexes[numIndexesFinal] = indexes[i + 1 - ds->currentNumIndexes] + ds->currentNumVerts;
-				numIndexesFinal++;
-				ds->indexes[numIndexesFinal] = indexes[i + 2 - ds->currentNumIndexes] + ds->currentNumVerts;
-				numIndexesFinal++;
-			}
-			else
+			if (numIndexesCulled > 0)
 			{
-				numIndexesCulled += 3;
+				ds->numIndexes = numIndexesFinal;
+				numBoundsCulledSurfs += numIndexesCulled / 3;
+				//Sys_Printf("Lowest point culled %i of %i indexes. %.2f percent were culled. %i final indexes.\n", numIndexesCulled, numIndexesOriginal, (float(numIndexesCulled) / float(numIndexesOriginal)) * 100.0, numIndexesFinal);
+			}
+		}
+		else
+		{
+			int j;
+
+			for (j = ds->currentNumIndexes; j < ds->numIndexes; j += 3)
+			{
+				numIndexesOriginal += 3;
+
+				{// If any surface is above the found lowest map point, then we need to draw this triangle...
+					ds->indexes[numIndexesFinal] = indexes[j - ds->currentNumIndexes] + ds->currentNumVerts;
+					numIndexesFinal++;
+					ds->indexes[numIndexesFinal] = indexes[j + 1 - ds->currentNumIndexes] + ds->currentNumVerts;
+					numIndexesFinal++;
+					ds->indexes[numIndexesFinal] = indexes[j + 2 - ds->currentNumIndexes] + ds->currentNumVerts;
+					numIndexesFinal++;
+				}
+			}
+
+			if (numIndexesCulled > 0)
+			{
+				ds->numIndexes = numIndexesFinal;
+				numBoundsCulledSurfs += numIndexesCulled / 3;
+				//Sys_Printf("Lowest point culled %i of %i indexes. %.2f percent were culled. %i final indexes.\n", numIndexesCulled, numIndexesOriginal, (float(numIndexesCulled) / float(numIndexesOriginal)) * 100.0, numIndexesFinal);
 			}
 		}
 
-		if (numIndexesCulled > 0)
-		{
-			ds->numIndexes = numIndexesFinal;
-			numBoundsCulledSurfs += numIndexesCulled / 3;
-			//Sys_Printf("Lowest point culled %i of %i indexes. %.2f percent were culled. %i final indexes.\n", numIndexesCulled, numIndexesOriginal, (float(numIndexesCulled) / float(numIndexesOriginal)) * 100.0, numIndexesFinal);
-		}
 #else //!CULL_BY_LOWEST_NEAR_POINT
 		for (i = ds->currentNumIndexes; i < ds->numIndexes; i++)
 		{
@@ -1508,7 +1539,6 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 #pragma omp parallel for ordered num_threads((ds->numIndexes < numthreads) ? ds->numIndexes : numthreads)
 			for( i = ds->currentNumIndexes; i < ds->numIndexes; i += 3 )
 			{
-				int					j;
 				vec3_t				points[4], backs[3];
 				vec4_t				plane, reverse, pa, pb, pc;
 
@@ -1520,10 +1550,11 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 				}
 
 				/* make points and back points */
-				for( j = 0; j < 3; j++ )
+				for( int j = 0; j < 3; j++ )
 				{
 					bspDrawVert_t		*dv;
-					int					k;
+
+					//printf("index %i of %i.\n", i + j, ds->numIndexes);
 
 					/* get vertex */
 					dv = &ds->verts[ ds->indexes[ i + j ] ];
@@ -1534,7 +1565,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 					/* find nearest axial to normal and push back points opposite */
 					/* note: this doesn't work as well as simply using the plane of the triangle, below */
-					for( k = 0; k < 3; k++ )
+					for( int k = 0; k < 3; k++ )
 					{
 						if( fabs( dv->normal[ k ] ) >= fabs( dv->normal[ (k + 1) % 3 ] ) &&
 							fabs( dv->normal[ k ] ) >= fabs( dv->normal[ (k + 2) % 3 ] ) )
@@ -1601,7 +1632,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 					}
 
 					/* regenerate back points */
-					for( j = 0; j < 3; j++ )
+					for( int j = 0; j < 3; j++ )
 					{
 						bspDrawVert_t		*dv;
 
@@ -1648,60 +1679,63 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 						//Sys_Printf("mapmins %.4f %.4f %.4f. mapmaxs %.4f %.4f %.4f.\n", mapPlayableMins[0], mapPlayableMins[1], mapPlayableMins[2], mapPlayableMaxs[0], mapPlayableMaxs[1], mapPlayableMaxs[2]);
 						//Sys_Printf("mins %.4f %.4f %.4f. maxs %.4f %.4f %.4f.\n", mins[0], mins[1], mins[2], maxs[0], maxs[1], maxs[2]);
 
-#ifdef CULL_BY_LOWEST_NEAR_POINT
+						if (LOWEST_NEAR_POINT > -9999999.9)
 						{
-							//Sys_Printf("LOWEST_NEAR_POINT %.4f.\n", LOWEST_NEAR_POINT);
+#ifdef CULL_BY_LOWEST_NEAR_POINT
+							{
+								//Sys_Printf("LOWEST_NEAR_POINT %.4f.\n", LOWEST_NEAR_POINT);
 
-							if (LOWEST_NEAR_POINT != 999999.0f && mins[2] < LOWEST_NEAR_POINT && maxs[2] < LOWEST_NEAR_POINT)
-							{// Below map's lowest known near point, definately cull...
+								if (LOWEST_NEAR_POINT != 999999.0f && mins[2] < LOWEST_NEAR_POINT && maxs[2] < LOWEST_NEAR_POINT)
+								{// Below map's lowest known near point, definately cull...
+									//Sys_Printf("Culled one!\n");
+									numBoundsCulledSurfs++;
+									continue;
+								}
+							}
+#endif //CULL_BY_LOWEST_NEAR_POINT
+
+							if (mins[2] < mapPlayableMins[2] && maxs[2] < mapPlayableMins[2])
+							{// Outside map bounds, definately cull...
 								//Sys_Printf("Culled one!\n");
 								numBoundsCulledSurfs++;
 								continue;
 							}
-						}
-#endif //CULL_BY_LOWEST_NEAR_POINT
 
-						if (mins[2] < mapPlayableMins[2] && maxs[2] < mapPlayableMins[2])
-						{// Outside map bounds, definately cull...
-							//Sys_Printf("Culled one!\n");
-							numBoundsCulledSurfs++;
-							continue;
-						}
+							/* // Hmm don't cull the tops od trees, sticking out of the map, etc...
+							if (mins[2] > mapPlayableMaxs[2] && maxs[2] > mapPlayableMaxs[2])
+							{// Outside map bounds, definately cull...
+								//Sys_Printf("Culled one!\n");
+								numBoundsCulledSurfs++;
+								continue;
+							}*/
 
-						/* // Hmm don't cull the tops od trees, sticking out of the map, etc...
-						if (mins[2] > mapPlayableMaxs[2] && maxs[2] > mapPlayableMaxs[2])
-						{// Outside map bounds, definately cull...
-							//Sys_Printf("Culled one!\n");
-							numBoundsCulledSurfs++;
-							continue;
-						}*/
+							if (mins[1] < mapPlayableMins[1] && maxs[1] < mapPlayableMins[1])
+							{// Outside map bounds, definately cull...
+								//Sys_Printf("Culled one!\n");
+								numBoundsCulledSurfs++;
+								continue;
+							}
 
-						if (mins[1] < mapPlayableMins[1] && maxs[1] < mapPlayableMins[1])
-						{// Outside map bounds, definately cull...
-							//Sys_Printf("Culled one!\n");
-							numBoundsCulledSurfs++;
-							continue;
-						}
+							if (mins[1] > mapPlayableMaxs[1] && maxs[1] > mapPlayableMaxs[1])
+							{// Outside map bounds, definately cull...
+								//Sys_Printf("Culled one!\n");
+								numBoundsCulledSurfs++;
+								continue;
+							}
 
-						if (mins[1] > mapPlayableMaxs[1] && maxs[1] > mapPlayableMaxs[1])
-						{// Outside map bounds, definately cull...
-							//Sys_Printf("Culled one!\n");
-							numBoundsCulledSurfs++;
-							continue;
-						}
+							if (mins[0] < mapPlayableMins[0] && maxs[0] < mapPlayableMins[0])
+							{// Outside map bounds, definately cull...
+								//Sys_Printf("Culled one!\n");
+								numBoundsCulledSurfs++;
+								continue;
+							}
 
-						if (mins[0] < mapPlayableMins[0] && maxs[0] < mapPlayableMins[0])
-						{// Outside map bounds, definately cull...
-							//Sys_Printf("Culled one!\n");
-							numBoundsCulledSurfs++;
-							continue;
-						}
-
-						if (mins[0] > mapPlayableMaxs[0] && maxs[0] > mapPlayableMaxs[0])
-						{// Outside map bounds, definately cull...
-							//Sys_Printf("Culled one!\n");
-							numBoundsCulledSurfs++;
-							continue;
+							if (mins[0] > mapPlayableMaxs[0] && maxs[0] > mapPlayableMaxs[0])
+							{// Outside map bounds, definately cull...
+								//Sys_Printf("Culled one!\n");
+								numBoundsCulledSurfs++;
+								continue;
+							}
 						}
 
 						//Sys_Printf("top: %.4f. bottom: %.4f.\n", top, bottom);
@@ -1928,7 +1962,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 								buildBrush->numsides = 5;
 								buildBrush->sides[ 0 ].shaderInfo = si;
 
-								for( j = 1; j < buildBrush->numsides; j++ )
+								for( int j = 1; j < buildBrush->numsides; j++ )
 								{
 									buildBrush->sides[ j ].shaderInfo = NULL; // don't emit these faces as draw surfaces, should make smaller BSPs; hope this works
 									buildBrush->sides[ j ].culled = qtrue;
@@ -1957,7 +1991,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 									}
 									else
 									{
-										for (j = 1; j < buildBrush->numsides; j++)
+										for (int j = 1; j < buildBrush->numsides; j++)
 										{
 											buildBrush->sides[j].shaderInfo = NULL; // don't emit these faces as draw surfaces, should make smaller BSPs; hope this works
 											//buildBrush->sides[j].culled = qtrue;
@@ -2615,7 +2649,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };
 			char collisionModelObj[512] = { 0 };
-			char collisionModelMd3[512] = { 0 };
+			char collisionModelMD3[512] = { 0 };
 			char tempCollisionModelExt[32] = { 0 };
 
 			sprintf(tempCollisionModel, "%s", model);
@@ -2624,7 +2658,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 
 			sprintf(collisionModel, "%s_collision_box.%s", tempCollisionModel, tempCollisionModelExt);
 			sprintf(collisionModelObj, "%s_collision_box.obj", tempCollisionModel);
-			sprintf(collisionModelMd3, "%s_collision_box.md3", tempCollisionModel);
+			sprintf(collisionModelMD3, "%s_collision_box.md3", tempCollisionModel);
 
 			picoModel_t *picoModel = FindModel((char*)collisionModel, frame);
 
@@ -2655,17 +2689,17 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 				}
 				else
 				{
-					picoModel = FindModel((char*)collisionModelMd3, frame);
+					picoModel = FindModel((char*)collisionModelMD3, frame);
 
 					if (!picoModel)
 					{
-						picoModel = LoadModel((char*)collisionModelMd3, frame);
-						picoModel = FindModel((char*)collisionModelMd3, frame);
+						picoModel = LoadModel((char*)collisionModelMD3, frame);
+						picoModel = FindModel((char*)collisionModelMD3, frame);
 					}
 
 					if (picoModel)
 					{
-						COLLISION_MODEL = collisionModelMd3;
+						COLLISION_MODEL = collisionModelMD3;
 						//Sys_Printf("Found box model %s.\n", COLLISION_MODEL);
 					}
 					else
@@ -2681,7 +2715,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };
 			char collisionModelObj[512] = { 0 };
-			char collisionModelMd3[512] = { 0 };
+			char collisionModelMD3[512] = { 0 };
 			char tempCollisionModelExt[32] = { 0 };
 
 			sprintf(tempCollisionModel, "%s", model);
@@ -2690,7 +2724,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 
 			sprintf(collisionModel, "%s_collision_convex.%s", tempCollisionModel, tempCollisionModelExt);
 			sprintf(collisionModelObj, "%s_collision_convex.obj", tempCollisionModel);
-			sprintf(collisionModelMd3, "%s_collision_convex.md3", tempCollisionModel);
+			sprintf(collisionModelMD3, "%s_collision_convex.md3", tempCollisionModel);
 
 			picoModel_t *picoModel = FindModel((char*)collisionModel, frame);
 
@@ -2721,18 +2755,18 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 				}
 				else
 				{
-					picoModel = FindModel((char*)collisionModelMd3, frame);
+					picoModel = FindModel((char*)collisionModelMD3, frame);
 
 					if (!picoModel)
 					{
-						picoModel = LoadModel((char*)collisionModelMd3, frame);
-						picoModel = FindModel((char*)collisionModelMd3, frame);
+						picoModel = LoadModel((char*)collisionModelMD3, frame);
+						picoModel = FindModel((char*)collisionModelMD3, frame);
 					}
 
 					if (picoModel)
 					{
-						COLLISION_MODEL = collisionModelMd3;
-						//Sys_Printf("Found convex hull model %s.\n", COLLISION_MODEL);
+						COLLISION_MODEL = collisionModelMD3;
+						//Sys_Printf("Found convex hull model %s.\n", collisionModelMD3);
 					}
 					else
 					{
@@ -2747,6 +2781,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };
 			char collisionModelObj[512] = { 0 };
+			char collisionModelMD3[512] = { 0 };
 			char tempCollisionModelExt[32] = { 0 };
 
 			sprintf(tempCollisionModel, "%s", model);
@@ -2755,6 +2790,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 
 			sprintf(collisionModel, "%s_collision.%s", tempCollisionModel, tempCollisionModelExt);
 			sprintf(collisionModelObj, "%s_collision.obj", tempCollisionModel);
+			sprintf(collisionModelMD3, "%s_collision.md3", tempCollisionModel);
 
 			picoModel_t *picoModel = FindModel((char*)collisionModel, frame);
 
@@ -2770,22 +2806,37 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			}
 			else
 			{
-				picoModel = FindModel((char*)collisionModelObj, frame);
+				picoModel = FindModel((char*)collisionModelMD3, frame);
 
 				if (!picoModel)
 				{
-					picoModel = LoadModel((char*)collisionModelObj, frame);
-					picoModel = FindModel((char*)collisionModelObj, frame);
+					picoModel = LoadModel((char*)collisionModelMD3, frame);
+					picoModel = FindModel((char*)collisionModelMD3, frame);
 				}
 
 				if (picoModel)
 				{
-					COLLISION_MODEL = collisionModelObj;
-					//Sys_Printf("Found collision model %s.\n", COLLISION_MODEL);
+					COLLISION_MODEL = collisionModelMD3;
 				}
 				else
 				{
-					//Sys_Printf("Did not find collision models %s or %s.\n", collisionModel, collisionModelObj);
+					picoModel = FindModel((char*)collisionModelObj, frame);
+
+					if (!picoModel)
+					{
+						picoModel = LoadModel((char*)collisionModelObj, frame);
+						picoModel = FindModel((char*)collisionModelObj, frame);
+					}
+
+					if (picoModel)
+					{
+						COLLISION_MODEL = collisionModelObj;
+						//Sys_Printf("Found collision model %s.\n", COLLISION_MODEL);
+					}
+					else
+					{
+						//Sys_Printf("Did not find collision models %s or %s.\n", collisionModel, collisionModelObj);
+					}
 				}
 			}
 		}
@@ -2963,6 +3014,13 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 		if (forceIntoMapdata)
 		{// UQ1: Force any marked with these into map entity surfaces...
 			e2->mapEntityNum = 0;
+		}
+
+		qboolean noBoundsCull = (IntForKey(e2, "noBoundsCull") > 0) ? qtrue : qfalse;
+
+		if (noBoundsCull)
+		{// UQ1: Force any marked with these into map entity surfaces...
+			e2->lowestPointNear = -9999999.9;
 		}
 
 		/* Model plane snapping... Begin */
