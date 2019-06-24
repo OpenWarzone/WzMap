@@ -877,7 +877,7 @@ void ChopWindingInPlace (winding_t **inout, vec3_t normal, vec_t dist, vec_t eps
 	counts[0] = counts[1] = counts[2] = 0;
 
 	// determine sides for each point
-	for (i=0 ; i<in->numpoints ; i++)
+	for (i=0 ; in && i<in->numpoints ; i++)
 	{
 		dot = DotProduct (in->p[i], normal);
 		dot -= dist;
@@ -897,7 +897,7 @@ void ChopWindingInPlace (winding_t **inout, vec3_t normal, vec_t dist, vec_t eps
 	
 	if (!counts[0])
 	{
-		FreeWinding (in);
+		if (in) FreeWinding (in);
 		*inout = NULL;
 		return;
 	}

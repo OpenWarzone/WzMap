@@ -2464,7 +2464,7 @@ void EmitDrawVerts( mapDrawSurface_t *ds, bspDrawSurface_t *out, int bspModelNum
 
 	if (!si) offset = 0;
 	else offset = si->offset;
-	
+
 	/* copy the verts */
 	out->firstVert = numBSPDrawVerts;
 	out->numVerts = ds->numVerts;

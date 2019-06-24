@@ -786,6 +786,9 @@ void RemoveSurface(mapDrawSurface_t *ds)
 	}
 }
 
+extern qboolean USE_SECONDARY_BSP;
+extern qboolean GENERATING_SECONDARY_BSP;
+
 void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScale, remap_t *remap, shaderInfo_t *celShader
 	, qboolean ledgeOverride, shaderInfo_t *overrideShader, qboolean forcedSolid, qboolean forcedFullSolid, qboolean forcedNoSolid
 	, int entityNum, int mapEntityNum, char castShadows, char recvShadows, int spawnFlags, float lightmapScale, vec3_t lightmapAxis
@@ -1030,6 +1033,25 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			}
 
 			LoadShaderImages(si);
+		}
+
+		if (USE_SECONDARY_BSP)
+		{
+			if (!GENERATING_SECONDARY_BSP)
+			{// When using secondary bsp, but not generating it, skip anything not solid in the main bsp...
+				if (!((si->contentFlags & C_SOLID) || (si->contentFlags & C_STRUCTURAL) || IS_COLLISION_SURFACE))
+				{
+					continue;
+				}
+			}
+
+			if (GENERATING_SECONDARY_BSP)
+			{// When using secondary bsp, and generating it, skip anything solid in the main bsp...
+				if ((si->contentFlags & C_SOLID) || (si->contentFlags & C_STRUCTURAL) || IS_COLLISION_SURFACE)
+				{
+					continue;
+				}
+			}
 		}
 
 		/* warn for missing shader */
@@ -2058,7 +2080,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 	{// Skip the collision model loading, this is a collision model...
 
 	}
-	else if (allowSimplify == 4)
+	else if (allowSimplify == 4 /*&& !StringContainsWord(model, "warzone/plants") && !StringContainsWord(model, "warzone/foliage")*/)
 	{// Generate a collsion box model...
 		// UQ1: Testing... Simple box for collision planes...
 		char			tempCollisionModel[512] = { 0 };
@@ -2090,6 +2112,8 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 		}
 		else
 		{
+			ForceCrash();
+
 			// None exists, so go ahead and generate a new collision box...
 			Sys_Printf("Generating collision box model for model %s.\n", model);
 
@@ -2856,7 +2880,16 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 
 		/* get origin */
 		GetVectorForKey(e2, "origin", origin);
-		VectorSubtract(origin, e->origin, origin);	/* offset by parent */
+
+		if (!USE_SECONDARY_BSP || !GENERATING_SECONDARY_BSP)
+		{
+			VectorSubtract(origin, e->origin, origin);	/* offset by parent */
+		}
+		else
+		{
+			extern vec3_t					USE_SECONDARY_FIRST_RUN_ORIGIN;
+			VectorSubtract(origin, USE_SECONDARY_FIRST_RUN_ORIGIN, origin);	/* offset by parent */
+		}
 
 		/* get scale */
 		scale[0] = scale[1] = scale[2] = 1.0f;
@@ -3032,6 +3065,12 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			bevelSnap = modelSnap;
 		}
 		/* Model plane snapping... End */
+
+		if (StringContainsWord(model, "warzone/plants"))
+		{
+			forcedSolid = qfalse;
+			forcedFullSolid = qfalse;
+		}
 
 		/* insert the model */
 #ifdef CULL_BY_LOWEST_NEAR_POINT

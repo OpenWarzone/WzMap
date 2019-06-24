@@ -942,11 +942,18 @@ loads a shader's images
 ydnar: image.c made this a bit simpler
 */
 
+extern qboolean USE_SECONDARY_BSP;
+extern qboolean GENERATING_SECONDARY_BSP;
+
 /*static*/ void LoadShaderImages( shaderInfo_t *si )
 {
 	int			i, count;
 	float		color[ 4 ];
 
+	if (USE_SECONDARY_BSP && GENERATING_SECONDARY_BSP)
+	{// Already loaded...
+		return;
+	}
 
 	/* nodraw shaders don't need images */
 	if( si->compileFlags & C_NODRAW )
@@ -1475,6 +1482,13 @@ static void ParseShaderFile( const char *filename )
 				si->compileFlags |= (C_SOLID | C_DETAIL /*| C_STRUCTURAL*/);
 				//Sys_Printf("Setting %s as solid.\n", si->shader);
 				si->isTreeSolid = qtrue;
+			}
+
+			if (StringContainsWord(si->shader, "warzone/plants"))
+			{
+				si->compileFlags &= C_SOLID;
+				si->compileFlags |= C_DETAIL;
+				si->compileFlags |= C_TRANSLUCENT;
 			}
 
 #ifdef ___SHADER_GENERATOR___
@@ -2796,7 +2810,15 @@ static void ParseShaderFile( const char *filename )
 			//&& !(si->compileFlags & C_SKIP)*/
 			)
 		{
-			if (StringContainsWord(si->shader, "map_objects") && StringContainsWord(si->shader, "yavin/"))
+			if (StringContainsWord(si->shader, "warzone/plants"))
+			{
+				si->compileFlags &= C_SOLID;
+				si->compileFlags |= C_DETAIL;
+				si->compileFlags |= C_TRANSLUCENT;
+				si->clipModel = qfalse;
+				si->isTreeSolid = qfalse;
+			}
+			else if (StringContainsWord(si->shader, "map_objects") && StringContainsWord(si->shader, "yavin/"))
 			{
 				if (StringContainsWord(si->shader, "tree"))
 				{

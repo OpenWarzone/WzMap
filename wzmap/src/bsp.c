@@ -36,6 +36,11 @@ several games based on the Quake III Arena engine, in the form of "Q3Map2."
 /* dependencies */
 #include "q3map2.h"
 
+qboolean				GENERATING_SECONDARY_BSP = qfalse;
+extern qboolean			USE_SECONDARY_BSP;
+vec3_t					USE_SECONDARY_FIRST_RUN_ORIGIN;
+vec3_t					USE_SECONDARY_FIRST_RUN_BOUNDS_MINS;
+vec3_t					USE_SECONDARY_FIRST_RUN_BOUNDS_MAXS;
 
 extern qboolean FORCED_STRUCTURAL;
 
@@ -337,6 +342,7 @@ static void FixBrushFaces( entity_t *e )
 	Sys_Printf( "%9d surfaces stitched\n", numSurfacesStitched );
 }
 
+extern int						c_structural;
 extern int						c_detail;
 extern int						c_boxbevels;
 extern int						c_edgebevels;
@@ -346,6 +352,7 @@ void ShowDetailedStats ( void )
 {
 	Sys_Printf( "%9d total world brushes\n", CountBrushList( entities[ 0 ].brushes ) );
 
+	Sys_Printf( "%9d structural brushes\n", c_structural );
 	Sys_Printf( "%9d detail brushes\n", c_detail );
 	Sys_Printf( "%9d patches\n", numMapPatches);
 	Sys_Printf( "%9d boxbevels\n", c_boxbevels);
@@ -564,6 +571,138 @@ void ProcessWorldModel( void )
 	else
 		ignoreLeaks = qfalse;
 
+	if (USE_SECONDARY_BSP && GENERATING_SECONDARY_BSP)
+	{// Reset all counts...
+		{// UQ: Re-init BSP draw verts and buffer on secondary passes...
+			free(bspDrawVerts);
+			numBSPDrawVerts = 0;
+			bspDrawVerts = NULL;
+
+			extern int numBSPDrawVertsBuffer;
+			numBSPDrawVertsBuffer = 0;
+			SetDrawVerts(MAX_MAP_DRAW_VERTS / 37);
+		}
+
+		memset(&entities, 0, sizeof(entity_t) * MAX_MAP_ENTITIES);
+
+		mapEntityNum = 0;
+
+		bspEntDataSize = 0;
+		numEntities = 0;
+		numBSPEntities = 0;
+		numBSPModels = 0;
+		numBSPLeafs = 0;
+		numBSPPlanes = 0;
+		numBSPNodes = 0;
+		numBSPLeafSurfaces = 0;
+		numBSPLeafBrushes = 0;
+		numBSPBrushes = 0;
+		numBSPBrushSides = 0;
+		numBSPLightBytes = 0;
+		numBSPGridPoints = 0;
+		numBSPVisBytes = 0;
+		numBSPDrawVerts = 0;
+		numBSPDrawIndexes = 0;
+		numBSPDrawSurfaces = 0;
+		numBSPFogs = 0;
+
+		entities[0].brushes = NULL;
+		entities[0].firstBrush = NULL;
+		entities[0].lastBrush = NULL;
+		entities[0].numBrushes = 0;
+		entities[0].epairs = NULL;
+		entities[0].colorModBrushes = NULL;
+		entities[0].forceSubmodel = qfalse;
+		entities[0].patches = NULL;
+		VectorClear(entities[0].origin);
+		VectorClear(entities[0].originbrush_origin);
+
+		portalclusters = 0;
+		numMapDrawSurfs = 0;
+		numMapPatches = 0;
+		nummapplanes = 0;
+		numMapEntities = 0;
+		numClearedSurfaces = 0;
+		numStripSurfaces = 0;
+		numFanSurfaces = 0;
+		numMergedSurfaces = 0;
+		numMergedVerts = 0;
+		numRedundantIndexes = 0;
+		numSurfaceModels = 0;
+		numStrippedLights = 0;
+		numportals = 0;
+		numfaces = 0;
+		numActiveBrushes = 0;
+		numMapFogs = 0;
+		defaultFogNum = -1;
+
+		c_structural = 0;
+		c_detail = 0;
+		c_boxbevels = 0;
+		c_edgebevels = 0;
+		c_areaportals = 0;
+
+		extern int		num_visclusters;				// clusters the player can be in
+		extern int		num_visportals;
+		extern int		num_solidfaces;
+
+		num_visclusters = 0;
+		num_visportals = 0;
+		num_solidfaces = 0;
+
+		extern int numSolidSurfs;
+		extern int numHeightCulledSurfs;
+		extern int numSizeCulledSurfs;
+		extern int numExperimentalCulled;
+		extern int numBoundsCulledSurfs;
+
+		numSolidSurfs = 0;
+		numHeightCulledSurfs = 0;
+		numSizeCulledSurfs = 0;
+		numExperimentalCulled = 0;
+		numBoundsCulledSurfs = 0;
+
+		extern int removed_numHiddenFaces;
+		extern int removed_numCoinFaces;
+
+		removed_numHiddenFaces = 0;
+		removed_numCoinFaces = 0;
+
+		extern int					numMetaSurfaces;
+		extern int					numPatchMetaSurfaces;
+
+		extern int					maxMetaVerts;
+		extern int					numMetaVerts;
+		extern int					firstSearchMetaVert;
+		extern bspDrawVert_t		*metaVerts;
+
+		extern int					maxMetaTriangles;
+		extern int					numMetaTriangles;
+		
+		extern metaTriangle_t		*metaTriangles;
+		
+		metaTriangles = NULL;
+		metaVerts = NULL;
+
+		numMetaSurfaces = 0;
+		numStripSurfaces = 0;
+		numFanSurfaces = 0;
+		numPatchMetaSurfaces = 0;
+		numMetaVerts = 0;
+		numMetaTriangles = 0;
+		numMergedSurfaces = 0;
+		numMergedVerts = 0;
+		maxMetaVerts = 0;
+		firstSearchMetaVert = 0;
+		maxMetaTriangles = 0;
+
+		for (i = 0; i < NUM_SURFACE_TYPES; i++)
+		{
+			numSurfacesByType[i] = 0;
+		}
+
+		//ignoreLeaks = qtrue;
+	}
 	
 	/* begin worldspawn model */
 	BeginModel();
@@ -665,9 +804,12 @@ void ProcessWorldModel( void )
 	
 	/* save out information for visibility processing */
 	NumberClusters( tree );
-	
-	//if( !leaked ) // UQ1: I'm gonna write the portal file, regardless of leaks...
-		WritePortalFile( tree );
+
+	if (!USE_SECONDARY_BSP || !GENERATING_SECONDARY_BSP)
+	{
+		//if( !leaked ) // UQ1: I'm gonna write the portal file, regardless of leaks...
+		WritePortalFile(tree);
+	}
 
 	/* note BSP phase (non-verbose-mode) */
 	if( !verbose )
@@ -679,33 +821,49 @@ void ProcessWorldModel( void )
 	/* flood from entities */
 	FloodAreas( tree );
 
-	// Remove crap...
-	CaulkifyStuff(qtrue);
-	//OptimizeDrawSurfs();
+	if (USE_SECONDARY_BSP && GENERATING_SECONDARY_BSP)
+	{
+		/* UQ1: Generate procedural city objects */
+		GenerateMapCity();
 
-	/* UQ1: Find water level so that we can skip adding procedural crap underwater */
-	FindWaterLevel();
+		/* UQ1: Generate procedural trees/etc */
+		GenerateMapForest();
+	}
+	else
+	{
+		// Remove crap...
+		CaulkifyStuff(qtrue);
+		//OptimizeDrawSurfs();
 
-	/* UQ1: Generate procedural cliff faces */
-	GenerateCliffFaces();
+		/* UQ1: Find water level so that we can skip adding procedural crap underwater */
+		FindWaterLevel();
 
-	/* UQ1: Generate procedural ledge faces */
-	GenerateLedgeFaces();
+		/* UQ1: Generate procedural cliff faces */
+		GenerateCliffFaces();
 
-	/* UQ1: Generate procedural skyscrapers */
-	GenerateSkyscrapers();
+		/* UQ1: Generate procedural ledge faces */
+		GenerateLedgeFaces();
 
-	/* UQ1: Generate static entities from ini */
-	GenerateStaticEntities();
+		/* UQ1: Generate procedural skyscrapers */
+		GenerateSkyscrapers();
 
-	/* UQ1: Generate procedural city roads */
-	GenerateCityRoads();
+		/* UQ1: Generate static entities from ini */
+		GenerateStaticEntities();
 
-	/* UQ1: Generate procedural city objects */
-	GenerateMapCity();
+		/* UQ1: Generate procedural city roads */
+		GenerateCityRoads();
 
-	/* UQ1: Generate procedural trees/etc */
-	GenerateMapForest();
+		/* UQ1: Generate procedural city objects */
+		GenerateMapCity();
+
+		/* UQ1: Generate procedural trees/etc */
+		GenerateMapForest();
+	}
+
+	if (USE_SECONDARY_BSP && !GENERATING_SECONDARY_BSP)
+	{
+		VectorCopy(entities[0].origin, USE_SECONDARY_FIRST_RUN_ORIGIN);
+	}
 	
 	/* create drawsurfs for triangle models */
 	AddTriangleModels( 0, qfalse, qfalse );
@@ -1329,8 +1487,9 @@ BSPMain() - ydnar
 handles creation of a bsp from a map file
 */
 
-extern char currentMapName[256];
-extern int FOLIAGE_NUM_POSITIONS;
+extern char				currentMapName[256];
+extern int				FOLIAGE_NUM_POSITIONS;
+
 extern void FOLIAGE_LoadClimateData( char *filename );
 extern qboolean FOLIAGE_LoadFoliagePositions( char *filename );
 
@@ -1349,6 +1508,8 @@ int BSPMain( int argc, char **argv )
 	numMapDrawSurfs = 0;
 
 	tempSource[ 0 ] = '\0';
+
+	GENERATING_SECONDARY_BSP = qfalse;
 	
 	/* set standard game flags */
 	maxSurfaceVerts = game->maxSurfaceVerts;
@@ -1704,7 +1865,7 @@ int BSPMain( int argc, char **argv )
 	
 	/* fixme: print more useful usage here */
 	if( i != (argc - 1) )
-		Error( "usage: q3map [options] mapfile" );
+		Error( "usage: wzmap [options] mapfile" );
 	
 	/* copy source name */
 	strcpy( source, ExpandArg( argv[ i ] ) );
@@ -1810,6 +1971,75 @@ int BSPMain( int argc, char **argv )
 	
 	/* finish and write bsp */
 	EndBSPFile();
+
+	if (USE_SECONDARY_BSP)
+	{
+		GENERATING_SECONDARY_BSP = qtrue;
+
+		{
+			int		i, j;
+
+			/* shaders (don't swap the name) */
+			numBSPShaders = 0;
+
+			/* planes */
+			//free(bspPlanes);
+			numBSPPlanes = 0;
+			//bspPlanes = (bspPlane_t*)safe_malloc(numBSPPlanes * sizeof(bspPlanes[0]));
+
+			/* nodes */
+			numBSPNodes = 0;
+			//bspNodes = (bspNode_t*)safe_malloc(numBSPNodes * sizeof(bspNodes[0]));
+
+			/* leafs */
+			numBSPLeafs = 0;
+			//bspLeafs = (bspLeaf_t*)safe_malloc(numBSPLeafs * sizeof(bspLeafs[0]));
+
+			/* leaffaces */
+			numBSPLeafSurfaces = 0;
+			//bspLeafSurfaces = (int*)safe_malloc(numBSPLeafSurfaces * sizeof(bspLeafSurfaces[0]));
+
+			/* leafbrushes */
+			numBSPLeafBrushes = 0;
+			//bspLeafBrushes = (int*)safe_malloc(numBSPLeafBrushes * sizeof(bspLeafBrushes[0]));
+
+			// brushes
+			numBSPBrushes = 0;
+			//bspBrushes = (bspBrush_t*)safe_malloc(numBSPBrushes * sizeof(bspBrushes[0]));
+
+			// brushsides
+			numBSPBrushSides = 0;
+			//bspBrushSides = (bspBrushSide_t*)safe_malloc(numBSPBrushSides * sizeof(bspBrushSides[0]));
+
+			// vis
+			//((int*)&bspVisBytes)[0] = LittleLong(((int*)&bspVisBytes)[0]);
+			//((int*)&bspVisBytes)[1] = LittleLong(((int*)&bspVisBytes)[1]);
+			//bspVisBytes = (byte*)realloc(bspVisBytes, numBSPVisBytes * sizeof( byte ));
+			numBSPVisBytes = 0;
+
+			/* drawverts (don't swap colors) */
+			//free(bspDrawVerts);
+			numBSPDrawVerts = 0;
+			//bspDrawVerts = (bspDrawVert_t*)safe_malloc(numBSPDrawVerts * sizeof(bspDrawVerts[0]));
+
+			/* drawindexes */
+			numBSPDrawIndexes = 0;
+			
+			/* drawsurfs */
+			/* note: rbsp files (and hence q3map2 abstract bsp) have byte lightstyles index arrays, this follows sof2map convention */
+			numBSPDrawSurfaces = 0;
+			//bspDrawSurfaces = (bspDrawSurface_t*)safe_malloc(numBSPDrawSurfaces * sizeof(bspDrawSurfaces[0]));
+
+			/* fogs */
+			numBSPFogs = 0;
+		}
+
+		/* process world and submodels */
+		ProcessModels();
+
+		/* finish and write bsp */
+		EndBSPFile();
+	}
 	
 	/* remove temp map source file if appropriate */
 	if( strlen( tempSource ) > 0)

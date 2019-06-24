@@ -401,6 +401,11 @@ EndBSPFile()
 finishes a new bsp and writes to disk
 */
 
+extern qboolean USE_SECONDARY_BSP;
+extern qboolean GENERATING_SECONDARY_BSP;
+extern vec3_t	USE_SECONDARY_FIRST_RUN_BOUNDS_MINS;
+extern vec3_t	USE_SECONDARY_FIRST_RUN_BOUNDS_MAXS;
+
 void EndBSPFile( void )
 {
 	char	path[ MAX_OS_PATH ];
@@ -408,17 +413,28 @@ void EndBSPFile( void )
 
 	EmitPlanes();
 	
-	numBSPEntities = numEntities;
-	UnparseEntities(qfalse);
-	
-	/* write the surface extra file */
-	WriteSurfaceExtraFile( source );
-	
-	/* write the bsp */
-	Sys_PrintHeading ( "--- WriteBSPFile ---\n" );
-	sprintf( path, "%s.bsp", source );
-	Sys_Printf( "writing %s\n", path );
-	WriteBSPFile( path );
+	if (USE_SECONDARY_BSP && GENERATING_SECONDARY_BSP)
+	{
+		/* write the bsp */
+		Sys_PrintHeading("--- WriteBSPFile ---\n");
+		sprintf(path, "%s_nonsolid.bsp", source);
+		Sys_Printf("writing %s\n", path);
+		WriteBSPFile(path);
+	}
+	else
+	{
+		numBSPEntities = numEntities;
+		UnparseEntities(qfalse);
+
+		/* write the surface extra file */
+		WriteSurfaceExtraFile(source);
+
+		/* write the bsp */
+		Sys_PrintHeading("--- WriteBSPFile ---\n");
+		sprintf(path, "%s.bsp", source);
+		Sys_Printf("writing %s\n", path);
+		WriteBSPFile(path);
+	}
 }
 
 
@@ -569,11 +585,26 @@ void BeginModel( void )
 	mod = &bspModels[ numBSPModels ];
 	e = &entities[ mapEntityNum ];
 	
-	/* ydnar: lightgrid mins/maxs */
-	ClearBounds( lgMins, lgMaxs );
-	
-	/* bound the brushes */
-	ClearBounds( mins, maxs );
+	if (!USE_SECONDARY_BSP || !GENERATING_SECONDARY_BSP)
+	{// We want to keep original map's bounds info...
+		/* ydnar: lightgrid mins/maxs */
+		ClearBounds(lgMins, lgMaxs);
+
+		/* bound the brushes */
+		ClearBounds(mins, maxs);
+	}
+	else
+	{
+		VectorCopy(USE_SECONDARY_FIRST_RUN_BOUNDS_MINS, mins);
+		VectorCopy(USE_SECONDARY_FIRST_RUN_BOUNDS_MAXS, maxs);
+
+		VectorCopy(USE_SECONDARY_FIRST_RUN_BOUNDS_MINS, lgMins);
+		VectorCopy(USE_SECONDARY_FIRST_RUN_BOUNDS_MAXS, lgMaxs);
+
+		VectorCopy(mins, mod->mins);
+		VectorCopy(maxs, mod->maxs);
+	}
+
 	for ( b = e->brushes; b; b = b->next )
 	{
 		/* ignore non-real brushes (origin, etc) */
@@ -620,6 +651,12 @@ void BeginModel( void )
 		/* use brush/patch bounds */
 		VectorCopy( mins, mod->mins );
 		VectorCopy( maxs, mod->maxs );
+	}
+
+	if (!USE_SECONDARY_BSP || !GENERATING_SECONDARY_BSP)
+	{// Record bounds so we can copy to next run.
+		VectorCopy(mod->mins, USE_SECONDARY_FIRST_RUN_BOUNDS_MINS);
+		VectorCopy(mod->maxs, USE_SECONDARY_FIRST_RUN_BOUNDS_MAXS);
 	}
 
 	/* note size */

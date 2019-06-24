@@ -186,6 +186,10 @@ MakeHeadnodePortals
 The created portals will face the global outside_node
 ================
 */
+
+extern qboolean USE_SECONDARY_BSP;
+extern qboolean GENERATING_SECONDARY_BSP;
+
 #define	SIDESPACE	8
 void MakeHeadnodePortals (tree_t *tree)
 {
@@ -196,14 +200,14 @@ void MakeHeadnodePortals (tree_t *tree)
 	node_t *node;
 
 	node = tree->headnode;
-
+	
 // pad with some space so there will never be null volume leafs
 	for (i=0 ; i<3 ; i++)
 	{
 		bounds[0][i] = tree->mins[i] - SIDESPACE;
 		bounds[1][i] = tree->maxs[i] + SIDESPACE;
 		if ( bounds[0][i] >= bounds[1][i] ) {
-			Error( "Backwards tree volume" );
+			Sys_Printf( "Backwards tree volume. Ignoring.\n" );
 		}
 	}
 	

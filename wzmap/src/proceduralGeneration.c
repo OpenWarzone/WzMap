@@ -89,6 +89,8 @@ int irand(int min, int max)
 
 float			MAP_WATER_LEVEL = -999999.9;
 
+qboolean		USE_SECONDARY_BSP = qfalse;
+
 qboolean		MAP_SMOOTH_NORMALS = qtrue;
 
 qboolean		USE_LODMODEL = qfalse;
@@ -139,7 +141,7 @@ qboolean		TREE_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { qfalse };
 float			TREE_ROADSCAN_MULTIPLIER[MAX_FOREST_MODELS] = { 0.0 };
 int				TREE_PLANE_SNAP[MAX_FOREST_MODELS] = { 8 };
 qboolean		TREE_USE_ORIGIN_AS_LOWPOINT[MAX_FOREST_MODELS] = { qfalse };
-int				TREE_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 2 };
+int				TREE_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 0 };
 qboolean		ADD_CITY_ROADS = qfalse;
 float			CITY_SCALE_MULTIPLIER = 2.5;
 float			CITY_CLIFF_CULL_RADIUS = 1.0;
@@ -168,7 +170,7 @@ float			CITY_FORCED_DISTANCE_FROM_SAME[MAX_FOREST_MODELS] = { 0.0 };
 char			CITY_FORCED_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 int				CITY_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { 0 };
 int				CITY_PLANE_SNAP[MAX_FOREST_MODELS] = { 0 };
-int				CITY_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 2 };
+int				CITY_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 0 };
 
 qboolean		ADD_SKYSCRAPERS = qfalse;
 vec3_t			SKYSCRAPERS_CENTER = { 0 };
@@ -181,9 +183,11 @@ char			STATIC_MODEL[MAX_STATIC_ENTITY_MODELS][128] = { 0 };
 vec3_t			STATIC_ORIGIN[MAX_STATIC_ENTITY_MODELS] = { 0 };
 float			STATIC_ANGLE[MAX_STATIC_ENTITY_MODELS] = { 0 };
 float			STATIC_SCALE[MAX_STATIC_ENTITY_MODELS] = { 0 };
-int				STATIC_ALLOW_SIMPLIFY[MAX_STATIC_ENTITY_MODELS] = { 2 };
+int				STATIC_ALLOW_SIMPLIFY[MAX_STATIC_ENTITY_MODELS] = { 0 };
 int				STATIC_PLANE_SNAP[MAX_STATIC_ENTITY_MODELS] = { 0 };
 int				STATIC_FORCED_FULLSOLID[MAX_STATIC_ENTITY_MODELS] = { 0 };
+float			STATIC_MODEL_RADIUS[MAX_STATIC_ENTITY_MODELS] = { 0.0 };
+char			STATIC_FORCED_OVERRIDE_SHADER[MAX_STATIC_ENTITY_MODELS][128] = { 0 };
 
 #define MAX_REPLACE_SHADERS 128
 int				REPLACE_SHADERS_NUM = 0;
@@ -535,6 +539,13 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	Sys_PrintHeading("--- LoadClimateData ---\n");
 
+	USE_SECONDARY_BSP = (qboolean)atoi(IniRead(filename, "GENERAL", "useSecondaryBSP", "0"));
+
+	if (USE_SECONDARY_BSP)
+	{
+		Sys_Printf("Using warzone secondary BSP file.\n");
+	}
+
 	MAP_WATER_LEVEL = atof(IniRead(filename, "GENERAL", "forcedWaterLevel", "-999999.9"));
 
 	if (MAP_WATER_LEVEL > -999999.0)
@@ -800,7 +811,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 		TREE_FORCED_BUFFER_DISTANCE[i] = atof(IniRead(filename, "TREES", va("treeForcedBufferDistance%i", i), "0.0"));
 		TREE_FORCED_DISTANCE_FROM_SAME[i] = atof(IniRead(filename, "TREES", va("treeForcedDistanceFromSame%i", i), "0.0"));
 		TREE_FORCED_FULLSOLID[i] = (qboolean)atoi(IniRead(filename, "TREES", va("treeForcedFullSolid%i", i), "0"));
-		TREE_ALLOW_SIMPLIFY[i] = atoi(IniRead(filename, "TREES", va("treeAllowSimplify%i", i), "2"));
+		TREE_ALLOW_SIMPLIFY[i] = atoi(IniRead(filename, "TREES", va("treeAllowSimplify%i", i), "0"));
 		TREE_USE_ORIGIN_AS_LOWPOINT[i] = (qboolean)atoi(IniRead(filename, "TREES", va("treeUseOriginAsLowPoint%i", i), "0"));
 		strcpy(TREE_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "TREES", va("overrideShader%i", i), ""));
 		TREE_PLANE_SNAP[i] = atoi(IniRead(filename, "TREES", va("treePlaneSnap%i", i), "4"));
@@ -906,9 +917,11 @@ void FOLIAGE_LoadClimateData( char *filename )
 		STATIC_ORIGIN[i][2] = atof(IniRead(filename, "STATIC", va("staticOriginZ%i", i), "0.0"));
 		STATIC_SCALE[i] = atof(IniRead(filename, "STATIC", va("staticScale%i", i), "1.0"));
 		STATIC_ANGLE[i] = atof(IniRead(filename, "STATIC", va("staticAngle%i", i), "0.0"));
-		STATIC_ALLOW_SIMPLIFY[i] = (qboolean)atoi(IniRead(filename, "STATIC", va("staticAllowSimplify%i", i), "2"));
+		STATIC_ALLOW_SIMPLIFY[i] = atoi(IniRead(filename, "STATIC", va("staticAllowSimplify%i", i), "0"));
 		STATIC_PLANE_SNAP[i] = atoi(IniRead(filename, "STATIC", va("staticPlaneSnap%i", i), "4"));
 		STATIC_FORCED_FULLSOLID[i] = atoi(IniRead(filename, "STATIC", va("staticForcedFullSolid%i", i), "0"));
+		STATIC_MODEL_RADIUS[i] = atof(IniRead(filename, "STATIC", va("staticModelRadius%i", i), "0.0"));
+		strcpy(STATIC_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "STATIC", va("overrideShader%i", i), ""));
 
 		if (strcmp(STATIC_MODEL[i], ""))
 			Sys_Printf("Static %i. Model %s. Origin %i %i %i. Angle %.4f. Scale %.4f. Plane Snap: %i. Forced Solid: %i.\n", i, STATIC_MODEL[i], (int)STATIC_ORIGIN[i][0], (int)STATIC_ORIGIN[i][1], (int)STATIC_ORIGIN[i][2], (float)STATIC_ANGLE[i], (float)STATIC_SCALE[i], STATIC_PLANE_SNAP[i], STATIC_FORCED_FULLSOLID[i]);
@@ -1136,6 +1149,22 @@ qboolean MapEntityNear(vec3_t origin)
 		if (Distance(origin, entity->origin) <= 256.0)
 		{
 			return qtrue;
+		}
+	}
+
+	return qfalse;
+}
+
+qboolean StaticObjectNear(vec3_t origin)
+{
+	for (int i = 0; i < MAX_STATIC_ENTITY_MODELS; i++)
+	{
+		if (STATIC_MODEL[i][0] != 0 && strlen(STATIC_MODEL[i]) > 0)
+		{
+			if (Distance(origin, STATIC_ORIGIN[i]) <= STATIC_MODEL_RADIUS[i] * STATIC_SCALE[i])
+			{
+				return qtrue;
+			}
 		}
 	}
 
@@ -1417,6 +1446,11 @@ void GenerateCliffFaces(void)
 			center[2] = cliffTop;// (mins[2] + maxs[2]) * 0.5f;
 
 			if (maxs[2] < MAP_WATER_LEVEL)
+			{
+				continue;
+			}
+
+			if (StaticObjectNear(center))
 			{
 				continue;
 			}
@@ -2296,6 +2330,11 @@ void GenerateSkyscrapers(void)
 			
 			thisPosition[2] -= 256.0;
 
+			if (StaticObjectNear(thisPosition))
+			{
+				continue;
+			}
+
 			float CBD_DISTANCE = max(DistanceHorizontal(SKYSCRAPERS_CENTER, thisPosition) - 6144.0, 0.0);
 			float CENTER_DISTANCE = max(DistanceHorizontal(SKYSCRAPERS_CENTER, thisPosition) - 12288.0, 0.0);
 			qboolean isCBD = (CBD_DISTANCE <= 0.0) ? qtrue : qfalse;
@@ -3070,6 +3109,11 @@ void GenerateLedgeFaces(void)
 				continue;
 			}
 
+			if (StaticObjectNear(center))
+			{
+				continue;
+			}
+
 			/*if (center[2] + 32.0 <= MAP_WATER_LEVEL)
 			{
 				continue;
@@ -3582,6 +3626,11 @@ void ReassignTreeModels ( void )
 			}
 #endif //__EARLY_PERCENTAGE_CHECK__
 
+			if (StaticObjectNear(FOLIAGE_POSITIONS[i]))
+			{
+				continue;
+			}
+
 			if (MapEntityNear(FOLIAGE_POSITIONS[i]))
 			{// Don't spawn stuff near map entities...
 				continue;
@@ -3827,6 +3876,11 @@ void ReassignTreeModels ( void )
 			}
 #endif //__EARLY_PERCENTAGE_CHECK__
 
+			if (StaticObjectNear(FOLIAGE_POSITIONS[i]))
+			{
+				continue;
+			}
+
 			if (MapEntityNear(FOLIAGE_POSITIONS[i]))
 			{// Don't spawn stuff near map entities...
 				continue;
@@ -4050,6 +4104,8 @@ void ReassignTreeModels ( void )
 extern void MoveBrushesToWorld( entity_t *ent );
 extern qboolean StringContainsWord(const char *haystack, const char *needle);
 
+extern qboolean GENERATING_SECONDARY_BSP;
+
 void GenerateMapForest ( void )
 {
 	if (generateforest)
@@ -4061,16 +4117,33 @@ void GenerateMapForest ( void )
 			Sys_PrintHeading("--- GenerateMapForest ---\n");
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-			Sys_Printf( "Adding %i trees to bsp.\n", FOLIAGE_NUM_POSITIONS );
+			Sys_Printf("Adding %i trees to bsp.\n", FOLIAGE_NUM_POSITIONS);
 #endif
 
-			ReassignTreeModels();
+			if (!USE_SECONDARY_BSP || !GENERATING_SECONDARY_BSP)
+			{// When doing the secondary bsp, we don't want to regen the list, but instead reuse the current one...
+				ReassignTreeModels();
+			}
+			else if (USE_SECONDARY_BSP && GENERATING_SECONDARY_BSP)
+			{
+				int count = 0;
+
+				for (i = 0; i < FOLIAGE_NUM_POSITIONS; i++)
+				{
+					if (FOLIAGE_ASSIGNED[i])
+					{
+						count++;
+					}
+				}
+
+				Sys_Printf("%9d of %i positions previously assigned to tree models.\n", count, FOLIAGE_NUM_POSITIONS - 1);
+			}
 
 			for (i = 0; i < FOLIAGE_NUM_POSITIONS; i++)
 			{
 				printLabelledProgress("GenerateMapForest", i, FOLIAGE_NUM_POSITIONS);
 
-				if (!FOLIAGE_ASSIGNED[i]) 
+				if (!FOLIAGE_ASSIGNED[i])
 				{// Was not assigned a model... Must be too close to something else...
 					continue;
 				}
@@ -4080,7 +4153,7 @@ void GenerateMapForest ( void )
 				vec3_t          lightmapAxis;
 				int			    smoothNormals;
 				int				vertTexProj;
-				char			shader[ MAX_QPATH ];
+				char			shader[MAX_QPATH];
 				shaderInfo_t	*celShader = NULL;
 				brush_t			*brush;
 				parseMesh_t		*patch;
@@ -4092,9 +4165,9 @@ void GenerateMapForest ( void )
 
 				/* setup */
 				entitySourceBrushes = 0;
-				mapEnt = &entities[ numEntities ];
+				mapEnt = &entities[numEntities];
 				numEntities++;
-				memset( mapEnt, 0, sizeof( *mapEnt ) );
+				memset(mapEnt, 0, sizeof(*mapEnt));
 
 				mapEnt->mapEntityNum = 0;
 
@@ -4121,14 +4194,14 @@ void GenerateMapForest ( void )
 
 				{
 					char str[32];
-					sprintf( str, "%.4f %.4f %.4f", mapEnt->origin[ 0 ], mapEnt->origin[ 1 ], mapEnt->origin[ 2 ] );
-					SetKeyValue( mapEnt, "origin", str );
+					sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+					SetKeyValue(mapEnt, "origin", str);
 				}
 
 				{
 					char str[32];
-					sprintf( str, "%.4f", /*FOLIAGE_TREE_SCALE[i]**/2.0*TREE_SCALE_MULTIPLIER*TREE_SCALES[FOLIAGE_TREE_SELECTION[i]] );
-					SetKeyValue( mapEnt, "modelscale", str );
+					sprintf(str, "%.4f", /*FOLIAGE_TREE_SCALE[i]**/2.0*TREE_SCALE_MULTIPLIER*TREE_SCALES[FOLIAGE_TREE_SELECTION[i]]);
+					SetKeyValue(mapEnt, "modelscale", str);
 				}
 
 				if (TREE_FORCED_FULLSOLID[FOLIAGE_TREE_SELECTION[i]])
@@ -4163,13 +4236,19 @@ void GenerateMapForest ( void )
 					SetKeyValue(mapEnt, "snap", va("%i", TREE_PLANE_SNAP[FOLIAGE_TREE_SELECTION[i]]));
 				}
 
-				/*{
+#if 1
+				{
+					if (!USE_SECONDARY_BSP || !GENERATING_SECONDARY_BSP)
+					{
+						FOLIAGE_TREE_ANGLES[i] = irand(0, 360) - 180.0;
+					}
+
 					char str[32];
 					sprintf(str, "%.4f", FOLIAGE_TREE_ANGLES[i]);
 					SetKeyValue(mapEnt, "angle", str);
-				}*/
+				}
 
-#if 0
+#elif 0
 				{
 					char str[32];
 					vec3_t angles;
@@ -4178,8 +4257,8 @@ void GenerateMapForest ( void )
 					angles[PITCH] = 0.0;
 					angles[ROLL] = 0.0;
 					angles[YAW] = 270.0 - FOLIAGE_TREE_ANGLES[i];
-					sprintf( str, "%.4f %.4f %.4f", angles[0], angles[1], angles[2] );
-					SetKeyValue( mapEnt, "angles", str );
+					sprintf(str, "%.4f %.4f %.4f", angles[0], angles[1], angles[2]);
+					SetKeyValue(mapEnt, "angles", str);
 				}
 #else
 				{
@@ -4204,42 +4283,42 @@ void GenerateMapForest ( void )
 				else
 					SetKeyValue(mapEnt, "classname", "misc_model");
 
-				classname = ValueForKey( mapEnt, "classname" );
+				classname = ValueForKey(mapEnt, "classname");
 
-				SetKeyValue( mapEnt, "model", TREE_MODELS[FOLIAGE_TREE_SELECTION[i]]); // test tree
+				SetKeyValue(mapEnt, "model", TREE_MODELS[FOLIAGE_TREE_SELECTION[i]]); // test tree
 
 				//Sys_Printf( "Generated tree at %.4f %.4f %.4f. Model %s.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], TROPICAL_TREES[FOLIAGE_TREE_SELECTION[i]] );
 
 				funcGroup = qfalse;
 
 				/* get explicit shadow flags */
-				GetEntityShadowFlags( mapEnt, NULL, &castShadows, &recvShadows, (funcGroup || mapEnt->mapEntityNum == 0) ? qtrue : qfalse );
+				GetEntityShadowFlags(mapEnt, NULL, &castShadows, &recvShadows, (funcGroup || mapEnt->mapEntityNum == 0) ? qtrue : qfalse);
 
 				/* vortex: get lightmap scaling value for this entity */
-				GetEntityLightmapScale( mapEnt, &lightmapScale, 0);
+				GetEntityLightmapScale(mapEnt, &lightmapScale, 0);
 
 				/* vortex: get lightmap axis for this entity */
-				GetEntityLightmapAxis( mapEnt, lightmapAxis, NULL );
+				GetEntityLightmapAxis(mapEnt, lightmapAxis, NULL);
 
 				/* vortex: per-entity normal smoothing */
-				GetEntityNormalSmoothing( mapEnt, &smoothNormals, 0);
+				GetEntityNormalSmoothing(mapEnt, &smoothNormals, 0);
 
 				/* vortex: per-entity _minlight, _ambient, _color, _colormod  */
-				GetEntityMinlightAmbientColor( mapEnt, NULL, minlight, minvertexlight, ambient, colormod, qtrue );
-				if( mapEnt == &entities[ 0 ] )
+				GetEntityMinlightAmbientColor(mapEnt, NULL, minlight, minvertexlight, ambient, colormod, qtrue);
+				if (mapEnt == &entities[0])
 				{
 					/* worldspawn have it empty, since it's keys sets global parms */
-					VectorSet( minlight, 0, 0, 0 );
-					VectorSet( minvertexlight, 0, 0, 0 );
-					VectorSet( ambient, 0, 0, 0 );
-					VectorSet( colormod, 1, 1, 1 );
+					VectorSet(minlight, 0, 0, 0);
+					VectorSet(minvertexlight, 0, 0, 0);
+					VectorSet(ambient, 0, 0, 0);
+					VectorSet(colormod, 1, 1, 1);
 				}
 
 				/* vortex: _patchMeta, _patchQuality, _patchSubdivide support */
-				GetEntityPatchMeta( mapEnt, &forceMeta, &patchQuality, &patchSubdivision, 1.0, patchSubdivisions);
+				GetEntityPatchMeta(mapEnt, &forceMeta, &patchQuality, &patchSubdivision, 1.0, patchSubdivisions);
 
 				/* vortex: vertical texture projection */
-				if( strcmp( "", ValueForKey( mapEnt, "_vtcproj" ) ) || strcmp( "", ValueForKey( mapEnt, "_vp" ) ) )
+				if (strcmp("", ValueForKey(mapEnt, "_vtcproj")) || strcmp("", ValueForKey(mapEnt, "_vp")))
 				{
 					vertTexProj = IntForKey(mapEnt, "_vtcproj");
 					if (vertTexProj <= 0.0f)
@@ -4249,13 +4328,13 @@ void GenerateMapForest ( void )
 					vertTexProj = 0;
 
 				/* ydnar: get cel shader :) for this entity */
-				value = ValueForKey( mapEnt, "_celshader" );
-				if( value[ 0 ] == '\0' )	
-					value = ValueForKey( &entities[ 0 ], "_celshader" );
-				if( value[ 0 ] != '\0' )
+				value = ValueForKey(mapEnt, "_celshader");
+				if (value[0] == '\0')
+					value = ValueForKey(&entities[0], "_celshader");
+				if (value[0] != '\0')
 				{
-					sprintf( shader, "textures/%s", value );
-					celShader = ShaderInfoForShader( shader );
+					sprintf(shader, "textures/%s", value);
+					celShader = ShaderInfoForShader(shader);
 					//Sys_FPrintf (SYS_VRB, "Entity %d (%s) has cel shader %s\n", mapEnt->mapEntityNum, classname, celShader->shader );
 				}
 				else
@@ -4271,22 +4350,22 @@ void GenerateMapForest ( void )
 				forceNoTJunc = ((IntForKey(mapEnt, "_notjunc") > 0) || (IntForKey(mapEnt, "_ntj") > 0)) ? qtrue : qfalse;
 
 				/* attach stuff to everything in the entity */
-				for( brush = mapEnt->brushes; brush != NULL; brush = brush->next )
+				for (brush = mapEnt->brushes; brush != NULL; brush = brush->next)
 				{
 					brush->entityNum = mapEnt->mapEntityNum;
 					brush->mapEntityNum = mapEnt->mapEntityNum;
 					brush->castShadows = castShadows;
 					brush->recvShadows = recvShadows;
 					brush->lightmapScale = lightmapScale;
-					VectorCopy( lightmapAxis, brush->lightmapAxis ); /* vortex */
+					VectorCopy(lightmapAxis, brush->lightmapAxis); /* vortex */
 					brush->smoothNormals = smoothNormals; /* vortex */
 					brush->noclip = forceNoClip; /* vortex */
 					brush->noTJunc = forceNoTJunc; /* vortex */
 					brush->vertTexProj = vertTexProj; /* vortex */
-					VectorCopy( minlight, brush->minlight ); /* vortex */
-					VectorCopy( minvertexlight, brush->minvertexlight ); /* vortex */
-					VectorCopy( ambient, brush->ambient ); /* vortex */
-					VectorCopy( colormod, brush->colormod ); /* vortex */
+					VectorCopy(minlight, brush->minlight); /* vortex */
+					VectorCopy(minvertexlight, brush->minvertexlight); /* vortex */
+					VectorCopy(ambient, brush->ambient); /* vortex */
+					VectorCopy(colormod, brush->colormod); /* vortex */
 					brush->celShader = celShader;
 					if (forceNonSolid == qtrue)
 					{
@@ -4296,55 +4375,65 @@ void GenerateMapForest ( void )
 					}
 				}
 
-				for( patch = mapEnt->patches; patch != NULL; patch = patch->next )
+				for (patch = mapEnt->patches; patch != NULL; patch = patch->next)
 				{
 					patch->entityNum = mapEnt->mapEntityNum;
 					patch->mapEntityNum = mapEnt->mapEntityNum;
 					patch->castShadows = castShadows;
 					patch->recvShadows = recvShadows;
 					patch->lightmapScale = lightmapScale;
-					VectorCopy( lightmapAxis, patch->lightmapAxis ); /* vortex */
+					VectorCopy(lightmapAxis, patch->lightmapAxis); /* vortex */
 					patch->smoothNormals = smoothNormals; /* vortex */
 					patch->vertTexProj = vertTexProj; /* vortex */
 					patch->celShader = celShader;
 					patch->patchMeta = forceMeta; /* vortex */
 					patch->patchQuality = patchQuality; /* vortex */
 					patch->patchSubdivisions = patchSubdivision; /* vortex */
-					VectorCopy( minlight, patch->minlight ); /* vortex */
-					VectorCopy( minvertexlight, patch->minvertexlight ); /* vortex */
-					VectorCopy( ambient, patch->ambient ); /* vortex */
-					VectorCopy( colormod, patch->colormod ); /* vortex */
+					VectorCopy(minlight, patch->minlight); /* vortex */
+					VectorCopy(minvertexlight, patch->minvertexlight); /* vortex */
+					VectorCopy(ambient, patch->ambient); /* vortex */
+					VectorCopy(colormod, patch->colormod); /* vortex */
 					patch->nonsolid = forceNonSolid;
 				}
 
 				/* vortex: store map entity num */
 				{
 					char buf[32];
-					sprintf( buf, "%i", mapEnt->mapEntityNum ); 
-					SetKeyValue( mapEnt, "_mapEntityNum", buf );
+					sprintf(buf, "%i", mapEnt->mapEntityNum);
+					SetKeyValue(mapEnt, "_mapEntityNum", buf);
 				}
 
 				/* ydnar: gs mods: set entity bounds */
-				SetEntityBounds( mapEnt );
+				SetEntityBounds(mapEnt);
 
 				/* ydnar: gs mods: load shader index map (equivalent to old terrain alphamap) */
-				LoadEntityIndexMap( mapEnt );
+				LoadEntityIndexMap(mapEnt);
 
 				/* get entity origin and adjust brushes */
-				GetVectorForKey( mapEnt, "origin", mapEnt->origin );
-				if ( mapEnt->originbrush_origin[ 0 ] || mapEnt->originbrush_origin[ 1 ] || mapEnt->originbrush_origin[ 2 ] )
-					AdjustBrushesForOrigin( mapEnt );
+				GetVectorForKey(mapEnt, "origin", mapEnt->origin);
+				if (mapEnt->originbrush_origin[0] || mapEnt->originbrush_origin[1] || mapEnt->originbrush_origin[2])
+					AdjustBrushesForOrigin(mapEnt);
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-				AddTriangleModels( 0, qtrue, qtrue );
-				EmitBrushes( mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes );
+				AddTriangleModels(0, qtrue, qtrue);
+				EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 				//MoveBrushesToWorld( mapEnt );
 				numEntities--;
 #endif
 			}
 
-			free(FOLIAGE_ASSIGNED);
+			if (!USE_SECONDARY_BSP)
+			{
+				free(FOLIAGE_ASSIGNED);
+			}
+			else if (USE_SECONDARY_BSP)
+			{
+				if (GENERATING_SECONDARY_BSP)
+				{
+					free(FOLIAGE_ASSIGNED);
+				}
+			}
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
 			Sys_Printf( "Finished adding trees.\n" );
@@ -4461,6 +4550,11 @@ void GenerateStaticEntities(void)
 		else
 		{
 			SetKeyValue(mapEnt, "_forcedSolid", "0");
+		}
+
+		if (STATIC_FORCED_OVERRIDE_SHADER[i] != '\0')
+		{
+			SetKeyValue(mapEnt, "_overrideShader", STATIC_FORCED_OVERRIDE_SHADER[i]);
 		}
 
 
@@ -4596,6 +4690,7 @@ void GenerateStaticEntities(void)
 //
 
 qboolean		*BUILDING_ASSIGNED;
+float			BUILDING_ANGLES[FOLIAGE_MAX_FOLIAGES] = { 0 };
 
 void ReassignCityModels(void)
 {
@@ -4682,6 +4777,11 @@ void ReassignCityModels(void)
 					}
 
 					if (bad)
+					{
+						continue;
+					}
+
+					if (StaticObjectNear(FOLIAGE_POSITIONS[j]))
 					{
 						continue;
 					}
@@ -4795,6 +4895,11 @@ void ReassignCityModels(void)
 				&& Distance(FOLIAGE_POSITIONS[i], CITY3_LOCATION) > CITY3_RADIUS
 				&& Distance(FOLIAGE_POSITIONS[i], CITY4_LOCATION) > CITY4_RADIUS
 				&& Distance(FOLIAGE_POSITIONS[i], CITY5_LOCATION) > CITY5_RADIUS)
+			{
+				continue;
+			}
+
+			if (StaticObjectNear(FOLIAGE_POSITIONS[i]))
 			{
 				continue;
 			}
@@ -4982,6 +5087,11 @@ void ReassignCityModels(void)
 				continue;
 			}
 
+			if (StaticObjectNear(FOLIAGE_POSITIONS[i]))
+			{
+				continue;
+			}
+
 			int selected = irand(0, NUM_POSSIBLES - 1);
 
 			for (j = 0; j < FOLIAGE_NUM_POSITIONS; j++)
@@ -5127,7 +5237,24 @@ void GenerateMapCity(void)
 			Sys_Printf("Adding %i buildings to bsp.\n", FOLIAGE_NUM_POSITIONS);
 #endif
 
-			ReassignCityModels();
+			if (!USE_SECONDARY_BSP || !GENERATING_SECONDARY_BSP)
+			{// When doing the secondary bsp, we don't want to regen the list, but instead reuse the current one...
+				ReassignCityModels();
+			}
+			else if (USE_SECONDARY_BSP && GENERATING_SECONDARY_BSP)
+			{
+				int count = 0;
+
+				for (i = 0; i < FOLIAGE_NUM_POSITIONS; i++)
+				{
+					if (BUILDING_ASSIGNED[i])
+					{
+						count++;
+					}
+				}
+
+				Sys_Printf("%9d of %i positions previously assigned to tree models.\n", count, FOLIAGE_NUM_POSITIONS - 1);
+			}
 
 			for (i = 0; i < FOLIAGE_NUM_POSITIONS /*&& i < 512*/; i++)
 			{
@@ -5214,11 +5341,23 @@ void GenerateMapCity(void)
 				}
 				*/
 				
-
-				if (!CITY_RANDOM_ANGLES)
-					SetKeyValue(mapEnt, "angle", "0");
+				if (USE_SECONDARY_BSP && GENERATING_SECONDARY_BSP)
+				{// Reuse original angles...
+					SetKeyValue(mapEnt, "angle", va("%i", BUILDING_ANGLES[i]));
+				}
 				else
-					SetKeyValue(mapEnt, "angle", va("%i", irand(0, 360)));
+				{// Record for any secondary pass...
+					if (!CITY_RANDOM_ANGLES)
+					{
+						BUILDING_ANGLES[i] = 0;
+						SetKeyValue(mapEnt, "angle", "0");
+					}
+					else
+					{
+						BUILDING_ANGLES[i] = irand(0, 360);
+						SetKeyValue(mapEnt, "angle", va("%i", BUILDING_ANGLES[i]));
+					}
+				}
 
 
 				if (CITY_FORCED_FULLSOLID[FOLIAGE_TREE_SELECTION[i]] >= 2)
@@ -5434,7 +5573,17 @@ void GenerateMapCity(void)
 				}
 			}
 
-			free(BUILDING_ASSIGNED);
+			if (!USE_SECONDARY_BSP)
+			{
+				free(BUILDING_ASSIGNED);
+			}
+			else if (USE_SECONDARY_BSP)
+			{
+				if (GENERATING_SECONDARY_BSP)
+				{
+					free(BUILDING_ASSIGNED);
+				}
+			}
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
 			Sys_Printf("Finished adding city.\n");

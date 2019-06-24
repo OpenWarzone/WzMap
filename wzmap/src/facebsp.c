@@ -391,6 +391,9 @@ List will be freed before returning
 ================
 */
 
+extern qboolean USE_SECONDARY_BSP;
+extern qboolean GENERATING_SECONDARY_BSP;
+
 tree_t *FaceBSP( face_t *list, qboolean quiet ) 
 {
 	tree_t *tree;
@@ -410,6 +413,14 @@ tree_t *FaceBSP( face_t *list, qboolean quiet )
 		{
 			AddPointToBounds( face->w->p[ i ], tree->mins, tree->maxs );
 		}
+	}
+
+	if (USE_SECONDARY_BSP && GENERATING_SECONDARY_BSP)
+	{
+		VectorCopy(mapMins, tree->mins);
+		VectorCopy(mapMaxs, tree->maxs);
+		//VectorSet(tree->mins, -262144, -262144, -262144);
+		//VectorSet(tree->maxs, 262144, 262144, 262144);
 	}
 
 	if( !quiet )
