@@ -398,6 +398,31 @@ static picoModel_t *_md3_load( PM_PARAMS_LOAD )
 		shader = (md3Shader_t*) ((picoByte_t*) surface + surface->ofsShaders);
 		_pico_setfext( shader->name, "" );
 		_pico_unixify( shader->name );
+
+		if (strcmp(shader->name, "collision"))
+		{// If no slash was found in the shader, then add the model's path to the shader (support for textures in the model dir). Exception for "collision" as it does not need one.
+			int foundSlash = 0;
+
+			for (int z = 0; z < strlen(shader->name); z++)
+			{
+				if (shader->name[z] == '/')
+				{
+					foundSlash = 1;
+				}
+			}
+
+			if (!foundSlash)
+			{
+				char origName[64] = { 0 };
+				char dir[64] = { 0 };
+				strcpy(origName, shader->name);
+				strcpy(dir, fileName);
+				StripFilename(dir);
+				sprintf(shader->name, "%s/%s", dir, origName);
+				//printf("Final shader is %s.\n", shader->name);
+			}
+		}
+			
 		PicoSetShaderName( picoShader, shader->name );
 		
 		/* associate current surface with newly created shader */

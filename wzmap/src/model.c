@@ -2112,7 +2112,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 		}
 		else
 		{
-			ForceCrash();
+			//ForceCrash();
 
 			// None exists, so go ahead and generate a new collision box...
 			Sys_Printf("Generating collision box model for model %s.\n", model);
@@ -2273,7 +2273,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 					/* get surface */
 					picoSurface_t	*surface = PicoGetModelSurface(picoModel, s);
 
-					if (StringContainsWord(surface->name, "collision")) {
+					if (StringContainsWord(surface->name, "collision") || StringContainsWord(surface->name, "system/nodraw_solid")) {
 						picoModel->hasCollisionGeometry = qtrue;
 						Sys_Printf("loaded model %s contains collision geometry (surface name: collision).\n", model);
 						return; // Collision is built into this model...
@@ -2396,10 +2396,10 @@ void LoadTriangleModels(void)
 		else
 			frame = 0;
 
-		if (StringContainsWord(name, "_collision"))
-			WzMap_PreloadModel(name, frame, &numLoadedModels, 0, qfalse);
+		if (StringContainsWord(model, "_collision"))
+			WzMap_PreloadModel((char *)model, frame, &numLoadedModels, 0, qfalse);
 		else
-			WzMap_PreloadModel(name, frame, &numLoadedModels, 0, qtrue);
+			WzMap_PreloadModel((char *)model, frame, &numLoadedModels, 0, qtrue);
 	}
 
 	/* print overall time */
