@@ -533,7 +533,70 @@ void FindWaterLevel(void)
 
 void CaulkifyStuff(qboolean findBounds);
 
-void FOLIAGE_LoadClimateData( char *filename )
+
+void PreloadClimateModels(void)
+{
+	//
+	// Pre-load all models, and generate/load convex hull collision meshes...
+	//
+
+	int i = 0;
+	int numLoadedModels = 0;
+
+	if (CLIFF_MODELS_TOTAL > 0)
+	{
+		for (i = 0; i < CLIFF_MODELS_TOTAL; i++)
+		{
+			WzMap_PreloadModel(CLIFF_MODEL[i], 0, &numLoadedModels, 3, qtrue);
+		}
+	}
+	else
+	{
+		for (i = 1; i <= 5; i++)
+		{
+			WzMap_PreloadModel(va("models/warzone/rocks/cliffface0%i.md3", i), 0, &numLoadedModels, 3, qtrue);
+		}
+	}
+
+	for (i = 1; i <= 4; i++)
+	{
+		WzMap_PreloadModel(va("models/warzone/rocks/ledge0%i.md3", i), 0, &numLoadedModels, 3, qtrue);
+	}
+
+	for (i = 0; i < MAX_FOREST_MODELS; i++)
+	{
+		if (strlen(TREE_MODELS[i]) > 0)
+		{
+			WzMap_PreloadModel(TREE_MODELS[i], 0, &numLoadedModels, TREE_ALLOW_SIMPLIFY[i], qtrue);
+		}
+	}
+
+	for (i = 0; i < MAX_FOREST_MODELS; i++)
+	{
+		if (strlen(CITY_MODELS[i]) > 0)
+		{
+			WzMap_PreloadModel(CITY_MODELS[i], 0, &numLoadedModels, CITY_ALLOW_SIMPLIFY[i], qtrue);
+		}
+	}
+
+	for (i = 0; i < MAX_STATIC_ENTITY_MODELS; i++)
+	{
+		if (strlen(STATIC_MODEL[i]) > 0)
+		{
+			WzMap_PreloadModel(STATIC_MODEL[i], 0, &numLoadedModels, STATIC_ALLOW_SIMPLIFY[i], qtrue);
+		}
+	}
+
+#if 0
+	if (ADD_CITY_ROADS)
+	{
+		//WzMap_PreloadModel("models/warzone/roads/road01.md3", 0, &numLoadedModels);
+		WzMap_PreloadModel("models/warzone/roads/road02.md3", 0, &numLoadedModels, 0, qtrue);
+	}
+#endif
+}
+
+void FOLIAGE_LoadClimateData(char *filename)
 {
 	int i = 0;
 
@@ -696,7 +759,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 	}
 
 	CLIFF_CHEAP = (qboolean)atoi(IniRead(filename, "CLIFFS", "cheapCliffs", "0"));
-	
+
 	CLIFF_PLANE_SNAP = atoi(IniRead(filename, "CLIFFS", "cliffPlaneSnap", "16"));
 
 	if (CLIFF_PLANE_SNAP > 0)
@@ -738,7 +801,7 @@ void FOLIAGE_LoadClimateData( char *filename )
 			}
 		}
 	}
-	
+
 
 	//
 	// Ledges...
@@ -935,70 +998,14 @@ void FOLIAGE_LoadClimateData( char *filename )
 
 	float SKYSCRAPERS_CENTER_X = atof(IniRead(filename, "SKYSCRAPERS", "cityCenterX", "0"));
 	float SKYSCRAPERS_CENTER_Y = atof(IniRead(filename, "SKYSCRAPERS", "cityCenterY", "0"));
-	
+
 	SKYSCRAPERS_RADIUS = atof(IniRead(filename, "SKYSCRAPERS", "cityRadius", "0"));
 
 	SKYSCRAPERS_PLANE_SNAP = atoi(IniRead(filename, "SKYSCRAPERS", "cityPlaneSnap", "8"));
 
 	VectorSet(SKYSCRAPERS_CENTER, SKYSCRAPERS_CENTER_X, SKYSCRAPERS_CENTER_Y, 0.0);
 
-	//
-	// Pre-load all models, and generate/load convex hull collision meshes...
-	//
-
-	int numLoadedModels = 0;
-
-	if (CLIFF_MODELS_TOTAL > 0)
-	{
-		for (i = 0; i < CLIFF_MODELS_TOTAL; i++)
-		{
-			WzMap_PreloadModel(CLIFF_MODEL[i], 0, &numLoadedModels, 3, qtrue);
-		}
-	}
-	else
-	{
-		for (i = 1; i <= 5; i++)
-		{
-			WzMap_PreloadModel(va("models/warzone/rocks/cliffface0%i.md3", i), 0, &numLoadedModels, 3, qtrue);
-		}
-	}
-
-	for (i = 1; i <= 4; i++)
-	{
-		WzMap_PreloadModel(va("models/warzone/rocks/ledge0%i.md3", i), 0, &numLoadedModels, 3, qtrue);
-	}
-
-	for (i = 0; i < MAX_FOREST_MODELS; i++)
-	{
-		if (strlen(TREE_MODELS[i]) > 0)
-		{
-			WzMap_PreloadModel(TREE_MODELS[i], 0, &numLoadedModels, TREE_ALLOW_SIMPLIFY[i], qtrue);
-		}
-	}
-
-	for (i = 0; i < MAX_FOREST_MODELS; i++)
-	{
-		if (strlen(CITY_MODELS[i]) > 0)
-		{
-			WzMap_PreloadModel(CITY_MODELS[i], 0, &numLoadedModels, CITY_ALLOW_SIMPLIFY[i], qtrue);
-		}
-	}
-
-	for (i = 0; i < MAX_STATIC_ENTITY_MODELS; i++)
-	{
-		if (strlen(STATIC_MODEL[i]) > 0)
-		{
-			WzMap_PreloadModel(STATIC_MODEL[i], 0, &numLoadedModels, STATIC_ALLOW_SIMPLIFY[i], qtrue);
-		}
-	}
-
-#if 0
-	if (ADD_CITY_ROADS)
-	{
-		//WzMap_PreloadModel("models/warzone/roads/road01.md3", 0, &numLoadedModels);
-		WzMap_PreloadModel("models/warzone/roads/road02.md3", 0, &numLoadedModels, 0, qtrue);
-	}
-#endif
+	PreloadClimateModels();
 }
 
 
@@ -5253,7 +5260,7 @@ void GenerateMapCity(void)
 					}
 				}
 
-				Sys_Printf("%9d of %i positions previously assigned to tree models.\n", count, FOLIAGE_NUM_POSITIONS - 1);
+				Sys_Printf("%9d of %i positions previously assigned to city models.\n", count, FOLIAGE_NUM_POSITIONS - 1);
 			}
 
 			for (i = 0; i < FOLIAGE_NUM_POSITIONS /*&& i < 512*/; i++)

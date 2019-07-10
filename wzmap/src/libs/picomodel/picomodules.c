@@ -99,8 +99,9 @@ const picoModule_t *picoModules[] =
 	&picoModuleFM,		/* heretic2 fm */
 	&picoModuleLWO,		/* lightwave object */
 	&picoModuleTerrain,	/* picoterrain object */
-	&picoModuleOBJ,		/* wavefront object */
 	&picoModuleAssimp,	/* assimp library */
+	&picoModuleOBJ,		/* wavefront object */
+	//&picoModuleAssimp,	/* assimp library */
 	NULL				/* arnold */
 };
 

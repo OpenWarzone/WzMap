@@ -1212,7 +1212,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 
 #pragma omp critical (__ALLOC__)
 			{
-				ds->indexes = (int *)realloc(ds->indexes, ds->numIndexes * sizeof(ds->indexes[0]));
+				ds->indexes = (uint32_t *)realloc(ds->indexes, ds->numIndexes * sizeof(ds->indexes[0]));
 			}
 
 			if (added_verts != NULL)
@@ -1298,7 +1298,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			ds->numIndexes = PicoGetSurfaceNumIndexes(surface);
 #pragma omp critical
 			{
-				ds->indexes = (int *)safe_malloc(ds->numIndexes * sizeof(ds->indexes[0]));
+				ds->indexes = (uint32_t *)safe_malloc(ds->numIndexes * sizeof(ds->indexes[0]));
 				memset(ds->indexes, 0, ds->numIndexes * sizeof(ds->indexes[0]));
 			}
 

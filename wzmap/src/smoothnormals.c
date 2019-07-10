@@ -38,7 +38,7 @@ void GenerateNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, 
 		bool broken = false;
 
 		bspDrawVert_t *vs = &bspDrawVerts[ds->firstVert];
-		int *idxs = &bspDrawIndexes[ds->firstIndex];
+		uint32_t *idxs = &bspDrawIndexes[ds->firstIndex];
 
 #pragma omp parallel for ordered num_threads(numthreads)
 		for (int i = 0; i < ds->numIndexes; i += 3)

@@ -364,7 +364,7 @@ static void GenFoliage(char *mapName)
 		bspDrawSurface_t *surf = &bspDrawSurfaces[i];
 
 		bspDrawVert_t *vs = &bspDrawVerts[surf->firstVert];
-		int *idxs = &bspDrawIndexes[surf->firstIndex];
+		uint32_t *idxs = &bspDrawIndexes[surf->firstIndex];
 
 		for (int j = 0; j < surf->numIndexes; j += 3)
 		{
@@ -470,7 +470,7 @@ static void GenFoliage(char *mapName)
 		extern float Distance(vec3_t pos1, vec3_t pos2);
 
 		bspDrawVert_t *vs = &bspDrawVerts[surf->firstVert];
-		int *idxs = &bspDrawIndexes[surf->firstIndex];
+		uint32_t *idxs = &bspDrawIndexes[surf->firstIndex];
 
 		for (int j = 0; j < surf->numIndexes; j+=3)
 		{

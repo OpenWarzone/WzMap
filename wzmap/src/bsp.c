@@ -1492,6 +1492,7 @@ extern int				FOLIAGE_NUM_POSITIONS;
 
 extern void FOLIAGE_LoadClimateData( char *filename );
 extern qboolean FOLIAGE_LoadFoliagePositions( char *filename );
+extern void PreloadClimateModels(void);
 
 
 int BSPMain( int argc, char **argv )
@@ -1872,6 +1873,9 @@ int BSPMain( int argc, char **argv )
 	StripExtension( source );
 
 	strcpy(currentMapName, source);
+
+	/* load shaders */
+	LoadShaderInfo();
 	
 	/* UQ1: generateforest */
 	//else if( !strcmp( argv[ i ], "-generateforest" ) )
@@ -1932,9 +1936,6 @@ int BSPMain( int argc, char **argv )
 		remove( path );
 		DefaultExtension( name, ".map" );	/* might be .reg */
 	}
-
-	/* load shaders */
-	LoadShaderInfo();
 
 	/* load original file from temp spot in case it was renamed by the editor on the way in */
 	if( strlen( tempSource ) > 0 )

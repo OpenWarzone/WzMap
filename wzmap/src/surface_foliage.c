@@ -171,7 +171,7 @@ generates a foliage file for a bsp
 
 void Foliage( mapDrawSurface_t *src )
 {
-	int					i, j, k, x, y, pw[ 5 ], r, oldNumMapDrawSurfs;
+	uint32_t					i, j, k, x, y, pw[ 5 ], r, oldNumMapDrawSurfs;
 	mapDrawSurface_t	*ds;
 	shaderInfo_t		*si;
 	foliage_t			*foliage;

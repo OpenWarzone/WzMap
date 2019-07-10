@@ -54,6 +54,7 @@ extern "C"
 
 #include "picomodel.h"
 
+void    StripExtension(char *path);
 
 /* os dependent replacements */
 #if WIN32 || _WIN32

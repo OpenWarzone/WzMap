@@ -35,6 +35,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // the maximum size of game reletive pathnames
 #define	MAX_QPATH		64
 
+typedef unsigned int       uint32_t;
+
 /*
 ========================================================================
 
@@ -336,7 +338,7 @@ typedef struct {
 
 
 typedef struct {
-	int		fileofs, filelen;
+	uint32_t/*int*/		fileofs, filelen;
 } lump_t;
 
 #define	LUMP_ENTITIES		0
@@ -443,11 +445,11 @@ typedef struct {
 	int			fogNum;
 	int			surfaceType;
 
-	int			firstVert;
-	int			numVerts;
+	uint32_t	firstVert;
+	uint32_t	numVerts;
 
-	int			firstIndex;
-	int			numIndexes;
+	uint32_t	firstIndex;
+	uint32_t	numIndexes;
 
 	int			lightmapNum;
 	int			lightmapX, lightmapY;

@@ -178,6 +178,12 @@ std::string StripExtension(const std::string& path)
 	return path.substr(0, pos);
 }
 
+std::string GetExtension(const std::string& path)
+{
+	size_t pos = path.find_last_of(".");
+	return path.substr(pos, path.length());
+}
+
 std::string replace_all(
 	const std::string & str,   // where to work
 	const std::string & find,  // substitute 'find'
@@ -628,13 +634,25 @@ static int _obj_mtl_load(picoModel_t *model)
 	int				numMaterials;
 	unsigned int	i,k,m;
 
-
-	const aiScene* scene = assImpImporter.ReadFileFromMemory(buffer, bufSize, aiProcessPreset_TargetRealtime_MaxQuality_Fix/*, ext*/);
+	//printf("assimp loading %s. extension %s.\n", fileName, GetExtension(fileName).c_str());
+	
+	// First try loading model directly from disk, completely ignoring the buffer. This way it can load obj's mtl, and any other secondary files that may be used by silly formats.
+	const aiScene *scene = assImpImporter.ReadFile(fileName, aiProcessPreset_TargetRealtime_MaxQuality_Fix);
 
 	if (!scene)
-	{
-		printf("_assimp_load: %s could not load. Error: %s\n", fileName, assImpImporter.GetErrorString());
-		return NULL;
+	{// Try specifying format for the internal buffer copy using the filename's extension...
+		scene = assImpImporter.ReadFileFromMemory(buffer, bufSize, aiProcessPreset_TargetRealtime_MaxQuality_Fix, GetExtension(fileName).c_str());
+		
+		//if (!scene)
+		//{// Try letting assimp decide the format...
+		//	scene = assImpImporter.ReadFileFromMemory(buffer, bufSize, aiProcessPreset_TargetRealtime_MaxQuality_Fix/*, ext*/);
+
+			if (!scene)
+			{
+				printf("_assimp_load: %s could not load. Error: %s\n", fileName, assImpImporter.GetErrorString());
+				return NULL;
+			}
+		//}
 	}
 
 	/* create new pico model */
@@ -673,6 +691,8 @@ static int _obj_mtl_load(picoModel_t *model)
 
 	/* get number of groups */
 	numGroups = scene->mNumMeshes;
+
+//#define DEBUG_PM_ASSIMP
 
 #ifdef DEBUG_PM_ASSIMP
 	printf("NumGroups: %d\n",numGroups);

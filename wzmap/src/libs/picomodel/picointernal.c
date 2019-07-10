@@ -1355,3 +1355,19 @@ size_t _pico_memstream_tell( picoMemStream_t *s )
 
 	return s->curPos - s->buffer;
 }
+
+
+void    StripExtension(char *path)
+{
+	size_t length;
+
+	length = strlen(path) - 1;
+	while (length > 0 && path[length] != '.')
+	{
+		length--;
+		if (path[length] == '/' || path[length] == '\\')
+			return;		// no extension
+	}
+	if (length)
+		path[length] = 0;
+}

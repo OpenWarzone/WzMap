@@ -692,11 +692,11 @@ typedef struct
 	int			fogNum;
 	int			surfaceType;
 
-	int			firstVert;
-	int			numVerts;
+	uint32_t	firstVert;
+	uint32_t	numVerts;
 
-	int			firstIndex;
-	int			numIndexes;
+	uint32_t	firstIndex;
+	uint32_t	numIndexes;
 
 	byte		lightmapStyles[ MAX_LIGHTMAPS ];						/* RBSP */
 	byte		vertexStyles[ MAX_LIGHTMAPS ];							/* RBSP */
@@ -1275,13 +1275,13 @@ typedef struct mapDrawSurface_s
 
 	int					fogNum;
 
-	int					numVerts;			/* vertexes and triangles */
+	uint32_t			numVerts;			/* vertexes and triangles */
 	bspDrawVert_t		*verts;
-	int					numIndexes;
-	int					*indexes;
+	uint32_t			numIndexes;
+	uint32_t			*indexes;
 
-	int					currentNumVerts;
-	int					currentNumIndexes;
+	uint32_t			currentNumVerts;
+	uint32_t			currentNumIndexes;
 
 	int					planeNum;
 	vec3_t				lightmapOrigin;		/* also used for flares */
@@ -1355,7 +1355,7 @@ typedef struct metaTriangle_s
 	vec3_t				maxs;
 	vec4_t				plane;
 	vec3_t				lightmapAxis;
-	int					indexes[ 3 ];
+	uint32_t			indexes[ 3 ];
 	float               area;
 }
 metaTriangle_t;
@@ -2329,8 +2329,8 @@ Q_EXTERN qboolean			randomizeBSP Q_ASSIGN(qfalse);			/* UQ1 */
 Q_EXTERN float				patchSubdivisions Q_ASSIGN( 8.0f );		/* ydnar: -patchmeta subdivisions */
 
 Q_EXTERN int				maxLMSurfaceVerts Q_ASSIGN( 64 );		/* ydnar */
-Q_EXTERN int				maxSurfaceVerts Q_ASSIGN( 999 );		/* ydnar */
-Q_EXTERN int				maxSurfaceIndexes Q_ASSIGN( 6000 );		/* ydnar */
+Q_EXTERN uint32_t			maxSurfaceVerts Q_ASSIGN( 999 );		/* ydnar */
+Q_EXTERN uint32_t			maxSurfaceIndexes Q_ASSIGN( 6000 );		/* ydnar */
 Q_EXTERN float				npDegrees Q_ASSIGN( 0.0f );				/* ydnar: nonplanar degrees */
 Q_EXTERN int				bevelSnap Q_ASSIGN( 0 );				/* ydnar: bevel plane snap */
 Q_EXTERN int				texRange Q_ASSIGN( 0 );
@@ -2865,11 +2865,11 @@ Q_EXTERN uint32_t			numBSPVisBytes Q_ASSIGN( 0 );
 Q_EXTERN byte				bspVisBytes[ MAX_MAP_VISIBILITY ];
 //Q_EXTERN byte				*bspVisBytes;
 
-Q_EXTERN int				numBSPDrawVerts Q_ASSIGN( 0 );
+Q_EXTERN uint32_t			numBSPDrawVerts Q_ASSIGN( 0 );
 Q_EXTERN bspDrawVert_t		*bspDrawVerts Q_ASSIGN( NULL );
 
-Q_EXTERN int				numBSPDrawIndexes Q_ASSIGN( 0 );
-Q_EXTERN int				bspDrawIndexes[ MAX_MAP_DRAW_INDEXES ];
+Q_EXTERN uint32_t			numBSPDrawIndexes Q_ASSIGN( 0 );
+Q_EXTERN uint32_t			bspDrawIndexes[ MAX_MAP_DRAW_INDEXES ];
 
 Q_EXTERN int				numBSPDrawSurfaces Q_ASSIGN( 0 );
 Q_EXTERN bspDrawSurface_t	*bspDrawSurfaces Q_ASSIGN( NULL );

@@ -374,7 +374,7 @@ static int GetMeshTexCoords (T3dsLoaderPers *pers)
 	return 1;
 }
 
-static int GetMeshShader (T3dsLoaderPers *pers)
+static int GetMeshShader (T3dsLoaderPers *pers, char *fileName)
 {
 	char shaderName[255] = { 0 };
 	picoShader_t  *shader;
@@ -416,6 +416,7 @@ static int GetMeshShader (T3dsLoaderPers *pers)
 		/* we have a valid map name ptr */
 		if (mapNamePtr != NULL)
 		{
+#if 0
 			char  temp[128];
 			const char *name;
 
@@ -442,10 +443,95 @@ static int GetMeshShader (T3dsLoaderPers *pers)
 
 			/* set surface's shader index */
 			PicoSetSurfaceShader( pers->surface, shader );
+#else
+			if (strlen(mapNamePtr) > 0)
+			{// UQ1: umm. this is the actual *real* shader name...
+				char origName[64] = { 0 };
+				char finalName[64] = { 0 };
+
+				strcpy(origName, mapNamePtr);
+
+				StripExtension(origName);
+
+				if (strcmp(origName, "collision"))
+				{// If no slash was found in the shader, then add the model's path to the shader (support for textures in the model dir). Exception for "collision" as it does not need one.
+					int foundSlash = 0;
+
+					for (int z = 0; z < strlen(origName); z++)
+					{
+						if (origName[z] == '/')
+						{
+							foundSlash = 1;
+						}
+					}
+
+					if (!foundSlash)
+					{
+						char dir[64] = { 0 };
+						strcpy(dir, fileName);
+						StripFilename(dir);
+						sprintf(finalName, "%s/%s", dir, origName);
+					}
+					else
+					{
+						strcpy(finalName, origName);
+					}
+				}
+				else
+				{
+					strcpy(finalName, origName);
+				}
+
+				printf("Final shader is %s.\n", finalName);
+
+				/* set shader name */
+				PicoSetShaderName( shader, finalName );
+				
+				/* set surface's shader index */
+				PicoSetSurfaceShader(pers->surface, shader);
+			}
+			else
+			{
+				char  temp[128];
+				const char *name;
+
+				/* copy map name to local buffer */
+				strcpy(mapName, mapNamePtr);
+
+				/* extract file name */
+				name = _pico_nopath(mapName);
+				strncpy(temp, name, sizeof(temp));
+
+				/* remove file extension */
+				/* name = _pico_setfext( name,"" ); */
+
+				/* assign default name if no name available */
+				if (strlen(temp) < 1)
+					strcpy(temp, pers->basename);
+
+				/* build shader name */
+				_pico_strlwr(temp); /* gaynux update -sea */
+				//sprintf(mapName, "models/mapobjects/%s/%s", pers->basename, temp);
+				
+				char dir[64] = { 0 };
+				strcpy(dir, fileName);
+				StripFilename(dir);
+				sprintf(mapName, "%s/%s", dir, temp);
+
+				/* set shader name */
+				/* PicoSetShaderName( shader,mapName ); */	/* ydnar: this will screw up the named shader */
+
+															/* set surface's shader index */
+				PicoSetSurfaceShader(pers->surface, shader);
+			}
+#endif
 
 			setShaderName = 1;
 		}
 	}
+	
+	//printf("shaderName: %s. actual shader %s.\n", shaderName, shader->name);
+
 	/* we didn't set a shader name; throw out warning */
 	if (!setShaderName)
 	{
@@ -496,7 +582,7 @@ static int GetDiffuseColor (T3dsLoaderPers *pers)
 	return 1;
 }
 
-static int DoNextEditorDataChunk (T3dsLoaderPers *pers, long endofs)
+static int DoNextEditorDataChunk (T3dsLoaderPers *pers, long endofs, char *fileName)
 {
 	T3dsChunk *chunk;
 
@@ -544,13 +630,13 @@ static int DoNextEditorDataChunk (T3dsLoaderPers *pers, long endofs)
 			PicoSetSurfaceName( pers->surface,surfaceName );
 
 			/* continue mess with object's sub chunks */
-			DoNextEditorDataChunk(pers,nextofs);
+			DoNextEditorDataChunk(pers,nextofs,fileName);
 			continue;
 		}
 		if (chunk->id == CHUNK_OBJECT_MESH)
 		{
 			/* continue mess with mesh's sub chunks */
-			if (!DoNextEditorDataChunk(pers,nextofs)) return 0;
+			if (!DoNextEditorDataChunk(pers,nextofs,fileName)) return 0;
 			continue;
 		}
 		if (chunk->id == CHUNK_OBJECT_VERTICES)
@@ -570,7 +656,7 @@ static int DoNextEditorDataChunk (T3dsLoaderPers *pers, long endofs)
 		}
 		if (chunk->id == CHUNK_OBJECT_MATERIAL)
 		{
-			if (!GetMeshShader(pers)) return 0;
+			if (!GetMeshShader(pers, fileName)) return 0;
 			continue;
 		}
 		/*** materials ***/
@@ -592,7 +678,7 @@ static int DoNextEditorDataChunk (T3dsLoaderPers *pers, long endofs)
 			pers->shader = shader;
 
 			/* continue and process the material's sub chunks */
-			DoNextEditorDataChunk(pers,nextofs);
+			DoNextEditorDataChunk(pers,nextofs,fileName);
 			continue;
 		}
 		if (chunk->id == CHUNK_MATNAME)
@@ -624,7 +710,7 @@ static int DoNextEditorDataChunk (T3dsLoaderPers *pers, long endofs)
 		if (chunk->id == CHUNK_MATMAP)
 		{
 			/* continue and process the material map sub chunks */
-			DoNextEditorDataChunk(pers,nextofs);
+			DoNextEditorDataChunk(pers,nextofs,fileName);
 			continue;
 		}
 		if (chunk->id == CHUNK_MATMAPFILE)
@@ -656,7 +742,7 @@ static int DoNextEditorDataChunk (T3dsLoaderPers *pers, long endofs)
 	return 1;
 }
 
-static int DoNextChunk (T3dsLoaderPers *pers, int endofs)
+static int DoNextChunk (T3dsLoaderPers *pers, int endofs, char *fileName)
 {
 	T3dsChunk *chunk;
 
@@ -703,7 +789,7 @@ static int DoNextChunk (T3dsLoaderPers *pers, int endofs)
 		/*** editor data ***/
 		if (chunk->id == CHUNK_EDITOR_DATA)
 		{
-			if (!DoNextEditorDataChunk(pers,nextofs)) return 0;
+			if (!DoNextEditorDataChunk(pers,nextofs,fileName)) return 0;
 			continue;
 		}
 		/* skip unknown chunk */
@@ -750,12 +836,13 @@ static picoModel_t *_3ds_load( PM_PARAMS_LOAD )
 	GetChunk(&pers);
 
 	/* process chunks */
-	if (!DoNextChunk(&pers,pers.maxofs))
+	if (!DoNextChunk(&pers,pers.maxofs, fileName))
 	{
 		/* well, bleh i guess */
 		PicoFreeModel(model);
 		return NULL;
 	}
+
 	/* return allocated pico model */
 	return model;
 }

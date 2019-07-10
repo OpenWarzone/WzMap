@@ -233,7 +233,7 @@ void CollisionBox(picoModel_t *model, char *fileNameOut)
 
 	validHitBounds[1][0] = 8192;
 	validHitBounds[1][1] = 8192;
-	validHitBounds[1][2] = 16;
+	validHitBounds[1][2] = 2;
 
 	vec3_t	modelBoundsAroundBase[2];
 	float	heightBounds[2];
@@ -241,93 +241,111 @@ void CollisionBox(picoModel_t *model, char *fileNameOut)
 	heightBounds[1] = 0.0;
 	ClearBounds(modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
 
-	for (int s = 0; s < numSurfaces; s++)
+	int numHits = 0;
+
+	while (numHits == 0.0 && validHitBounds[1][2] <= 128.0)
+	{// Make sure that we find at least some valid bounds to use... but <= 128.0 because we need to give up at some point...
+		validHitBounds[1][2] *= 2.0;
+
+		for (int s = 0; s < numSurfaces; s++)
+		{
+			int				skin = 0;
+
+			/* get surface */
+			picoSurface_t	*surface = PicoGetModelSurface(model, s);
+
+			if (surface == NULL)
+				continue;
+
+			/* only handle triangle surfaces initially (fixme: support patches) */
+			if (PicoGetSurfaceType(surface) != PICO_TRIANGLES)
+			{
+				Sys_Warning("surface %i (%s) is not a triangles surface.", s, surface->name);
+				continue;
+			}
+
+			char			*picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
+
+			shaderInfo_t	*si = ShaderInfoForShader(picoShaderName);
+
+			LoadShaderImages(si);
+
+			if ((si->compileFlags & C_TRANSLUCENT) || (si->compileFlags & C_SKIP) || (si->compileFlags & C_FOG) || (si->compileFlags & C_NODRAW) || (si->compileFlags & C_HINT))
+			{
+				//Sys_Warning("surface %i (%s) is not a visible surface.", s, surface->name);
+				continue;
+			}
+
+			if (!(si->compileFlags & C_SOLID))
+			{
+				//Sys_Warning("surface %i (%s) is not a solid surface.", s, surface->name);
+				continue;
+			}
+			else if (StringContainsWord(picoShaderName, "leaves")
+				|| StringContainsWord(picoShaderName, "leaf")
+				|| StringContainsWord(picoShaderName, "TreePineForestBranch"))
+			{// UQ1: FIXME - Hacky override. Why does it think some leaves are solid? I'm assuming I need to fix some WZ shaders...
+			 //Sys_Warning("surface %i (%s) is not a solid surface (tree leaves).", s, surface->name);
+				continue;
+			}
+
+			//Sys_Warning("surface %i (name %s - shader %s) is a solid surface.", s, surface->name, surface->shader->name);
+
+			/* get info */
+			picoIndex_t *idx = PicoGetSurfaceIndexes(surface, 0);
+
+			/* walk the triangle list */
+			for (int j = 0; j < PicoGetSurfaceNumIndexes(surface); j += 3, idx += 3)
+			{
+				picoVec_t *xyzA = PicoGetSurfaceXYZ(surface, idx[0]);
+				picoVec_t *xyzB = PicoGetSurfaceXYZ(surface, idx[1]);
+				picoVec_t *xyzC = PicoGetSurfaceXYZ(surface, idx[2]);
+
+				if (xyzA[2] < heightBounds[0])
+					heightBounds[0] = xyzA[2];
+				if (xyzA[2] > heightBounds[1])
+					heightBounds[1] = xyzA[2];
+
+				if (xyzB[2] < heightBounds[0])
+					heightBounds[0] = xyzB[2];
+				if (xyzB[2] > heightBounds[1])
+					heightBounds[1] = xyzB[2];
+
+				if (xyzC[2] < heightBounds[0])
+					heightBounds[0] = xyzC[2];
+				if (xyzC[2] > heightBounds[1])
+					heightBounds[1] = xyzC[2];
+
+				vec3_t hit;
+
+				if (CheckLineBox(validHitBounds[0], validHitBounds[1], xyzA, xyzB, hit))
+				{
+					AddPointToBounds(xyzA, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
+					AddPointToBounds(xyzB, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
+					numHits++;
+				}
+
+				if (CheckLineBox(validHitBounds[0], validHitBounds[1], xyzA, xyzC, hit))
+				{
+					AddPointToBounds(xyzA, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
+					AddPointToBounds(xyzC, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
+					numHits++;
+				}
+
+				if (CheckLineBox(validHitBounds[0], validHitBounds[1], xyzB, xyzC, hit))
+				{
+					AddPointToBounds(xyzB, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
+					AddPointToBounds(xyzC, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
+					numHits++;
+				}
+			}
+		}
+	}
+
+	if (numHits <= 0)
 	{
-		int				skin = 0;
-
-		/* get surface */
-		picoSurface_t	*surface = PicoGetModelSurface(model, s);
-
-		if (surface == NULL)
-			continue;
-
-		/* only handle triangle surfaces initially (fixme: support patches) */
-		if (PicoGetSurfaceType(surface) != PICO_TRIANGLES)
-		{
-			Sys_Warning("surface %i (%s) is not a triangles surface.", s, surface->name);
-			continue;
-		}
-
-		char			*picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
-
-		shaderInfo_t	*si = ShaderInfoForShader(picoShaderName);
-
-		LoadShaderImages(si);
-
-		if ((si->compileFlags & C_TRANSLUCENT) || (si->compileFlags & C_SKIP) || (si->compileFlags & C_FOG) || (si->compileFlags & C_NODRAW) || (si->compileFlags & C_HINT))
-		{
-			//Sys_Warning("surface %i (%s) is not a visible surface.", s, surface->name);
-			continue;
-		}
-
-		if (!(si->compileFlags & C_SOLID))
-		{
-			//Sys_Warning("surface %i (%s) is not a solid surface.", s, surface->name);
-			continue;
-		}
-		else if (StringContainsWord(picoShaderName, "leaves")
-			|| StringContainsWord(picoShaderName, "leaf")
-			|| StringContainsWord(picoShaderName, "TreePineForestBranch"))
-		{// UQ1: FIXME - Hacky override. Why does it think some leaves are solid? I'm assuming I need to fix some WZ shaders...
-		 //Sys_Warning("surface %i (%s) is not a solid surface (tree leaves).", s, surface->name);
-			continue;
-		}
-
-		/* get info */
-		picoIndex_t *idx = PicoGetSurfaceIndexes(surface, 0);
-
-		/* walk the triangle list */
-		for (int j = 0; j < PicoGetSurfaceNumIndexes(surface); j += 3, idx += 3)
-		{
-			picoVec_t *xyzA = PicoGetSurfaceXYZ(surface, idx[0]);
-			picoVec_t *xyzB = PicoGetSurfaceXYZ(surface, idx[1]);
-			picoVec_t *xyzC = PicoGetSurfaceXYZ(surface, idx[2]);
-
-			if (xyzA[2] < heightBounds[0])
-				heightBounds[0] = xyzA[2];
-			if (xyzA[2] > heightBounds[1])
-				heightBounds[1] = xyzA[2];
-
-			if (xyzB[2] < heightBounds[0])
-				heightBounds[0] = xyzB[2];
-			if (xyzB[2] > heightBounds[1])
-				heightBounds[1] = xyzB[2];
-
-			if (xyzC[2] < heightBounds[0])
-				heightBounds[0] = xyzC[2];
-			if (xyzC[2] > heightBounds[1])
-				heightBounds[1] = xyzC[2];
-
-			vec3_t hit;
-
-			if (CheckLineBox(validHitBounds[0], validHitBounds[1], xyzA, xyzB, hit))
-			{
-				AddPointToBounds(xyzA, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
-				AddPointToBounds(xyzB, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
-			}
-
-			if (CheckLineBox(validHitBounds[0], validHitBounds[1], xyzA, xyzC, hit))
-			{
-				AddPointToBounds(xyzA, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
-				AddPointToBounds(xyzC, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
-			}
-
-			if (CheckLineBox(validHitBounds[0], validHitBounds[1], xyzB, xyzC, hit))
-			{
-				AddPointToBounds(xyzB, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
-				AddPointToBounds(xyzC, modelBoundsAroundBase[0], modelBoundsAroundBase[1]);
-			}
-		}
+		Sys_Warning("Failed to find valid points to generate a collision box for model %s.", model->fileName);
+		return;
 	}
 
 	// Set mix and max height of the cube to the min/max model heights to extend to the top of the tree...
