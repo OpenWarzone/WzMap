@@ -63,7 +63,7 @@ int FindVertexInCollapsedMesh(int bspVertexIndex)
 
 static void ConvertCollapsedSurface( FILE *f, bspModel_t *model, int modelNum, int meshNum, int shaderNum, vec3_t origin )
 {
-	uint32_t			i, s, v, a, b, c;
+	int					i, s, v, a, b, c;
 	bspDrawSurface_t	*ds;
 	bspDrawVert_t		*dv, *dv2;
 	vec3_t				normal;

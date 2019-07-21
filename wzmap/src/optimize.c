@@ -263,14 +263,14 @@ bspDrawSurfaceMeta_t;
 
 void MergeDrawSurfaces(void)
 {
-	uint32_t i, start, fOld, modelnum, surfacenum, leafnum, leafsurfacenum;
+	int i, start, fOld, modelnum, surfacenum, leafnum, leafsurfacenum;
 	int numNewSurfaces, numSkipSurfaces, numMergedSurfaces, numDrawSurfacesProcessed, numDrawVertsProcessed, numDrawIndexesProcessed, numLeafSurfacesProcessed;
 	bspDrawSurfaceMeta_t *metaSurfaces, *ms, *ms2;
 	bspModel_t *model;
 	bspLeaf_t *leaf;
 	bspDrawSurface_t *ds, *ds2, *newDrawSurfaces;
 	bspDrawVert_t *newDrawVerts, *dv, *dv2;
-	uint32_t *newDrawIndexes, *newLeafSurfaces, *di, *di2, firstDS, numDS;
+	int *newDrawIndexes, *newLeafSurfaces, *di, *di2, firstDS, numDS;
 	vec3_t newmins, newmaxs, newsize;
 
 	Sys_PrintHeading ( "--- MergeDrawSurfaces ---\n" );
@@ -455,7 +455,7 @@ void MergeDrawSurfaces(void)
 	fOld = -1;
 	newDrawSurfaces = (bspDrawSurface_t *)safe_malloc(sizeof(bspDrawSurface_t) * (numBSPDrawSurfaces - numMergedSurfaces));
 	newDrawVerts = (bspDrawVert_t *)safe_malloc(sizeof(bspDrawVert_t) * numDrawVertsProcessed);
-	newDrawIndexes = (uint32_t *)safe_malloc(sizeof(uint32_t) * numDrawIndexesProcessed);
+	newDrawIndexes = (int *)safe_malloc(sizeof(int) * numDrawIndexesProcessed);
 	numDrawSurfacesProcessed = 0;
 	numDrawVertsProcessed = 0;
 	numDrawIndexesProcessed = 0;
@@ -558,7 +558,7 @@ void MergeDrawSurfaces(void)
 	/* generate new leaf surfaces */
 	// todo: remove duplicate surfaces
 	Sys_PrintHeadingVerbose( "--- MergeLeafSurfaces ---\n" );
-	newLeafSurfaces = (uint32_t *)safe_malloc(sizeof(uint32_t) * (numBSPLeafSurfaces));
+	newLeafSurfaces = (int *)safe_malloc(sizeof(int) * (numBSPLeafSurfaces));
 	numLeafSurfacesProcessed = 0;
 	start = I_FloatTime();
 	fOld = -1;

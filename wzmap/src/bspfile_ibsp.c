@@ -151,11 +151,11 @@ typedef struct ibspDrawSurface_s
 	int			fogNum;
 	int			surfaceType;
 	
-	uint32_t	firstVert;
-	uint32_t	numVerts;
+	int			firstVert;
+	int			numVerts;
 	
-	uint32_t	firstIndex;
-	uint32_t	numIndexes;
+	int			firstIndex;
+	int			numIndexes;
 	
 	int			lightmapNum;
 	int			lightmapX, lightmapY;

@@ -800,7 +800,7 @@ projects a decal onto a triangle surface
 
 static void ProjectDecalOntoTriangles( decalProjector_t *dp, mapDrawSurface_t *ds )
 {
-	uint32_t	i;
+	int			i;
 	vec4_t		plane;
 	float		d;
 	winding_t	*w;

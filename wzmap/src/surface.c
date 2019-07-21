@@ -144,7 +144,7 @@ mapDrawSurface_t *CloneSurface( mapDrawSurface_t *src, shaderInfo_t *si )
 	/* copy indexes */
 	if( ds->numIndexes <= 0 )
 		return ds;
-	ds->indexes = (uint32_t *)safe_malloc( ds->numIndexes * sizeof( *ds->indexes ) );
+	ds->indexes = (int *)safe_malloc( ds->numIndexes * sizeof( *ds->indexes ) );
 	memcpy( ds->indexes, src->indexes, ds->numIndexes * sizeof( *ds->indexes ) );
 	
 	/* return the surface */
@@ -2355,7 +2355,7 @@ filters a triangle surface (meta, model) into the bsp
 
 static int FilterTrianglesIntoTree( mapDrawSurface_t *ds, tree_t *tree )
 {
-	uint32_t			i, refs;
+	int			i, refs;
 	winding_t	*w;
 	
 	
@@ -2394,7 +2394,7 @@ filters a foliage surface (wolf et/splash damage)
 
 static int FilterFoliageIntoTree( mapDrawSurface_t *ds, tree_t *tree )
 {
-	uint32_t				f, i, refs;
+	int				f, i, refs;
 	bspDrawVert_t	*instance;
 	vec3_t			xyz;
 	winding_t		*w;
@@ -2511,9 +2511,9 @@ this tends to reduce the size of the bsp index pool by 1/3 or more
 returns numIndexes + 1 if the search failed
 */
 
-int FindDrawIndexes(uint32_t numIndexes, uint32_t *indexes )
+int FindDrawIndexes( int numIndexes, int *indexes )
 {
-	uint32_t		i, j, numTestIndexes;
+	int		i, j, numTestIndexes;
 	
 	
 	/* dummy check */
@@ -2581,7 +2581,7 @@ attempts to find an existing run of drawindexes before adding new ones
 
 void EmitDrawIndexes( mapDrawSurface_t *ds, bspDrawSurface_t *out )
 {
-	uint32_t i;
+	int i;
 	
 	/* attempt to use redundant indexing */
 	out->firstIndex = FindDrawIndexes( ds->numIndexes, ds->indexes );
@@ -2938,7 +2938,7 @@ creates a bsp drawsurface from arbitrary triangle surfaces
 
 static void EmitTriangleSurface( mapDrawSurface_t *ds )
 {
-	uint32_t						i, temp;
+	int						i, temp;
 	bspDrawSurface_t		*out;
 
 	/* invert the surface if necessary */
@@ -3197,7 +3197,7 @@ void MakeFogHullSurfs( entity_t *e, tree_t *tree, char *shader )
 	shaderInfo_t		*si;
 	mapDrawSurface_t	*ds;
 	vec3_t				fogMins, fogMaxs;
-	uint32_t					i, indexes[] =
+	int					i, indexes[] =
 						{
 							0, 1, 2, 0, 2, 3,
 							4, 7, 5, 5, 7, 6,
@@ -3237,7 +3237,7 @@ void MakeFogHullSurfs( entity_t *e, tree_t *tree, char *shader )
 	ds->verts = (bspDrawVert_t *)safe_malloc( ds->numVerts * sizeof( *ds->verts ) );
 	memset( ds->verts, 0, ds->numVerts * sizeof( *ds->verts ) );
 	ds->numIndexes = 36;
-	ds->indexes = (uint32_t *)safe_malloc( ds->numIndexes * sizeof( *ds->indexes ) );
+	ds->indexes = (int *)safe_malloc( ds->numIndexes * sizeof( *ds->indexes ) );
 	memset( ds->indexes, 0, ds->numIndexes * sizeof( *ds->indexes ) );
 	
 	/* set verts */
@@ -3443,7 +3443,7 @@ adds a surface's shader models to the surface
 int AddSurfaceModels( mapDrawSurface_t *ds )
 {
 	surfaceModel_t	*model;
-	uint32_t		i, x, y, n, pw[ 5 ], r, localNumSurfaceModels, iterations;
+	int				i, x, y, n, pw[ 5 ], r, localNumSurfaceModels, iterations;
 	mesh_t			src, *mesh, *subdivided;
 	bspDrawVert_t	centroid, *tri[ 3 ];
 	float			alpha;

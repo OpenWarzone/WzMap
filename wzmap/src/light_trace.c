@@ -908,11 +908,11 @@ filters a bsp model's surfaces into the raytracing tree
 
 static void PopulateWithBSPModel( bspModel_t *model, m4x4_t transform )
 {
-	uint32_t			i, j, x, y, pw[ 5 ], r, nodeNum;
+	int					i, j, x, y, pw[ 5 ], r, nodeNum;
 	bspDrawSurface_t	*ds;
 	surfaceInfo_t		*info;
 	bspDrawVert_t		*verts;
-	uint32_t			*indexes;
+	int					*indexes;
 	mesh_t				srcMesh, *mesh, *subdivided;
 	traceInfo_t			ti;
 	traceWinding_t		tw;

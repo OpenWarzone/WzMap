@@ -239,7 +239,7 @@ converts a classified surface to metatriangles
 
 static void SurfaceToMetaTriangles( mapDrawSurface_t *ds )
 {
-	uint32_t		i;
+	int				i;
 	metaTriangle_t	src;
 	bspDrawVert_t	a, b, c;
 	
@@ -296,7 +296,7 @@ creates triangles from a patch
 
 void TriangulatePatchSurface( entity_t *e , mapDrawSurface_t *ds )
 {
-	uint32_t			iterations, x, y, pw[ 5 ], r;
+	int					iterations, x, y, pw[ 5 ], r;
 	mapDrawSurface_t	*dsNew;
 	mesh_t				src, *subdivided, *mesh;
 	qboolean			forceMeta;
@@ -342,7 +342,7 @@ void TriangulatePatchSurface( entity_t *e , mapDrawSurface_t *ds )
 	/* basic transmogrification */
 	ds->type = SURFACE_META;
 	ds->numIndexes = 0;
-	ds->indexes = (uint32_t *)safe_malloc( mesh->width * mesh->height * 6 * sizeof( int ) );
+	ds->indexes = (int *)safe_malloc( mesh->width * mesh->height * 6 * sizeof( int ) );
 	
 	/* copy the verts in */
 	ds->numVerts = (mesh->width * mesh->height);
@@ -454,7 +454,7 @@ void FanFaceSurface( mapDrawSurface_t *ds )
 	
 	/* fill indexes in triangle fan order */
 	ds->numIndexes = 0;
-	ds->indexes = (uint32_t *)safe_malloc( ds->numVerts * 3 * sizeof( int ) );
+	ds->indexes = (int *)safe_malloc( ds->numVerts * 3 * sizeof( int ) );
 	for( i = 1; i < ds->numVerts; i++ )
 	{
 		a = 0;
@@ -485,7 +485,7 @@ based on SurfaceAsTriStrip()
 
 void StripFaceSurface( mapDrawSurface_t *ds, qboolean onlyCreateIndexes ) 
 {
-	uint32_t	i, r, least, rotate, numIndexes, ni, a, b, c, indexes[ MAX_INDEXES ];
+	int			i, r, least, rotate, numIndexes, ni, a, b, c, indexes[ MAX_INDEXES ];
 	vec_t		*v1, *v2;
 	
 	/* try to early out  */
@@ -576,7 +576,7 @@ void StripFaceSurface( mapDrawSurface_t *ds, qboolean onlyCreateIndexes )
 	
 	/* copy strip triangle indexes */
 	ds->numIndexes = numIndexes;
-	ds->indexes = (uint32_t *)safe_malloc( ds->numIndexes * sizeof( int ) );
+	ds->indexes = (int *)safe_malloc( ds->numIndexes * sizeof( int ) );
 	memcpy( ds->indexes, indexes, ds->numIndexes * sizeof( int ) );
 	if( onlyCreateIndexes )
 		return;
@@ -1358,7 +1358,7 @@ adds a drawvert to a surface unless an existing vert matching already exists
 returns the index of that vert (or < 0 on failure)
 */
 
-uint32_t AddMetaVertToSurface( mapDrawSurface_t *ds, bspDrawVert_t *dv1, uint32_t *coincident )
+int AddMetaVertToSurface( mapDrawSurface_t *ds, bspDrawVert_t *dv1, int *coincident )
 {
 	int	i;
 	bspDrawVert_t *dv2;
@@ -1420,7 +1420,7 @@ uint32_t num_deg_verts = 0;
 
 static int AddMetaTriangleToSurface( mapDrawSurface_t *ds, metaTriangle_t *tri, qboolean testAdd )
 {
-	uint32_t i, score, coincident, ai, bi, ci, oldTexRange[ 2 ];
+	int i, score, coincident, ai, bi, ci, oldTexRange[ 2 ];
 	float lmMax, lmMax2;
 	vec3_t mins, maxs;
 	qboolean inTexRange, es, et;
@@ -1628,7 +1628,7 @@ creates map drawsurface(s) from the list of possibles
 
 static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles, uint32_t completedGroups )
 {
-	int		i;
+	int					i;
 
 	float singlePercent = ((float)1.0 / (float)numMetaTriangleGroups) * 100.0;
 	float groupPercent = singlePercent * completedGroups;
@@ -1681,13 +1681,13 @@ static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles,
 
 		// Moved these to local vars for threading...
 		bspDrawVert_t *verts = NULL;
-		uint32_t *indexes = NULL;
+		int *indexes = NULL;
 
 #pragma omp critical (__ALLOC_VERTS__)
 		{
 			/* allocate arrays */
 			verts = (bspDrawVert_t *)safe_malloc(sizeof(*verts) * maxMetaTrianglesInGroup * 3);
-			indexes = (uint32_t *)safe_malloc(sizeof(*indexes) * maxMetaTrianglesInGroup * 3);
+			indexes = (int *)safe_malloc(sizeof(*indexes) * maxMetaTrianglesInGroup * 3);
 
 			/* clear verts/indexes */
 			memset(verts, 0, sizeof(verts));
@@ -1793,7 +1793,7 @@ static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles,
 			/* copy the verts and indexes to the new surface */
 			ds->verts = (bspDrawVert_t *)safe_malloc(ds->numVerts * sizeof(bspDrawVert_t));
 			memcpy(ds->verts, verts, ds->numVerts * sizeof(bspDrawVert_t));
-			ds->indexes = (uint32_t *)safe_malloc(ds->numIndexes * sizeof(int));
+			ds->indexes = (int *)safe_malloc(ds->numIndexes * sizeof(int));
 			memcpy(ds->indexes, indexes, ds->numIndexes * sizeof(int));
 		}
 

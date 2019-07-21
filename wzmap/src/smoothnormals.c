@@ -38,7 +38,7 @@ void GenerateNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, 
 		bool broken = false;
 
 		bspDrawVert_t *vs = &bspDrawVerts[ds->firstVert];
-		uint32_t *idxs = &bspDrawIndexes[ds->firstIndex];
+		int *idxs = &bspDrawIndexes[ds->firstIndex];
 
 #pragma omp parallel for ordered num_threads(numthreads)
 		for (int i = 0; i < ds->numIndexes; i += 3)
@@ -97,7 +97,7 @@ void GenerateNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, 
 	}
 }
 
-#define MAX_SMOOTH_ERROR 1.0
+float MAX_SMOOTH_ERROR = 1.0;
 
 bool ValidForSmoothingBSP(vec3_t v1, vec3_t n1, vec3_t v2, vec3_t n2)
 {
@@ -381,6 +381,17 @@ int SmoothBSPMain(int argc, char **argv)
 				if (temp > 0) 
 				{
 					SMOOTHING_PASSES = temp;
+				}
+			}
+		}
+		else if (!Q_stricmp(argv[i], "-smoothError"))
+		{
+			i++;
+			if (i<(argc - 1)) {
+				float temp = atof(argv[i]);
+				if (temp > 0)
+				{
+					MAX_SMOOTH_ERROR = temp;
 				}
 			}
 		}
