@@ -37,7 +37,7 @@ several games based on the Quake III Arena engine, in the form of "Q3Map2."
 
 extern qboolean USE_LODMODEL;
 extern qboolean USE_CONVEX_HULL_MODELS;
-extern qboolean USE_BOX_MODELS;
+extern int USE_BOX_MODELS;
 extern qboolean FORCED_STRUCTURAL;
 
 extern qboolean StringContainsWord(const char *haystack, const char *needle);
@@ -2433,7 +2433,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 	int				baseVertTexProj, vertTexProj;
 	qboolean        noAlphaFix, skybox;
 	vec3_t			origin, scale, angles, baseLightmapAxis, lightmapAxis, baseMinlight, baseMinvertexlight, baseAmbient, baseColormod, minlight, minvertexlight, ambient, colormod;
-	m4x4_t			transform;
+	m4x4_t			transform, boxTransform;
 	epair_t			*ep;
 	remap_t			*remap, *remap2;
 	char			*split;
@@ -2667,6 +2667,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 		}
 
 		char *COLLISION_MODEL = NULL;
+		bool collisionIsBox = false;
 
 		if (USE_BOX_MODELS)
 		{
@@ -2695,6 +2696,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			if (picoModel)
 			{
 				COLLISION_MODEL = collisionModel;
+				collisionIsBox = true;
 			}
 			else
 			{
@@ -2710,6 +2712,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 				{
 					COLLISION_MODEL = collisionModelObj;
 					//Sys_Printf("Found box model %s.\n", COLLISION_MODEL);
+					collisionIsBox = true;
 				}
 				else
 				{
@@ -2725,6 +2728,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 					{
 						COLLISION_MODEL = collisionModelMD3;
 						//Sys_Printf("Found box model %s.\n", COLLISION_MODEL);
+						collisionIsBox = true;
 					}
 					else
 					{
@@ -2923,6 +2927,14 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 		if (value[0] != '\0')
 			sscanf(value, "%f %f %f", &angles[1], &angles[2], &angles[0]);
 
+		if (collisionIsBox && USE_BOX_MODELS > 1)
+		{
+			vec3_t boxAngles;
+			VectorSet(boxAngles, 0, 0, 0);
+			m4x4_identity(boxTransform);
+			m4x4_pivoted_transform_by_vec3(boxTransform, origin, boxAngles, eXYZ, scale, vec3_origin);
+		}
+
 		/* set transform matrix (thanks spog) */
 		m4x4_identity(transform);
 		m4x4_pivoted_transform_by_vec3(transform, origin, angles, eXYZ, scale, vec3_origin);
@@ -3084,7 +3096,10 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			overrideShader = ShaderInfoForShader("textures/system/nodraw_solid");
 
 			//Sys_Printf("Adding collision model %s surfaces.\n", COLLISION_MODEL);
-			InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear, isLodModel);
+			if (collisionIsBox && USE_BOX_MODELS > 1)
+				InsertModel((char*)COLLISION_MODEL, frame, NULL, boxTransform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear, isLodModel);
+			else
+				InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, ledgeOverride, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear, isLodModel);
 		}
 		else
 		{

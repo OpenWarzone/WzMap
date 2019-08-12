@@ -101,7 +101,7 @@ qboolean		REMOVE_CAULK = qfalse;
 qboolean		USE_FAST_CULLSIDES = qfalse;
 qboolean		CULLSIDES_AFTER_MODEL_ADITION = qfalse;
 qboolean		USE_CONVEX_HULL_MODELS = qfalse;
-qboolean		USE_BOX_MODELS = qfalse;
+int				USE_BOX_MODELS = 0;
 float			MAP_ROAD_SCAN_WIDTH_MULTIPLIER = 1.0;
 
 qboolean		ADD_CLIFF_FACES = qfalse;
@@ -687,9 +687,13 @@ void FOLIAGE_LoadClimateData(char *filename)
 		Sys_Printf("Convex hull collision models will not be used.\n");
 	}
 
-	USE_BOX_MODELS = (qboolean)atoi(IniRead(filename, "GENERAL", "useBoxModels", "0"));
+	USE_BOX_MODELS = atoi(IniRead(filename, "GENERAL", "useBoxModels", "0"));
 
-	if (USE_BOX_MODELS)
+	if (USE_BOX_MODELS > 1)
+	{
+		Sys_Printf("Allowed to use collision box models without rotations (for lower plane counts).\n");
+	}
+	else if (USE_BOX_MODELS)
 	{
 		Sys_Printf("Allowed to use collision box models.\n");
 	}
