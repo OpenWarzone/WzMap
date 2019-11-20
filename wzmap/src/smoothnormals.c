@@ -129,8 +129,55 @@ bool ValidForSmoothingBSP(vec3_t v1, vec3_t n1, vec3_t v2, vec3_t n2)
 	return false;
 }
 
+
 #define __MULTIPASS_SMOOTHING__ // Looks better, but takes a lot longer...
 #define MULTIPASS_PASSES SMOOTHING_PASSES
+
+int GetWorkCountForSurfaceBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, int dsNum)
+{
+	if (ds->surfaceType == SURFACE_BAD)
+		return 0;
+
+	shaderInfo_t *shaderInfo1 = bspShaderInfos[dsNum];
+
+	if (!shaderInfo)
+		return 0;
+
+	if (shaderInfo == caulkShader)
+		return 0;
+
+	if ((shaderInfo1->contentFlags & C_TRANSLUCENT)
+		|| (shaderInfo1->contentFlags & C_NODRAW))
+		return 0;
+
+	int count = 0;
+
+	if (SMOOTHING_WHOLEMAP
+		|| ((shaderInfo1->materialType == MATERIAL_LONGGRASS
+			|| shaderInfo1->materialType == MATERIAL_SHORTGRASS
+			|| shaderInfo1->materialType == MATERIAL_SAND
+			|| shaderInfo1->materialType == MATERIAL_DIRT
+			|| shaderInfo1->materialType == MATERIAL_MUD)
+			&& !shaderInfo1->isTreeSolid
+			&& !shaderInfo1->isMapObjectSolid))
+	{// Whole map terrain smoothing...
+#ifdef __MULTIPASS_SMOOTHING__
+		count = MULTIPASS_PASSES * ds->numVerts * numBSPDrawSurfaces;
+#else
+		count = ds->numVerts * numBSPDrawSurfaces;
+#endif //__MULTIPASS_SMOOTHING__
+	}
+	else
+	{// Local smoothing only... for speed...
+#ifdef __MULTIPASS_SMOOTHING__
+		count = MULTIPASS_PASSES * ds->numVerts;
+#else
+		count = ds->numVerts;
+#endif //__MULTIPASS_SMOOTHING__
+	}
+
+	return count;
+}
 
 void GenerateSmoothNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, int dsNum)
 {
@@ -148,16 +195,6 @@ void GenerateSmoothNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkSh
 	if ((shaderInfo1->contentFlags & C_TRANSLUCENT)
 		|| (shaderInfo1->contentFlags & C_NODRAW))
 		return;
-
-
-	// numBSPDrawVerts  bspDrawVerts
-	// numBSPDrawIndexes   bspDrawIndexes
-
-	// for( i = 0; i < numBSPDrawVerts; i++ )
-	//{
-	//	bspDrawVerts[i].xyz[0] = LittleFloat(bspDrawVerts[i].xyz[0]);
-
-	// bspDrawVert_t *vs = &bspDrawVerts[ds->firstVert];
 
 	if (SMOOTHING_WHOLEMAP
 		|| ((shaderInfo1->materialType == MATERIAL_LONGGRASS
@@ -279,7 +316,7 @@ void GenerateSmoothNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkSh
 	}
 }
 
-extern qboolean MAP_SMOOTH_NORMALS;
+extern int MAP_SMOOTH_NORMALS;
 
 void GenerateSmoothNormalsBSP(void)
 {
@@ -321,7 +358,7 @@ void GenerateSmoothNormalsBSP(void)
 		GenerateNormalsForMeshBSP(ds, caulkShader, s);
 	}
 
-	MAP_SMOOTH_NORMALS = qtrue;
+	MAP_SMOOTH_NORMALS = 1;
 
 	if (MAP_SMOOTH_NORMALS)
 	{
@@ -369,6 +406,7 @@ int SmoothBSPMain(int argc, char **argv)
 		if (!Q_stricmp(argv[i], "-wholemap")) 
 		{
 			SMOOTHING_WHOLEMAP = qtrue;
+			MAP_SMOOTH_NORMALS = 2;
 		}
 		else if (!Q_stricmp(argv[i], "-strict"))
 		{

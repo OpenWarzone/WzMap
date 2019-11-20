@@ -2004,6 +2004,8 @@ LoadMapFile()
 loads a map file into a list of entities
 */
 
+bool NO_BOUNDS_IMPROVEMENT = false;
+
 void LoadMapFile( char *filename, qboolean onlyLights, qboolean onlyLightgridBrushes, qboolean onlyFoliage, qboolean externalFile )
 {		
 	FILE		*file;
@@ -2087,6 +2089,49 @@ void LoadMapFile( char *filename, qboolean onlyLights, qboolean onlyLightgridBru
 			}
 		}
 
+		if (mapPlayableMins[0] == 99999 && mapPlayableMins[1] == 99999 && mapPlayableMins[2] == 99999 && mapPlayableMaxs[0] == -99999 && mapPlayableMaxs[1] == -99999 && mapPlayableMaxs[2] == -99999)
+		{// Failed to find any surfaces, must be an empty map (space, etc), allow sky...
+			Sys_Printf("* Empty map found (space, etc), calculating new valid bounds.\n");
+
+			NO_BOUNDS_IMPROVEMENT = true;
+
+			if (mapMins[0] == 99999 && mapMins[1] == 99999 && mapMins[2] == 99999 && mapMaxs[0] == -99999 && mapMaxs[1] == -99999 && mapMaxs[2] == -99999)
+			{
+				ClearBounds(mapPlayableMins, mapPlayableMaxs);
+				for (b = entities[0].brushes; b; b = b->next)
+				{
+					if (!(b->compileFlags & C_SKIP)
+						&& !(b->compileFlags & C_HINT)
+						&& !(b->compileFlags & C_NODRAW))
+					{
+						for (int s = 0; s < b->numsides; s++)
+						{
+							if (!(b->sides[s].compileFlags & C_SKIP)
+								&& !(b->sides[s].compileFlags & C_HINT)
+								&& !(b->sides[s].compileFlags & C_NODRAW))
+							{
+								AddPointToBounds(b->mins, mapPlayableMins, mapPlayableMaxs);
+								AddPointToBounds(b->maxs, mapPlayableMins, mapPlayableMaxs);
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				VectorCopy(mapMins, mapPlayableMins);
+				VectorCopy(mapMaxs, mapPlayableMaxs);
+			}
+		}
+		else if (mapPlayableMaxs[2] - mapPlayableMins[2] <= 256)
+		{
+			Sys_Printf("* Bad playable bounds found (probably space, completely flat, etc), using full map bounds.\n");
+
+			NO_BOUNDS_IMPROVEMENT = true;
+			VectorCopy(mapMins, mapPlayableMins);
+			VectorCopy(mapMaxs, mapPlayableMaxs);
+		}
+
 		// Override playable maxs height with the full map version, we only want the lower extent of playable area...
 		mapMaxs[2] = mapPlayableMaxs[2];
 
@@ -2145,6 +2190,7 @@ void LoadMapFile( char *filename, qboolean onlyLights, qboolean onlyLightgridBru
 		Sys_Printf( "%9d planes\n", nummapplanes);
 		Sys_Printf( "%9d areaportals\n", c_areaportals);
 		Sys_Printf( "Size: { %.0f %.0f %.0f } { %.0f %.0f %.0f }\n", mapMins[ 0 ], mapMins[ 1 ], mapMins[ 2 ], mapMaxs[ 0 ], mapMaxs[ 1 ], mapMaxs[ 2 ]);
+		Sys_Printf( "Playable Size: { %.0f %.0f %.0f } { %.0f %.0f %.0f }\n", mapPlayableMins[0], mapPlayableMins[1], mapPlayableMins[2], mapPlayableMaxs[0], mapPlayableMaxs[1], mapPlayableMaxs[2]);
 		
 		/* region stats */
 		if ( mapRegion == qtrue )

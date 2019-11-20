@@ -233,7 +233,14 @@ constants
 #define MATERIAL_MAGIC_PARTICLES_TREE			42			// magic tree particle fx
 #define MATERIAL_MAGIC_PARTICLES				43			// magic particles (small particle fx)
 #define MATERIAL_PORTAL							44			// area transition portal
-#define MATERIAL_LAST							45			// number of materials
+#define MATERIAL_MENU_BACKGROUND				45			// main menu background glsl
+#define MATERIAL_SKYSCRAPER						46			// warzone sky scrapers
+#define MATERIAL_DISTORTEDGLASS					47			// warzone distorted glass
+#define MATERIAL_DISTORTEDPUSH					48			// warzone distorted push
+#define MATERIAL_DISTORTEDPULL					49			// warzone distorted pull
+#define MATERIAL_CLOAK							50			// warzone cloak
+#define MATERIAL_PROCEDURALFOLIAGE				51			// warzone GLSL foliages
+#define MATERIAL_LAST							52			// number of materials
 
 // Defined as a macro here so one change will affect all the relevant files
 
@@ -282,7 +289,14 @@ constants
 	"fireflies",						\
 	"magicparticlestree",				\
 	"magicparticles",					\
-	"portal"
+	"portal",							\
+	"menubackground",					\
+	"skyscraper",						\
+	"distortedglass",					\
+	"distortedpush",					\
+	"distortedpull",					\
+	"cloak",							\
+	"proceduralfoliage"
 
 
 /* ydnar: compiler flags, because games have widely varying content/surface flags */
@@ -1378,6 +1392,7 @@ typedef struct
 	epair_t				*epairs;
 	vec3_t              originbrush_origin;
 	float				lowestPointNear;
+	qboolean			alreadyAdded = qfalse;
 }
 entity_t;
 
@@ -1941,7 +1956,7 @@ void						PicoPrintFunc( int level, const char *str );
 void						PicoLoadFileFunc( char *name, byte **buffer, int *bufSize );
 picoModel_t					*FindModel( const char *name, int frame );
 picoModel_t					*LoadModel( const char *name, int frame );
-void						InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScale, remap_t *remap, shaderInfo_t *celShader, qboolean ledgeOverride, shaderInfo_t *overrideShader, qboolean forcedSolid, qboolean forcedFullSolid, qboolean forcedNoSolid, int entityNum, int mapEntityNum, char castShadows, char recvShadows, int spawnFlags, float lightmapScale, vec3_t lightmapAxis, vec3_t minlight, vec3_t minvertexlight, vec3_t ambient, vec3_t colormod, float lightmapSampleSize, int shadeAngle, int vertTexProj, qboolean noAlphaFix, float pushVertexes, qboolean skybox, int *added_surfaces, int *added_verts, int *added_triangles, int *added_brushes, qboolean cullSmallSolids, float LOWEST_NEAR_POINT, qboolean isLodModel);
+void						InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScale, remap_t *remap, shaderInfo_t *celShader, shaderInfo_t *overrideShader, qboolean forcedSolid, qboolean forcedFullSolid, qboolean forcedNoSolid, int entityNum, int mapEntityNum, char castShadows, char recvShadows, int spawnFlags, float lightmapScale, vec3_t lightmapAxis, vec3_t minlight, vec3_t minvertexlight, vec3_t ambient, vec3_t colormod, float lightmapSampleSize, int shadeAngle, int vertTexProj, qboolean noAlphaFix, float pushVertexes, qboolean skybox, int *added_surfaces, int *added_verts, int *added_triangles, int *added_brushes, qboolean cullSmallSolids, float LOWEST_NEAR_POINT, qboolean isLodModel);
 void						AddTriangleModels( int entityNum, qboolean quiet, qboolean cullSmallSolids );
 
 

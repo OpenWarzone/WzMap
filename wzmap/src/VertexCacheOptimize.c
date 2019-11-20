@@ -5,6 +5,8 @@
 //#define __USE_Q3MAP2_METHOD__
 #define __REGENERATE_BSP_NORMALS__
 
+extern int MAP_SMOOTH_NORMALS;
+
 //
 // Indexes optimization...
 //
@@ -409,6 +411,62 @@ bool ValidForSmoothing(vec3_t v1, vec3_t n1, vec3_t v2, vec3_t n2)
 
 #define __MULTIPASS_SMOOTHING__ // Looks better, but takes a lot longer...
 
+int GetWorkCountForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
+{
+	if (!ds->shaderInfo)
+		return 0;
+
+	if (ds->type == SURFACE_BAD)
+		return 0;
+
+	if (ds->shaderInfo == caulkShader)
+		return 0;
+
+	if ((ds->shaderInfo->contentFlags & C_TRANSLUCENT)
+		|| (ds->shaderInfo->contentFlags & C_NODRAW))
+		return 0;
+
+	int count = 0;
+
+	if ((ds->shaderInfo->materialType == MATERIAL_LONGGRASS
+		|| ds->shaderInfo->materialType == MATERIAL_SHORTGRASS
+		|| ds->shaderInfo->materialType == MATERIAL_SAND
+		|| ds->shaderInfo->materialType == MATERIAL_DIRT)
+		&& !ds->shaderInfo->isTreeSolid
+		&& !ds->shaderInfo->isMapObjectSolid)
+	{// Whole map smoothing...
+#ifdef __MULTIPASS_SMOOTHING__
+		for (int pass = 0; pass < 3; pass++)
+#endif //__MULTIPASS_SMOOTHING__
+		{
+			for (int i = 0; i < ds->numVerts; i++)
+			{
+				for (int s = 0; s < numMapDrawSurfs; s++)
+				{
+					count++;
+				}
+			}
+		}
+	}
+	else
+	{// Local smoothing only... for speed...
+#ifdef __MULTIPASS_SMOOTHING__
+		for (int pass = 0; pass < 3; pass++)
+#endif //__MULTIPASS_SMOOTHING__
+		{
+			for (int i = 0; i < ds->numVerts; i++)
+			{
+				count++;
+			}
+		}
+	}
+
+	return count;
+}
+
+int64_t totalSmoothCount = 0;
+int64_t totalSmoothComplete = 0;
+
 void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
 {
 	if (!ds->shaderInfo)
@@ -429,7 +487,8 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 		|| ds->shaderInfo->materialType == MATERIAL_SAND
 		|| ds->shaderInfo->materialType == MATERIAL_DIRT)
 		&& !ds->shaderInfo->isTreeSolid
-		&& !ds->shaderInfo->isMapObjectSolid)
+		&& !ds->shaderInfo->isMapObjectSolid
+		&& MAP_SMOOTH_NORMALS > 1)
 	{// Whole map smoothing...
 #ifdef __MULTIPASS_SMOOTHING__
 		for (int pass = 0; pass < 3; pass++)
@@ -443,6 +502,12 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 
 				for (int s = 0; s < numMapDrawSurfs; s++)
 				{
+#pragma omp critical (__PROGRESS_BAR__)
+					{
+						printLabelledProgress("SmoothNormals", totalSmoothComplete / 32768, totalSmoothCount / 32768); // / 32768 because of huge numbers and conversion to double...
+					}
+					totalSmoothComplete++;
+
 					mapDrawSurface_t *ds2 = &mapDrawSurfs[s];
 					//mapDrawSurface_t *ds2 = ds;
 
@@ -491,6 +556,12 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 #pragma omp parallel for ordered num_threads(numthreads)
 			for (int i = 0; i < ds->numVerts; i++)
 			{
+#pragma omp critical (__PROGRESS_BAR__)
+				{
+					printLabelledProgress("SmoothNormals", totalSmoothComplete / 32768, totalSmoothCount / 32768); // / 32768 because of huge numbers and conversion to double...
+				}
+				totalSmoothComplete++;
+
 				vec3_t accumNormal, finalNormal;
 				VectorCopy(ds->verts[i].normal, accumNormal);
 
@@ -537,8 +608,6 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 	}
 }
 
-extern qboolean MAP_SMOOTH_NORMALS;
-
 void GenerateSmoothNormals(void)
 {
 #define MIN_SMN_INDEXES 6
@@ -565,21 +634,29 @@ void GenerateSmoothNormals(void)
 
 	if (MAP_SMOOTH_NORMALS)
 	{
-		numCompleted = 0;
+		// Pre-calculate the total number of tasks, so we can give an accurate percentage bar...
+		totalSmoothCount = 0;
+		totalSmoothComplete = 0;
 
 		for (int s = 0; s < numMapDrawSurfs; s++)
 		{
-			{
-				printLabelledProgress("SmoothNormals", numCompleted, numMapDrawSurfs);
-				numCompleted++;
-			}
+			mapDrawSurface_t *ds = &mapDrawSurfs[s];
 
+			if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
+
+			totalSmoothCount += GetWorkCountForSurface(ds, caulkShader);
+		}
+
+		for (int s = 0; s < numMapDrawSurfs; s++)
+		{
 			mapDrawSurface_t *ds = &mapDrawSurfs[s];
 
 			if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
 
 			GenerateSmoothNormalsForMesh(ds, caulkShader);
 		}
+
+		printLabelledProgress("SmoothNormals", totalSmoothCount / 32768, totalSmoothCount / 32768); // / 32768 because of huge numbers and conversion to double...
 	}
 }
 #else //!__REGENERATE_BSP_NORMALS__

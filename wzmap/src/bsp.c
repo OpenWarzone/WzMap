@@ -44,6 +44,7 @@ vec3_t					USE_SECONDARY_FIRST_RUN_BOUNDS_MAXS;
 
 extern qboolean FORCED_STRUCTURAL;
 
+extern void GenerateChunks(void);
 extern void GenerateCliffFaces ( void );
 extern void GenerateLedgeFaces(void);
 extern void GenerateCityRoads(void);
@@ -838,6 +839,9 @@ void ProcessWorldModel( void )
 		/* UQ1: Find water level so that we can skip adding procedural crap underwater */
 		FindWaterLevel();
 
+		/* UQ1: Generate procedural map chunks */
+		GenerateChunks();
+
 		/* UQ1: Generate procedural cliff faces */
 		GenerateCliffFaces();
 
@@ -1489,6 +1493,7 @@ handles creation of a bsp from a map file
 
 extern char				currentMapName[256];
 extern int				FOLIAGE_NUM_POSITIONS;
+extern int				FOLIAGE_NOT_GROUND_COUNT;
 
 extern void FOLIAGE_LoadClimateData( char *filename );
 extern qboolean FOLIAGE_LoadFoliagePositions( char *filename );
@@ -1902,7 +1907,7 @@ int BSPMain( int argc, char **argv )
 			generatecity = qtrue;
 
 			Sys_PrintHeading ( "--- Procedural geometry generation enabled ---\n" );
-			Sys_Printf( "Loaded %i tree points from foliage file.\n", FOLIAGE_NUM_POSITIONS );
+			Sys_Printf( "Loaded %i tree points (%i special surfaces) from foliage file.\n", FOLIAGE_NUM_POSITIONS, FOLIAGE_NOT_GROUND_COUNT);
 
 			sprintf(filename2, "%s.climate", source);
 			FOLIAGE_LoadClimateData(filename2);

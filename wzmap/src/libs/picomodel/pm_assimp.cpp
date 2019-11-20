@@ -255,7 +255,7 @@ Assimp::Importer assImpImporter;
 
 //aiProcess_ImproveCacheLocality	|\
 
-#if 1
+#if 0
 #define aiProcessPreset_TargetRealtime_MaxQuality_Fix (\
 	aiProcess_JoinIdenticalVertices	|\
 	aiProcess_GenNormals	|\
@@ -274,18 +274,22 @@ Assimp::Importer assImpImporter;
 	aiProcess_OptimizeGraph					|\
     0 )
 #else
-#define aiProcessPreset_TargetRealtime_MaxQuality_Fix (\
-	aiProcess_JoinIdenticalVertices	|\
-	aiProcess_GenNormals	|\
-	aiProcess_ValidateDataStructure	|\
-	aiProcess_FindInvalidData	|\
-	aiProcess_FindDegenerates	|\
-	aiProcess_GenUVCoords	|\
-	aiProcess_TransformUVCoords	|\
-	aiProcess_Triangulate	|\
-    aiProcess_ValidateDataStructure          |\
-	aiProcess_RemoveRedundantMaterials		|\
-    0 )
+#define aiProcessPreset_TargetRealtime_MaxQuality_Fix ( \
+    aiProcess_ImproveCacheLocality          |  \
+    aiProcess_FindInvalidData               |  \
+    aiProcess_ValidateDataStructure			|  \
+    aiProcess_Triangulate                   |  \
+	aiProcess_ForceGenNormals               |  \
+	aiProcess_GenSmoothNormals              |  \
+	aiProcess_OptimizeMeshes                |  \
+	aiProcess_OptimizeGraph                 |  \
+	aiProcess_RemoveRedundantMaterials      |  \
+	aiProcess_JoinIdenticalVertices         |  \
+	aiProcess_FlipWindingOrder              |  \
+	aiProcess_GenUVCoords                   |  \
+	0 )
+
+#define __INVERT_ASSIMP_NORMALS__
 #endif
 
 /* _assimp_canload:
@@ -796,6 +800,11 @@ static int _obj_mtl_load(picoModel_t *model)
 					VectorSet(vert, xyz.x, xyz.y, xyz.z);
 
 					aiVector3D norm = aiSurf->mNormals[vertIndex];
+#ifdef __INVERT_ASSIMP_NORMALS__
+					norm.x = -norm.x;
+					norm.y = -norm.y;
+					norm.z = -norm.z;
+#endif //__INVERT_ASSIMP_NORMALS__
 					VectorSet(n, norm.x, norm.y, norm.z);
 
 					/* store vertex origin */

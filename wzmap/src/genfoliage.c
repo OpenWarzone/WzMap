@@ -174,7 +174,10 @@ void GenFoliageFindWaterLevel(void)
 	Sys_Printf("Detected lowest map water level at %.4f.\n", MAP_WATER_LEVEL);
 }
 
-qboolean MaterialIsValidForGrass(int materialType)
+
+extern qboolean SurfaceIsAllowedFoliage(int materialType);
+
+int MaterialIsValidForFoliage(int materialType)
 {
 	switch (materialType)
 	{
@@ -183,13 +186,18 @@ qboolean MaterialIsValidForGrass(int materialType)
 	case MATERIAL_MUD:				// 17					// wet soil
 	case MATERIAL_DIRT:				// 7					// hard mud
 	case MATERIAL_SAND:				// 8					// sand
-		return qtrue;
+		return 1;
 		break;
 	default:
 		break;
 	}
 
-	return qfalse;
+	if (SurfaceIsAllowedFoliage(materialType))
+	{
+		return 2;
+	}
+
+	return 0;
 }
 
 float frandom(void)
@@ -331,30 +339,12 @@ static void GenFoliage(char *mapName)
 	//vec3_t			FOLIAGE_NORMALS[FOLIAGE_MAX_FOLIAGES] = { { 0.0 } };
 	vec3_t			*FOLIAGE_POINTS = (vec3_t *)malloc(sizeof(vec3_t) * FOLIAGE_MAX_FOLIAGES);
 	vec3_t			*FOLIAGE_NORMALS = (vec3_t *)malloc(sizeof(vec3_t) * FOLIAGE_MAX_FOLIAGES);
+	qboolean		*FOLIAGE_NOT_GROUND = (qboolean *)malloc(sizeof(qboolean) * FOLIAGE_MAX_FOLIAGES);
 	int				FOLIAGE_COUNT = 0;
 
 	GenFoliageFindWaterLevel();
 
 	Sys_PrintHeading("--- Finding Map Bounds ---\n");
-
-	/*
-	verts = &bspDrawVerts[ds->firstVert];
-	indexes = &bspDrawIndexes[ds->firstIndex];
-
-	for (j = 0; j < ds->numIndexes; j += 3)
-	{
-		VectorCopy(verts[indexes[j]].xyz, tw.v[0].xyz);
-		Vector2Copy(verts[indexes[j]].st, tw.v[0].st);
-		VectorCopy(verts[indexes[j + 1]].xyz, tw.v[1].xyz);
-		Vector2Copy(verts[indexes[j + 1]].st, tw.v[1].st);
-		VectorCopy(verts[indexes[j + 2]].xyz, tw.v[2].xyz);
-		Vector2Copy(verts[indexes[j + 2]].st, tw.v[2].st);
-		m4x4_transform_point(transform, tw.v[0].xyz);
-		m4x4_transform_point(transform, tw.v[1].xyz);
-		m4x4_transform_point(transform, tw.v[2].xyz);
-		FilterTraceWindingIntoNodes_r(&tw, nodeNum);
-	}
-	*/
 
 	vec3_t bounds[2];
 	ClearBounds(bounds[0], bounds[1]);
@@ -456,13 +446,18 @@ static void GenFoliage(char *mapName)
 
 		extern const char *materialNames[MATERIAL_LAST];
 		shaderInfo_t	*si = GenFoliageShaderInfoForShader(shader->shader);
+		int surfaceMaterialValidity = MaterialIsValidForFoliage(si->materialType);
 
-		if (!si || !MaterialIsValidForGrass(si->materialType))
+		if (!si || !surfaceMaterialValidity)
 		{
 			//Sys_Printf("Position %i is invalid material %s (%i) on shader %s.\n", i, si ? materialNames[si->materialType] : "UNKNOWN", si ? si->materialType : 0, shader->shader);
 			continue;
 		}
-		/*else
+		/*else if (surfaceMaterialValidity == 2)
+		{
+			Sys_Printf("Position %i is a non ground material %s (%i) on shader %s.\n", i, materialNames[si->materialType], si->materialType, shader->shader);
+		}
+		else
 		{
 			Sys_Printf("Position %i is valid material %s (%i) on shader %s.\n", i, materialNames[si->materialType], si->materialType, shader->shader);
 		}*/
@@ -498,17 +493,6 @@ static void GenFoliage(char *mapName)
 				//Sys_Printf("Position %i is too small (%.4f).\n", i, tringleSize);
 				continue;
 			}
-
-			/*if (tringleSize > 4096.0)
-			{// Triangle is too big??? Maybe the bs q3map2 dumps under the map?!?!?!?...
-				Sys_Printf("Position %i is too big (%.4f). v1 %f %f %f. v2 %f %f %f. v3 %f %f %f.\n"
-					, i
-					, tringleSize
-					, verts[0][0], verts[0][1], verts[0][2]
-					, verts[1][0], verts[1][1], verts[1][2]
-					, verts[2][0], verts[2][1], verts[2][2]);
-				continue;
-			}*/
 
 			vec3_t normal;
 			VectorCopy(vs[idxs[j]].normal, normal);
@@ -598,6 +582,16 @@ static void GenFoliage(char *mapName)
 					VectorCopy(THIS_TRI_FOLIAGES[f], FOLIAGE_POINTS[FOLIAGE_COUNT]);
 					VectorCopy(normal, FOLIAGE_NORMALS[FOLIAGE_COUNT]);
 					FOLIAGE_POINTS[FOLIAGE_COUNT][2] -= 8.0;
+					
+					if (surfaceMaterialValidity == 2)
+					{// Surface on alt materials, mountains etc... So addfoliage can skip the big model cull range checks...
+						FOLIAGE_NOT_GROUND[FOLIAGE_COUNT] = qtrue;
+					}
+					else
+					{
+						FOLIAGE_NOT_GROUND[FOLIAGE_COUNT] = qfalse;
+					}
+
 					FOLIAGE_COUNT++;
 				}
 			}
@@ -610,6 +604,8 @@ static void GenFoliage(char *mapName)
 	}*/
 
 	Sys_Printf("* Generated %i foliage positions.\n", FOLIAGE_COUNT);
+
+	int FOLIAGE_NOT_GROUND_COUNT = 0;
 
 	{// Save them...
 		FILE			*f = NULL;
@@ -627,6 +623,7 @@ static void GenFoliage(char *mapName)
 		for (int i = 0; i < FOLIAGE_COUNT; i++)
 		{
 			int FOLIAGE_PLANT_SELECTION = 1; // Don't have counts in wzmap, so we will have to use replant ingame later...
+			int FOLIAGE_PLANT_SELECTION_NOTGROUND = 2; // mark this as a non-normal surface (not grass, etc, eg: mountains)
 			float FOLIAGE_SCALE = 1.0;// frandom() * 0.5 + 0.5; // Just randomize the sizes...
 			float FOLIAGE_ANGLE = 0;
 
@@ -643,9 +640,14 @@ static void GenFoliage(char *mapName)
 				FOLIAGE_ApplyAxisRotation(fmat, YAW, FOLIAGE_ANGLE);
 			}
 
+			if (FOLIAGE_NOT_GROUND[i])
+			{
+				FOLIAGE_NOT_GROUND_COUNT++;
+			}
+
 			fwrite(&FOLIAGE_POINTS[i], sizeof(vec3_t), 1, f);
 			fwrite(&FOLIAGE_NORMALS[i], sizeof(vec3_t), 1, f);
-			fwrite(&FOLIAGE_PLANT_SELECTION, sizeof(int), 1, f);
+			fwrite(FOLIAGE_NOT_GROUND[i] ? &FOLIAGE_PLANT_SELECTION_NOTGROUND : &FOLIAGE_PLANT_SELECTION, sizeof(int), 1, f);
 			fwrite(&FOLIAGE_ANGLE, sizeof(float), 1, f);
 			fwrite(&FOLIAGE_SCALE, sizeof(float), 1, f);
 
@@ -659,10 +661,11 @@ static void GenFoliage(char *mapName)
 		fclose(f);
 	}
 
-	Sys_Printf("* Saved %i foliage positions to file %s.\n", FOLIAGE_COUNT, va("%s.foliage", mapName));
+	Sys_Printf("* Saved %i foliage positions (%i are special surfaces) to file %s.\n", FOLIAGE_COUNT, FOLIAGE_NOT_GROUND_COUNT, va("%s.foliage", mapName));
 
 	free(FOLIAGE_POINTS);
 	free(FOLIAGE_NORMALS);
+	free(FOLIAGE_NOT_GROUND);
 }
 
 /*

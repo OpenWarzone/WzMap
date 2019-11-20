@@ -1775,7 +1775,7 @@ void CullSides( entity_t *e )
 //#pragma omp parallel for ordered num_threads(numthreads)
 			for (i = 0; i < b1->numsides; i++)
 			{
-				if (!b1->sides[i].culled && (b1->sides[i].compileFlags & C_TRANSLUCENT) || (b1->sides[i].compileFlags & C_NODRAW))
+				if (b1->sides[i].culled && (b1->sides[i].compileFlags & C_TRANSLUCENT) || (b1->sides[i].compileFlags & C_NODRAW))
 				{
 					b1->sides[i].culled = qtrue;
 					continue;
@@ -1786,7 +1786,7 @@ void CullSides( entity_t *e )
 //#pragma omp parallel for ordered num_threads(numthreads)
 			for (i = 0; i < b2->numsides; i++)
 			{
-				if (!b2->sides[i].culled && (b2->sides[i].compileFlags & C_TRANSLUCENT) || (b2->sides[i].compileFlags & C_NODRAW))
+				if (b2->sides[i].culled && (b2->sides[i].compileFlags & C_TRANSLUCENT) || (b2->sides[i].compileFlags & C_NODRAW))
 				{
 					b2->sides[i].culled = qtrue;
 					continue;
@@ -2936,6 +2936,8 @@ EmitTriangleSurface()
 creates a bsp drawsurface from arbitrary triangle surfaces
 */
 
+extern char DEFAULT_FALLBACK_SHADER[128];
+
 static void EmitTriangleSurface( mapDrawSurface_t *ds )
 {
 	int						i, temp;
@@ -2991,12 +2993,29 @@ static void EmitTriangleSurface( mapDrawSurface_t *ds )
 	
 	if (!ds->shaderInfo)
 	{
-		Sys_Printf("WARNING: A drawsurf has no shaderinfo! Emiting debug shader.\n");
+		if (DEFAULT_FALLBACK_SHADER[0])
+		{
+			Sys_Printf("WARNING: A drawsurf has no shaderinfo! Emiting fallback shader.\n");
+			ds->shaderInfo = ShaderInfoForShader(DEFAULT_FALLBACK_SHADER);
+		}
+		else
+		{
+			Sys_Printf("WARNING: A drawsurf has no shaderinfo! Emiting debug shader.\n");
+		}
 	}
 
 	/* set it up */
-	if( debugSurfaces || !ds->shaderInfo)
-		out->shaderNum = EmitShader( "debugsurfaces", NULL, NULL );
+	if (debugSurfaces || !ds->shaderInfo)
+	{
+		if (DEFAULT_FALLBACK_SHADER[0])
+		{// In case the above registration failed...
+			out->shaderNum = EmitShader(DEFAULT_FALLBACK_SHADER, NULL, NULL);
+		}
+		else
+		{
+			out->shaderNum = EmitShader("debugsurfaces", NULL, NULL);
+		}
+	}
 	else
 		out->shaderNum = EmitShader( ds->shaderInfo->shader, &ds->shaderInfo->contentFlags, &ds->shaderInfo->surfaceFlags );
 
@@ -3403,7 +3422,7 @@ int AddSurfaceModelsToTriangle_r( mapDrawSurface_t *ds, surfaceModel_t *model, b
 			}
 			
 			/* insert the model */
-			InsertModel( (char *) model->model, 0, 0, transform, 1.0, NULL, ds->celShader, qfalse, NULL, qfalse, qfalse, qfalse, ds->entityNum, ds->mapEntityNum, ds->castShadows, ds->recvShadows, 0, ds->lightmapScale, ds->minlight, ds->minvertexlight, ds->ambient, ds->colormod, NULL, 0, ds->smoothNormals, ds->vertTexProj, ds->noAlphaFix, 0, ds->skybox, NULL, NULL, NULL, NULL, qfalse, 999999.0f, qfalse);
+			InsertModel( (char *) model->model, 0, 0, transform, 1.0, NULL, ds->celShader, NULL, qfalse, qfalse, qfalse, ds->entityNum, ds->mapEntityNum, ds->castShadows, ds->recvShadows, 0, ds->lightmapScale, ds->minlight, ds->minvertexlight, ds->ambient, ds->colormod, NULL, 0, ds->smoothNormals, ds->vertTexProj, ds->noAlphaFix, 0, ds->skybox, NULL, NULL, NULL, NULL, qfalse, 999999.0f, qfalse);
 			
 			/* return to sender */
 			return 1;

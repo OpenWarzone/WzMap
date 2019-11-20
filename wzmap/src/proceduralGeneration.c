@@ -91,7 +91,7 @@ float			MAP_WATER_LEVEL = -999999.9;
 
 qboolean		USE_SECONDARY_BSP = qfalse;
 
-qboolean		MAP_SMOOTH_NORMALS = qtrue;
+int				MAP_SMOOTH_NORMALS = 1;
 
 qboolean		USE_LODMODEL = qfalse;
 qboolean		FORCED_STRUCTURAL = qfalse;
@@ -103,6 +103,9 @@ qboolean		CULLSIDES_AFTER_MODEL_ADITION = qfalse;
 qboolean		USE_CONVEX_HULL_MODELS = qfalse;
 int				USE_BOX_MODELS = 0;
 float			MAP_ROAD_SCAN_WIDTH_MULTIPLIER = 1.0;
+char			DEFAULT_FALLBACK_SHADER[128] = { { 0 } };
+
+float			NOT_GROUND_MAXSLOPE = 47.0;
 
 qboolean		ADD_CLIFF_FACES = qfalse;
 float			CLIFF_FACES_SCALE_XY = 1.0;
@@ -125,7 +128,9 @@ qboolean		LEDGE_CHEAP = qfalse;
 char			LEDGE_SHADER[MAX_QPATH] = { 0 };
 char			LEDGE_CHECK_SHADER[MAX_QPATH] = { 0 };
 float			TREE_SCALE_MULTIPLIER = 2.5;
+float			TREE_SCALE_MULTIPLIER_SPECIAL = 1.0;
 int				TREE_PERCENTAGE = 100;
+int				TREE_PERCENTAGE_SPECIAL = 100;
 qboolean		TREE_CLUSTER = qfalse;
 float			TREE_CLUSTER_SEED = 0.01;
 float			TREE_CLUSTER_MINIMUM = 0.5;
@@ -171,6 +176,19 @@ char			CITY_FORCED_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 int				CITY_FORCED_FULLSOLID[MAX_FOREST_MODELS] = { 0 };
 int				CITY_PLANE_SNAP[MAX_FOREST_MODELS] = { 0 };
 int				CITY_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 0 };
+
+float			CHUNK_MAP_LEVEL = -999999.9;
+qboolean		CHUNK_ADD_AT_MAP_EDGES = qtrue;
+float			CHUNK_MAP_EDGE_SCALE = 1.0;
+float			CHUNK_MAP_EDGE_SCALE_XY = 1.0;
+float			CHUNK_SCALE = 1.0;
+int				CHUNK_PLANE_SNAP = 0;
+int				CHUNK_MODELS_TOTAL = 0;
+char			CHUNK_MODELS[MAX_FOREST_MODELS][128] = { 0 };
+char			CHUNK_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
+int				CHUNK_MAP_EDGE_MODELS_TOTAL = 0;
+char			CHUNK_MAP_EDGE_MODELS[MAX_FOREST_MODELS][128] = { 0 };
+char			CHUNK_MAP_EDGE_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 
 qboolean		ADD_SKYSCRAPERS = qfalse;
 vec3_t			SKYSCRAPERS_CENTER = { 0 };
@@ -587,6 +605,16 @@ void PreloadClimateModels(void)
 		}
 	}
 
+	for (i = 0; i < CHUNK_MODELS_TOTAL; i++)
+	{
+		WzMap_PreloadModel(CHUNK_MODELS[i], 0, &numLoadedModels, 0, qtrue);
+	}
+
+	for (i = 0; i < CHUNK_MAP_EDGE_MODELS_TOTAL; i++)
+	{
+		WzMap_PreloadModel(CHUNK_MAP_EDGE_MODELS[i], 0, &numLoadedModels, 0, qtrue);
+	}
+
 #if 0
 	if (ADD_CITY_ROADS)
 	{
@@ -594,6 +622,23 @@ void PreloadClimateModels(void)
 		WzMap_PreloadModel("models/warzone/roads/road02.md3", 0, &numLoadedModels, 0, qtrue);
 	}
 #endif
+}
+
+extern const char *materialNames[MATERIAL_LAST];
+
+#define MAX_ALLOWED_MATERIALS_LIST 64
+
+int GENFOLIAGE_ALLOWED_MATERIALS_NUM = 0;
+int GENFOLIAGE_ALLOWED_MATERIALS[MAX_ALLOWED_MATERIALS_LIST] = { 0 };
+
+qboolean SurfaceIsAllowedFoliage(int materialType)
+{
+	for (int i = 0; i < GENFOLIAGE_ALLOWED_MATERIALS_NUM; i++)
+	{
+		if (materialType == GENFOLIAGE_ALLOWED_MATERIALS[i]) return qtrue;
+	}
+
+	return qfalse;
 }
 
 void FOLIAGE_LoadClimateData(char *filename)
@@ -616,9 +661,13 @@ void FOLIAGE_LoadClimateData(char *filename)
 		Sys_Printf("Forcing map water level to %.4f.\n", MAP_WATER_LEVEL);
 	}
 
-	MAP_SMOOTH_NORMALS = atoi(IniRead(filename, "GENERAL", "smoothNormals", "1")) > 0 ? qtrue : qfalse;
+	MAP_SMOOTH_NORMALS = atoi(IniRead(filename, "GENERAL", "smoothNormals", "1"));
 
-	if (MAP_SMOOTH_NORMALS)
+	if (MAP_SMOOTH_NORMALS > 1)
+	{
+		Sys_Printf("Smoothing normals (full map) for this map.\n");
+	}
+	else if (MAP_SMOOTH_NORMALS)
 	{
 		Sys_Printf("Smoothing normals for this map.\n");
 	}
@@ -705,6 +754,33 @@ void FOLIAGE_LoadClimateData(char *filename)
 	MAP_ROAD_SCAN_WIDTH_MULTIPLIER = atof(IniRead(filename, "GENERAL", "roadScanWidthMultiplier", "1.0"));
 	Sys_Printf("Roads scan width is %.4f.\n", MAP_ROAD_SCAN_WIDTH_MULTIPLIER);
 
+	strcpy(DEFAULT_FALLBACK_SHADER, IniRead(filename, "GENERAL", "defaultFallbackShader", ""));
+	Sys_Printf("Default fallback shader set to %s.\n", DEFAULT_FALLBACK_SHADER[0] ? DEFAULT_FALLBACK_SHADER : "NONE");
+
+	//
+	// Allow foliage positions extra materials...
+	//
+	// Parse any specified extra surface material types to add grasses to...
+	for (int m = 0; m < 8; m++)
+	{
+		char allowMaterial[64] = { 0 };
+		strcpy(allowMaterial, IniRead(filename, "POSITIONS", va("proceduralAllowmaterial%i", m), ""));
+
+		if (!allowMaterial || !allowMaterial[0] || allowMaterial[0] == '\0' || strlen(allowMaterial) <= 1) continue;
+
+		for (int i = 0; i < MATERIAL_LAST; i++)
+		{
+			if (!Q_stricmp(allowMaterial, materialNames[i]))
+			{// Got one, add it to the allowed list...
+				GENFOLIAGE_ALLOWED_MATERIALS[GENFOLIAGE_ALLOWED_MATERIALS_NUM] = i;
+				GENFOLIAGE_ALLOWED_MATERIALS_NUM++;
+				break;
+			}
+		}
+	}
+
+	NOT_GROUND_MAXSLOPE = atof(IniRead(filename, "POSITIONS", "maxValidSlope", "47.0"));
+
 	//
 	// Replacement shaders...
 	//
@@ -727,6 +803,83 @@ void FOLIAGE_LoadClimateData(char *filename)
 		{
 			break;
 		}
+	}
+
+	//
+	// Map Chunks...
+	//
+
+	CHUNK_MAP_LEVEL = atof(IniRead(filename, "CHUNKS", "chunkMapLevel", "-999999.9"));
+
+	if (CHUNK_MAP_LEVEL > -999990.0)
+	{
+		CHUNK_SCALE = atof(IniRead(filename, "CHUNKS", "chunkScale", "1.0"));
+		CHUNK_PLANE_SNAP = atoi(IniRead(filename, "CHUNKS", "chunkPlaneSnap", "1"));
+		CHUNK_ADD_AT_MAP_EDGES = atoi(IniRead(filename, "CHUNKS", "chunksAtMapEdges", "1")) > 0 ? qtrue : qfalse;
+		CHUNK_MAP_EDGE_SCALE = atof(IniRead(filename, "CHUNKS", "chunkMapEdgeScale", "1.0"));
+		CHUNK_MAP_EDGE_SCALE_XY = atof(IniRead(filename, "CHUNKS", "chunkMapEdgeScaleXY", "1.0"));
+
+		Sys_Printf("Using map chunks system at map level %f, scaled by %f, with a plane snap of %i.\n", CHUNK_MAP_LEVEL, CHUNK_SCALE, CHUNK_PLANE_SNAP);
+
+		if (CHUNK_ADD_AT_MAP_EDGES)
+		{
+			Sys_Printf("Adding chunks at map edges with scale %f %f %f.\n", CHUNK_MAP_EDGE_SCALE_XY, CHUNK_MAP_EDGE_SCALE_XY, CHUNK_MAP_EDGE_SCALE);
+		}
+		else
+		{
+			Sys_Printf("Not adding chunks at map edges.\n");
+		}
+
+		Sys_Printf("Chunk Models:\n");
+
+		for (int i = 0; i < 64; i++)
+		{
+			char modelName[512] = { 0 };
+			strcpy(modelName, IniRead(filename, "CHUNKS", va("model%i", i), ""));
+
+			if (modelName[0])
+			{
+				strcpy(CHUNK_MODELS[CHUNK_MODELS_TOTAL], modelName);
+				strcpy(CHUNK_OVERRIDE_SHADER[CHUNK_MODELS_TOTAL], IniRead(filename, "CHUNKS", va("overrideShader%i", i), ""));
+
+				Sys_Printf("  %s. Override Shader %s.\n", CHUNK_MODELS[CHUNK_MODELS_TOTAL], CHUNK_OVERRIDE_SHADER[CHUNK_MODELS_TOTAL][0] ? CHUNK_OVERRIDE_SHADER[CHUNK_MODELS_TOTAL] : "NONE");
+				CHUNK_MODELS_TOTAL++;
+			}
+		}
+
+		Sys_Printf("Map Edge Chunk Models:\n");
+
+		for (int i = 0; i < 64; i++)
+		{
+			char modelName[512] = { 0 };
+			strcpy(modelName, IniRead(filename, "CHUNKS", va("edgeModel%i", i), ""));
+
+			if (modelName[0])
+			{
+				strcpy(CHUNK_MAP_EDGE_MODELS[CHUNK_MAP_EDGE_MODELS_TOTAL], modelName);
+				strcpy(CHUNK_MAP_EDGE_OVERRIDE_SHADER[CHUNK_MAP_EDGE_MODELS_TOTAL], IniRead(filename, "CHUNKS", va("edgeOverrideShader%i", i), ""));
+
+				Sys_Printf("  %s. Override Shader %s.\n", CHUNK_MAP_EDGE_MODELS[CHUNK_MAP_EDGE_MODELS_TOTAL], CHUNK_MAP_EDGE_OVERRIDE_SHADER[CHUNK_MAP_EDGE_MODELS_TOTAL][0] ? CHUNK_MAP_EDGE_OVERRIDE_SHADER[CHUNK_MAP_EDGE_MODELS_TOTAL] : "NONE");
+				CHUNK_MAP_EDGE_MODELS_TOTAL++;
+			}
+		}
+
+		if (!CHUNK_MAP_EDGE_MODELS_TOTAL)
+		{// Copy from standard chunks list...
+			for (int i = 0; i < CHUNK_MODELS_TOTAL; i++)
+			{
+				strcpy(CHUNK_MAP_EDGE_MODELS[i], CHUNK_MODELS[i]);
+				strcpy(CHUNK_MAP_EDGE_OVERRIDE_SHADER[i], CHUNK_OVERRIDE_SHADER[i]);
+
+				Sys_Printf("  %s. Override Shader %s.\n", CHUNK_MAP_EDGE_OVERRIDE_SHADER[i], CHUNK_MAP_EDGE_OVERRIDE_SHADER[i]);
+			}
+
+			CHUNK_MAP_EDGE_MODELS_TOTAL = CHUNK_MODELS_TOTAL;
+		}
+	}
+	else
+	{
+		Sys_Printf("Not using map chunks system.\n");
 	}
 
 	//
@@ -858,8 +1011,10 @@ void FOLIAGE_LoadClimateData(char *filename)
 
 	// Read all the tree info from the new .climate ini files...
 	TREE_SCALE_MULTIPLIER = atof(IniRead(filename, "TREES", "treeScaleMultiplier", "1.0"));
+	TREE_SCALE_MULTIPLIER_SPECIAL = atof(IniRead(filename, "TREES", "treeScaleMultiplierSpecial", "1.0"));
 
 	TREE_PERCENTAGE = atof(IniRead(filename, "TREES", "treeAssignPercent", "100"));
+	TREE_PERCENTAGE_SPECIAL = atof(IniRead(filename, "TREES", "treeAssignPercentSpecial", "100"));
 
 	TREE_CLUSTER = atoi(IniRead(filename, "LEDGES", "treeCluster", "0")) > 0 ? qtrue : qfalse;
 	TREE_CLUSTER_MINIMUM = atof(IniRead(filename, "TREES", "treeClusterMinimum", "0.5"));
@@ -1009,12 +1164,17 @@ void FOLIAGE_LoadClimateData(char *filename)
 
 	VectorSet(SKYSCRAPERS_CENTER, SKYSCRAPERS_CENTER_X, SKYSCRAPERS_CENTER_Y, 0.0);
 
+	//
+	// Preload the models needed...
+	//
+
 	PreloadClimateModels();
 }
 
 
 void vectoangles(const vec3_t value1, vec3_t angles);
 extern qboolean StringContainsWord(const char *haystack, const char *needle);
+extern bool NO_BOUNDS_IMPROVEMENT;
 
 void CaulkifyStuff(qboolean findBounds)
 {
@@ -1087,7 +1247,7 @@ void CaulkifyStuff(qboolean findBounds)
 		}
 	}
 
-	if (findBounds)
+	if (findBounds && !NO_BOUNDS_IMPROVEMENT)
 	{
 		// Now that we have calkified stuff, re-check playableMapBounds, so we can cull most stuff that would be below the map...
 		vec3_t oldMapPlayableMins, oldMapPlayableMaxs;
@@ -1186,9 +1346,11 @@ qboolean StaticObjectNear(vec3_t origin)
 #define			FOLIAGE_MAX_FOLIAGES 2097152
 
 int				FOLIAGE_NUM_POSITIONS = 0;
+int				FOLIAGE_NOT_GROUND_COUNT = 0;
 qboolean		*FOLIAGE_ASSIGNED;
 vec3_t			FOLIAGE_POSITIONS[FOLIAGE_MAX_FOLIAGES];
 vec3_t			FOLIAGE_NORMALS[FOLIAGE_MAX_FOLIAGES];
+int				FOLIAGE_NOT_GROUND[FOLIAGE_MAX_FOLIAGES];
 float			FOLIAGE_TREE_ANGLES[FOLIAGE_MAX_FOLIAGES];
 int				FOLIAGE_TREE_SELECTION[FOLIAGE_MAX_FOLIAGES];
 float			FOLIAGE_TREE_SCALE[FOLIAGE_MAX_FOLIAGES];
@@ -1253,20 +1415,28 @@ qboolean FOLIAGE_LoadFoliagePositions( char *filename )
 
 	fread( &fileCount, sizeof(int), 1, f );
 
+	qboolean dontUseGroundSystem = qfalse;
+
 	for (i = 0; i < fileCount; i++)
 	{
 		//vec3_t	unneededVec3;
-		int		unneededInt;
+		//int		unneededInt;
 		float	unneededFloat;
 
 		fread( &FOLIAGE_POSITIONS[treeCount], sizeof(vec3_t), 1, f );
 		fread( &FOLIAGE_NORMALS[treeCount], sizeof(vec3_t), 1, f );
-		fread( &unneededInt, sizeof(int), 1, f );
+		//fread( &unneededInt, sizeof(int), 1, f );
+		fread( &FOLIAGE_NOT_GROUND[treeCount], sizeof(int), 1, f);
 		fread( &unneededFloat, sizeof(float), 1, f );
 		fread( &unneededFloat, sizeof(float), 1, f );
 		fread( &FOLIAGE_TREE_SELECTION[treeCount], sizeof(int), 1, f );
 		fread( &FOLIAGE_TREE_ANGLES[treeCount], sizeof(float), 1, f );
 		fread( &FOLIAGE_TREE_SCALE[treeCount], sizeof(float), 1, f );
+
+		if (FOLIAGE_NOT_GROUND[treeCount] > 2)
+		{// Ingame generated points, mark this info as invalid for the whole file...
+			dontUseGroundSystem = qtrue;
+		}
 
 		//if (FOLIAGE_TREE_SELECTION[treeCount] > 0)
 		{// Only keep positions with trees...
@@ -1276,9 +1446,32 @@ qboolean FOLIAGE_LoadFoliagePositions( char *filename )
 
 	FOLIAGE_NUM_POSITIONS = treeCount;
 
+	if (dontUseGroundSystem)
+	{// Reset these values to default, since the system is not valid with ingame generated points.
+		for (int i = 0; i < FOLIAGE_NUM_POSITIONS; i++)
+		{
+			FOLIAGE_NOT_GROUND[i] = 0;
+		}
+	}
+	else
+	{// Using the not-ground system, so change all the values from 1 and 2 to 0 and 1 (on and off).
+		for (int i = 0; i < FOLIAGE_NUM_POSITIONS; i++)
+		{
+			if (FOLIAGE_NOT_GROUND[i] == 1)
+			{
+				FOLIAGE_NOT_GROUND[i] = 0;
+			}
+			else
+			{
+				FOLIAGE_NOT_GROUND[i] = 1;
+				FOLIAGE_NOT_GROUND_COUNT++;
+			}
+		}
+	}
+
 	fclose(f);
 
-	Sys_Printf("%d positions loaded from %s.\n", FOLIAGE_NUM_POSITIONS, filename);
+	Sys_Printf("%d positions loaded (%i special surfaces) from %s.\n", FOLIAGE_NUM_POSITIONS, FOLIAGE_NOT_GROUND_COUNT, filename);
 
 	FOLIAGE_PrecalculateFoliagePitches();
 
@@ -1324,6 +1517,290 @@ void vectoangles( const vec3_t value1, vec3_t angles ) {
 	angles[PITCH] = -pitch;
 	angles[YAW] = yaw;
 	angles[ROLL] = 0;
+}
+
+void GenerateChunks(void)
+{
+	if (!CHUNK_MODELS_TOTAL) return;
+
+	Sys_PrintHeading("--- GenerateChunks ---\n");
+
+	// Work out where to put these chunks...
+	int			numChunkPositions = 0;
+	int			numScaledEdgeChunks = 0;
+	qboolean	chunkPositionIsEdge[65536] = { { qfalse } };
+	vec3_t		chunkPositions[65536] = { { 0 } };
+
+	#define defaultChunkDistance 7680.0//6144.0
+	float chunkSize = defaultChunkDistance * CHUNK_SCALE;
+
+	for (int x = mapMins[0]; x <= mapMaxs[0]; x += chunkSize)
+	{
+		qboolean isMapEdgeX = qfalse;
+
+		if (x <= mapMins[0] + (chunkSize * 0.75))
+			isMapEdgeX = qtrue;
+		
+		if (x >= mapMaxs[0] - (chunkSize * 0.75))
+			isMapEdgeX = qtrue;
+
+		if (!CHUNK_ADD_AT_MAP_EDGES && isMapEdgeX)
+			continue;
+
+		for (int y = mapMins[1]; y <= mapMaxs[1]; y += chunkSize)
+		{
+			qboolean isMapEdgeY = qfalse;
+
+			if (y <= mapMins[1] + (chunkSize * 0.75))
+				isMapEdgeY = qtrue;
+
+			if (y >= mapMaxs[1] - (chunkSize * 0.75))
+				isMapEdgeY = qtrue;
+
+			if (!CHUNK_ADD_AT_MAP_EDGES && isMapEdgeY)
+				continue;
+
+			if (isMapEdgeX || isMapEdgeY)
+			{
+				chunkPositionIsEdge[numChunkPositions] = qtrue;
+				numScaledEdgeChunks++;
+			}
+			else
+			{
+				chunkPositionIsEdge[numChunkPositions] = qfalse;
+			}
+
+			VectorSet(chunkPositions[numChunkPositions], x, y, CHUNK_MAP_LEVEL);
+			numChunkPositions++;
+		}
+	}
+
+	Sys_Printf("Found %i chunk positions. %i will be scaled for map edge.\n", numChunkPositions, numScaledEdgeChunks);
+
+	for (int i = 0; i < numChunkPositions; i++)
+	{
+		printLabelledProgress("GenerateChunks", i, numChunkPositions);
+
+		const char		*classname, *value;
+		float			lightmapScale;
+		vec3_t          lightmapAxis;
+		int			    smoothNormals;
+		int				vertTexProj;
+		char			shader[MAX_QPATH];
+		shaderInfo_t	*celShader = NULL;
+		brush_t			*brush;
+		parseMesh_t		*patch;
+		qboolean		funcGroup;
+		char			castShadows, recvShadows;
+		qboolean		forceNonSolid, forceNoClip, forceNoTJunc, forceMeta;
+		vec3_t          minlight, minvertexlight, ambient, colormod;
+		float           patchQuality, patchSubdivision;
+
+		/* setup */
+		entitySourceBrushes = 0;
+		mapEnt = &entities[numEntities];
+		numEntities++;
+		memset(mapEnt, 0, sizeof(*mapEnt));
+
+		mapEnt->mapEntityNum = 0;
+
+		VectorCopy(chunkPositions[i], mapEnt->origin);
+
+		{
+			char str[32];
+			sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+			SetKeyValue(mapEnt, "origin", str);
+		}
+
+		float baseScale = 30.0 * CHUNK_SCALE;
+
+		if (chunkPositionIsEdge[i])
+		{
+			int chunkModelChoice = irand(0, CHUNK_MAP_EDGE_MODELS_TOTAL - 1);
+
+			//Sys_Printf("Chunk at %.4f %.4f %.4f was scaled up for map edge.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+			char str[128];
+			sprintf(str, "%.4f %.4f %.4f", baseScale * CHUNK_MAP_EDGE_SCALE_XY, baseScale * CHUNK_MAP_EDGE_SCALE_XY, baseScale * CHUNK_MAP_EDGE_SCALE);
+			SetKeyValue(mapEnt, "modelscale_vec", str);
+
+			SetKeyValue(mapEnt, "model", CHUNK_MAP_EDGE_MODELS[chunkModelChoice]);
+
+			if (CHUNK_MAP_EDGE_OVERRIDE_SHADER[0] != '\0')
+			{
+				SetKeyValue(mapEnt, "_overrideShader", CHUNK_MAP_EDGE_OVERRIDE_SHADER[chunkModelChoice]);
+			}
+		}
+		else
+		{
+			int chunkModelChoice = irand(0, CHUNK_MODELS_TOTAL - 1);
+
+			//Sys_Printf("Chunk at %.4f %.4f %.4f was NOT scaled up for map edge.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+			char str[128];
+			sprintf(str, "%.4f %.4f %.4f", baseScale, baseScale, baseScale);
+			SetKeyValue(mapEnt, "modelscale_vec", str);
+
+			SetKeyValue(mapEnt, "model", CHUNK_MODELS[chunkModelChoice]);
+
+			if (CHUNK_OVERRIDE_SHADER[0] != '\0')
+			{
+				SetKeyValue(mapEnt, "_overrideShader", CHUNK_OVERRIDE_SHADER[chunkModelChoice]);
+			}
+		}
+
+		{
+			char str[32];
+			sprintf(str, "%.4f", irand(0, 360) - 180.0);
+			SetKeyValue(mapEnt, "angle", str);
+		}
+
+		/* ydnar: get classname */
+		if (USE_LODMODEL)
+			SetKeyValue(mapEnt, "classname", "misc_lodmodel");
+		else
+			SetKeyValue(mapEnt, "classname", "misc_model");
+
+		classname = ValueForKey(mapEnt, "classname");
+
+		SetKeyValue(mapEnt, "snap", va("%i", CHUNK_PLANE_SNAP));
+
+		SetKeyValue(mapEnt, "_originAsLowPoint", "2");
+
+		//Sys_Printf( "Generated chunk at %.4f %.4f %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+
+		funcGroup = qfalse;
+
+		/* get explicit shadow flags */
+		GetEntityShadowFlags(mapEnt, NULL, &castShadows, &recvShadows, (funcGroup || mapEnt->mapEntityNum == 0) ? qtrue : qfalse);
+
+		/* vortex: get lightmap scaling value for this entity */
+		GetEntityLightmapScale(mapEnt, &lightmapScale, 0);
+
+		/* vortex: get lightmap axis for this entity */
+		GetEntityLightmapAxis(mapEnt, lightmapAxis, NULL);
+
+		/* vortex: per-entity normal smoothing */
+		GetEntityNormalSmoothing(mapEnt, &smoothNormals, 0);
+
+		/* vortex: per-entity _minlight, _ambient, _color, _colormod  */
+		GetEntityMinlightAmbientColor(mapEnt, NULL, minlight, minvertexlight, ambient, colormod, qtrue);
+		if (mapEnt == &entities[0])
+		{
+			/* worldspawn have it empty, since it's keys sets global parms */
+			VectorSet(minlight, 0, 0, 0);
+			VectorSet(minvertexlight, 0, 0, 0);
+			VectorSet(ambient, 0, 0, 0);
+			VectorSet(colormod, 1, 1, 1);
+		}
+
+		/* vortex: _patchMeta, _patchQuality, _patchSubdivide support */
+		GetEntityPatchMeta(mapEnt, &forceMeta, &patchQuality, &patchSubdivision, 1.0, patchSubdivisions);
+
+		/* vortex: vertical texture projection */
+		if (strcmp("", ValueForKey(mapEnt, "_vtcproj")) || strcmp("", ValueForKey(mapEnt, "_vp")))
+		{
+			vertTexProj = IntForKey(mapEnt, "_vtcproj");
+			if (vertTexProj <= 0.0f)
+				vertTexProj = IntForKey(mapEnt, "_vp");
+		}
+		else
+			vertTexProj = 0;
+
+		/* ydnar: get cel shader :) for this entity */
+		value = ValueForKey(mapEnt, "_celshader");
+
+		if (value[0] == '\0')
+			value = ValueForKey(&entities[0], "_celshader");
+
+		if (value[0] != '\0')
+		{
+			sprintf(shader, "textures/%s", value);
+			celShader = ShaderInfoForShader(shader);
+			//Sys_FPrintf (SYS_VRB, "Entity %d (%s) has cel shader %s\n", mapEnt->mapEntityNum, classname, celShader->shader );
+		}
+		else
+			celShader = NULL;
+
+		/* vortex: _nonsolid forces detail non-solid brush */
+		forceNonSolid = ((IntForKey(mapEnt, "_nonsolid") > 0) || (IntForKey(mapEnt, "_ns") > 0)) ? qtrue : qfalse;
+
+		/* vortex: preserve original face winding, don't clip by bsp tree */
+		forceNoClip = ((IntForKey(mapEnt, "_noclip") > 0) || (IntForKey(mapEnt, "_nc") > 0)) ? qtrue : qfalse;
+
+		/* vortex: do not apply t-junction fixing (preserve original face winding) */
+		forceNoTJunc = ((IntForKey(mapEnt, "_notjunc") > 0) || (IntForKey(mapEnt, "_ntj") > 0)) ? qtrue : qfalse;
+
+		/* attach stuff to everything in the entity */
+		for (brush = mapEnt->brushes; brush != NULL; brush = brush->next)
+		{
+			brush->entityNum = mapEnt->mapEntityNum;
+			brush->mapEntityNum = mapEnt->mapEntityNum;
+			brush->castShadows = castShadows;
+			brush->recvShadows = recvShadows;
+			brush->lightmapScale = lightmapScale;
+			VectorCopy(lightmapAxis, brush->lightmapAxis); /* vortex */
+			brush->smoothNormals = smoothNormals; /* vortex */
+			brush->noclip = forceNoClip; /* vortex */
+			brush->noTJunc = forceNoTJunc; /* vortex */
+			brush->vertTexProj = vertTexProj; /* vortex */
+			VectorCopy(minlight, brush->minlight); /* vortex */
+			VectorCopy(minvertexlight, brush->minvertexlight); /* vortex */
+			VectorCopy(ambient, brush->ambient); /* vortex */
+			VectorCopy(colormod, brush->colormod); /* vortex */
+			brush->celShader = celShader;
+			if (forceNonSolid == qtrue)
+			{
+				brush->detail = qtrue;
+				brush->nonsolid = qtrue;
+				brush->noclip = qtrue;
+			}
+		}
+
+		for (patch = mapEnt->patches; patch != NULL; patch = patch->next)
+		{
+			patch->entityNum = mapEnt->mapEntityNum;
+			patch->mapEntityNum = mapEnt->mapEntityNum;
+			patch->castShadows = castShadows;
+			patch->recvShadows = recvShadows;
+			patch->lightmapScale = lightmapScale;
+			VectorCopy(lightmapAxis, patch->lightmapAxis); /* vortex */
+			patch->smoothNormals = smoothNormals; /* vortex */
+			patch->vertTexProj = vertTexProj; /* vortex */
+			patch->celShader = celShader;
+			patch->patchMeta = forceMeta; /* vortex */
+			patch->patchQuality = patchQuality; /* vortex */
+			patch->patchSubdivisions = patchSubdivision; /* vortex */
+			VectorCopy(minlight, patch->minlight); /* vortex */
+			VectorCopy(minvertexlight, patch->minvertexlight); /* vortex */
+			VectorCopy(ambient, patch->ambient); /* vortex */
+			VectorCopy(colormod, patch->colormod); /* vortex */
+			patch->nonsolid = forceNonSolid;
+		}
+
+		/* vortex: store map entity num */
+		{
+			char buf[32];
+			sprintf(buf, "%i", mapEnt->mapEntityNum);
+			SetKeyValue(mapEnt, "_mapEntityNum", buf);
+		}
+
+		/* ydnar: gs mods: set entity bounds */
+		SetEntityBounds(mapEnt);
+
+		/* ydnar: gs mods: load shader index map (equivalent to old terrain alphamap) */
+		LoadEntityIndexMap(mapEnt);
+
+		/* get entity origin and adjust brushes */
+		GetVectorForKey(mapEnt, "origin", mapEnt->origin);
+		if (mapEnt->originbrush_origin[0] || mapEnt->originbrush_origin[1] || mapEnt->originbrush_origin[2])
+			AdjustBrushesForOrigin(mapEnt);
+	}
+
+//#if defined(__ADD_PROCEDURALS_EARLY__)
+	AddTriangleModels(0, qfalse, qfalse);
+	CaulkifyStuff(qfalse);
+	EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
+	//MoveBrushesToWorld( mapEnt );
+//#endif
 }
 
 int		numCliffs = 0;
@@ -3631,18 +4108,25 @@ void ReassignTreeModels ( void )
 			}
 
 #ifdef __EARLY_PERCENTAGE_CHECK__
-			if (irand(0, 100) > TREE_PERCENTAGE)
+			if (FOLIAGE_NOT_GROUND[i])
+			{
+				if (irand(0, 100) > TREE_PERCENTAGE_SPECIAL)
+				{
+					continue;
+				}
+			}
+			else if (irand(0, 100) > TREE_PERCENTAGE)
 			{
 				continue;
 			}
 #endif //__EARLY_PERCENTAGE_CHECK__
 
-			if (StaticObjectNear(FOLIAGE_POSITIONS[i]))
+			if (!FOLIAGE_NOT_GROUND[i] && StaticObjectNear(FOLIAGE_POSITIONS[i]))
 			{
 				continue;
 			}
 
-			if (MapEntityNear(FOLIAGE_POSITIONS[i]))
+			if (!FOLIAGE_NOT_GROUND[i] && MapEntityNear(FOLIAGE_POSITIONS[i]))
 			{// Don't spawn stuff near map entities...
 				continue;
 			}
@@ -3653,19 +4137,22 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
-			for (int k = 0; k < MAX_STATIC_ENTITY_MODELS; k++)
-			{// Check if this position is too close to a static model location...
-				if (STATIC_MODEL[k][0] == 0 || strlen(STATIC_MODEL[k]) <= 0)
-				{// Was not assigned a model... Must be too close to something else...
-					continue;
-				}
+			if (!FOLIAGE_NOT_GROUND[i])
+			{
+				for (int k = 0; k < MAX_STATIC_ENTITY_MODELS; k++)
+				{// Check if this position is too close to a static model location...
+					if (STATIC_MODEL[k][0] == 0 || strlen(STATIC_MODEL[k]) <= 0)
+					{// Was not assigned a model... Must be too close to something else...
+						continue;
+					}
 
-				float dist = Distance(STATIC_ORIGIN[k], FOLIAGE_POSITIONS[i]);
+					float dist = Distance(STATIC_ORIGIN[k], FOLIAGE_POSITIONS[i]);
 
-				if (dist <= STATIC_BUFFER_RANGE * STATIC_SCALE[k])
-				{// Not within this static object's buffer range... OK!
-					bad = qtrue;
-					break;
+					if (dist <= STATIC_BUFFER_RANGE * STATIC_SCALE[k])
+					{// Not within this static object's buffer range... OK!
+						bad = qtrue;
+						break;
+					}
 				}
 			}
 
@@ -3785,6 +4272,11 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
+			if (FOLIAGE_NOT_GROUND[i] && pitch > NOT_GROUND_MAXSLOPE || pitch < -NOT_GROUND_MAXSLOPE)
+			{
+				continue;
+			}
+
 			for (int z = 0; z < numCliffs; z++)
 			{// Also keep them away from cliff objects...
 				if (DistanceHorizontal(cliffPositions[z], FOLIAGE_POSITIONS[i]) < cliffScale[z] * 256.0 * TREE_CLIFF_CULL_RADIUS
@@ -3881,18 +4373,25 @@ void ReassignTreeModels ( void )
 			}
 
 #ifdef __EARLY_PERCENTAGE_CHECK__
-			if (irand(0, 100) > TREE_PERCENTAGE)
+			if (FOLIAGE_NOT_GROUND[i])
+			{
+				if (irand(0, 100) > TREE_PERCENTAGE_SPECIAL)
+				{
+					continue;
+				}
+			}
+			else if (irand(0, 100) > TREE_PERCENTAGE)
 			{
 				continue;
 			}
 #endif //__EARLY_PERCENTAGE_CHECK__
 
-			if (StaticObjectNear(FOLIAGE_POSITIONS[i]))
+			if (!FOLIAGE_NOT_GROUND[i] && StaticObjectNear(FOLIAGE_POSITIONS[i]))
 			{
 				continue;
 			}
 
-			if (MapEntityNear(FOLIAGE_POSITIONS[i]))
+			if (!FOLIAGE_NOT_GROUND[i] && MapEntityNear(FOLIAGE_POSITIONS[i]))
 			{// Don't spawn stuff near map entities...
 				continue;
 			}
@@ -3903,19 +4402,29 @@ void ReassignTreeModels ( void )
 				continue;
 			}
 
-			for (int k = 0; k < MAX_STATIC_ENTITY_MODELS; k++)
-			{// Check if this position is too close to a static model location...
-				if (STATIC_MODEL[k][0] == 0 || strlen(STATIC_MODEL[k]) <= 0)
-				{// Was not assigned a model... Must be too close to something else...
+			if (!FOLIAGE_NOT_GROUND[i])
+			{
+				float pitch = FOLIAGE_TREE_PITCH[i];
+
+				if (FOLIAGE_NOT_GROUND[i] && pitch > NOT_GROUND_MAXSLOPE || pitch < -NOT_GROUND_MAXSLOPE)
+				{
 					continue;
 				}
 
-				float dist = Distance(STATIC_ORIGIN[k], FOLIAGE_POSITIONS[i]);
+				for (int k = 0; k < MAX_STATIC_ENTITY_MODELS; k++)
+				{// Check if this position is too close to a static model location...
+					if (STATIC_MODEL[k][0] == 0 || strlen(STATIC_MODEL[k]) <= 0)
+					{// Was not assigned a model... Must be too close to something else...
+						continue;
+					}
 
-				if (dist <= STATIC_BUFFER_RANGE * STATIC_SCALE[k])
-				{// Not within this static object's buffer range... OK!
-					bad = qtrue;
-					break;
+					float dist = Distance(STATIC_ORIGIN[k], FOLIAGE_POSITIONS[i]);
+
+					if (dist <= STATIC_BUFFER_RANGE * STATIC_SCALE[k])
+					{// Not within this static object's buffer range... OK!
+						bad = qtrue;
+						break;
+					}
 				}
 			}
 
@@ -4047,7 +4556,18 @@ void ReassignTreeModels ( void )
 			}
 
 #ifndef __EARLY_PERCENTAGE_CHECK__
-			if (irand(0, 100) <= TREE_PERCENTAGE)
+			if (FOLIAGE_NOT_GROUND[i])
+			{
+				if (irand(0, 100) <= TREE_PERCENTAGE_SPECIAL)
+				{
+					FOLIAGE_TREE_SELECTION[i] = POSSIBLES[selected];
+					FOLIAGE_TREE_BUFFER[i] = BUFFER_RANGES[i] = POSSIBLES_BUFFERS[selected];
+					SAME_RANGES[i] = POSSIBLES_SAME_RANGES[selected];
+					FOLIAGE_ASSIGNED[i] = qtrue;
+					NUM_PLACED[POSSIBLES[selected]]++;
+				}
+			}
+			else if (irand(0, 100) <= TREE_PERCENTAGE)
 #endif //__EARLY_PERCENTAGE_CHECK__
 			{
 				FOLIAGE_TREE_SELECTION[i] = POSSIBLES[selected];
@@ -4063,21 +4583,6 @@ void ReassignTreeModels ( void )
 
 	free(BUFFER_RANGES);
 	free(SAME_RANGES);
-
-	/*
-	for (i = 0; i < FOLIAGE_NUM_POSITIONS; i++)
-	{// Now check our percentage of how many we should actually use... Disable extras...
-		if (FOLIAGE_ASSIGNED[i])
-		{
-			if (irand(0, 100) > TREE_PERCENTAGE)
-			{
-				FOLIAGE_ASSIGNED[i] = qfalse;
-				FOLIAGE_TREE_SELECTION[i] = 0;
-				FOLIAGE_TREE_BUFFER[i] = 0;
-			}
-		}
-	}
-	*/
 
 	int count = 0;
 
@@ -4190,7 +4695,19 @@ void GenerateMapForest ( void )
 				//mapEnt->forceSubmodel = qtrue;
 
 				VectorCopy(FOLIAGE_POSITIONS[i], mapEnt->origin);
-				mapEnt->origin[2] += TREE_OFFSETS[FOLIAGE_TREE_SELECTION[i]];
+
+				float offset = TREE_OFFSETS[FOLIAGE_TREE_SELECTION[i]];
+				float scale = 2.0*TREE_SCALE_MULTIPLIER*TREE_SCALES[FOLIAGE_TREE_SELECTION[i]];
+
+				if (FOLIAGE_NOT_GROUND[i])
+				{// Dig these into the ground a little more. Probably a more varied slope...
+					//offset *= 1.5;
+					scale *= TREE_SCALE_MULTIPLIER_SPECIAL;
+					offset *= TREE_SCALE_MULTIPLIER_SPECIAL;
+				}
+				
+				mapEnt->origin[2] += offset;
+
 
 				/*{// Offset the model so the lowest bounds are at 0 0 0.
 					picoModel_t *picoModel = FindModel(TREE_MODELS[FOLIAGE_TREE_SELECTION[i]], 0);
@@ -4211,7 +4728,7 @@ void GenerateMapForest ( void )
 
 				{
 					char str[32];
-					sprintf(str, "%.4f", /*FOLIAGE_TREE_SCALE[i]**/2.0*TREE_SCALE_MULTIPLIER*TREE_SCALES[FOLIAGE_TREE_SELECTION[i]]);
+					sprintf(str, "%.4f", scale);
 					SetKeyValue(mapEnt, "modelscale", str);
 				}
 
@@ -4234,7 +4751,7 @@ void GenerateMapForest ( void )
 					SetKeyValue(mapEnt, "_originAsLowPoint", "1");
 
 					char str[32];
-					sprintf(str, "%.4f", TREE_OFFSETS[FOLIAGE_TREE_SELECTION[i]]);
+					sprintf(str, "%.4f", offset);
 					SetKeyValue(mapEnt, "_originOffset", str);
 				}
 				else
@@ -4247,7 +4764,6 @@ void GenerateMapForest ( void )
 					SetKeyValue(mapEnt, "snap", va("%i", TREE_PLANE_SNAP[FOLIAGE_TREE_SELECTION[i]]));
 				}
 
-#if 1
 				{
 					if (!USE_SECONDARY_BSP || !GENERATING_SECONDARY_BSP)
 					{
@@ -4259,31 +4775,6 @@ void GenerateMapForest ( void )
 					SetKeyValue(mapEnt, "angle", str);
 				}
 
-#elif 0
-				{
-					char str[32];
-					vec3_t angles;
-					//vectoangles( FOLIAGE_NORMALS[i], angles );
-					//angles[PITCH] += 90;
-					angles[PITCH] = 0.0;
-					angles[ROLL] = 0.0;
-					angles[YAW] = 270.0 - FOLIAGE_TREE_ANGLES[i];
-					sprintf(str, "%.4f %.4f %.4f", angles[0], angles[1], angles[2]);
-					SetKeyValue(mapEnt, "angles", str);
-				}
-#else
-				{
-					char str[32];
-					sprintf(str, "%.4f", irand(0, 360) - 180.0);
-					SetKeyValue(mapEnt, "angle", str);
-				}
-#endif
-
-				/*{
-				char str[32];
-				sprintf( str, "%i", 2 );
-				SetKeyValue( mapEnt, "spawnflags", str );
-				}*/
 
 				//Sys_Printf( "Generated tree at %.4f %.4f %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
 
@@ -4521,15 +5012,6 @@ void GenerateStaticEntities(void)
 			sprintf(str, "%.4f", STATIC_ANGLE[i]);
 			SetKeyValue(mapEnt, "angle", str);
 		}
-
-		//SetKeyValue(mapEnt, "_forcedSolid", "1");
-		//SetKeyValue(mapEnt, "_forcedSolid", "0");
-
-		/*if (CLIFF_SHADER[0] != '\0')
-		{
-			SetKeyValue(mapEnt, "_overrideShader", CLIFF_SHADER);
-		}*/
-
 
 		/* ydnar: get classname */
 		if (USE_LODMODEL)
@@ -4774,6 +5256,11 @@ void ReassignCityModels(void)
 						 //Sys_Printf("Position %i angles too great (%.4f).\n", i, pitch);
 							continue;
 						}
+
+						if (FOLIAGE_NOT_GROUND[i] && pitch > NOT_GROUND_MAXSLOPE || pitch < -NOT_GROUND_MAXSLOPE)
+						{
+							continue;
+						}
 					}
 
 					for (int z = 0; z < numCliffs; z++)
@@ -4975,6 +5462,11 @@ void ReassignCityModels(void)
 			if (pitch > POSSIBLES_MAX_ANGLE[selected] || pitch < -POSSIBLES_MAX_ANGLE[selected])
 			{// Bad slope...
 				//printf("DEBUG: Position %i angles too great (%.4f).\n", i, pitch);
+				continue;
+			}
+
+			if (FOLIAGE_NOT_GROUND[i] && pitch > NOT_GROUND_MAXSLOPE || pitch < -NOT_GROUND_MAXSLOPE)
+			{
 				continue;
 			}
 
