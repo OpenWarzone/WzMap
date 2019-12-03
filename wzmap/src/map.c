@@ -2066,6 +2066,8 @@ void LoadMapFile( char *filename, qboolean onlyLights, qboolean onlyLightgridBru
 		ClearBounds(mapPlayableMins, mapPlayableMaxs);
 		for( b = entities[ 0 ].brushes; b; b = b->next )
 		{
+			b->isOriginalMapSurface = qtrue; // UQ1: marking this for foliage generator usage...
+
 			AddPointToBounds( b->mins, mapMins, mapMaxs );
 			AddPointToBounds( b->maxs, mapMins, mapMaxs );
 			

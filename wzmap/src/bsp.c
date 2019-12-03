@@ -45,6 +45,7 @@ vec3_t					USE_SECONDARY_FIRST_RUN_BOUNDS_MAXS;
 extern qboolean FORCED_STRUCTURAL;
 
 extern void GenerateChunks(void);
+extern void ProceduralGenFoliage(void);
 extern void GenerateCliffFaces ( void );
 extern void GenerateLedgeFaces(void);
 extern void GenerateCityRoads(void);
@@ -841,6 +842,7 @@ void ProcessWorldModel( void )
 
 		/* UQ1: Generate procedural map chunks */
 		GenerateChunks();
+		ProceduralGenFoliage();
 
 		/* UQ1: Generate procedural cliff faces */
 		GenerateCliffFaces();

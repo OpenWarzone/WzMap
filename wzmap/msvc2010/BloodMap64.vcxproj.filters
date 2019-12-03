@@ -417,6 +417,12 @@
     <ClCompile Include="..\src\smoothnormals.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\lightmapGPU.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\glad_gl.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\games\darkplaces.h">
@@ -709,6 +715,9 @@
     </ClInclude>
     <ClInclude Include="..\src\meshOptimization\triListOpt.h">
       <Filter>src\meshOptimization</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\lightmapper.h">
+      <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

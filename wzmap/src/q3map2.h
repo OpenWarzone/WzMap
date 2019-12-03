@@ -1156,6 +1156,8 @@ typedef struct brush_s
 	vec3_t				mins, maxs;
 	int					numsides;
 
+	qboolean			isOriginalMapSurface;
+
 	side_t				sides[ 6 ];			/* variably sized */
 }
 brush_t;
@@ -2145,6 +2147,9 @@ int                         OptimizeBSPMain( int argc, char **argv );
 
 /* smoothnormals.c */
 int							SmoothBSPMain(int argc, char **argv);
+
+/* lightmapGPU.c */
+int							LightmapGPUMain(int argc, char **argv);
 
 /* patchbsp.c */
 int                         PatchBSPMain( int argc, char **argv );

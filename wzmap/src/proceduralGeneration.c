@@ -1395,6 +1395,238 @@ void FOLIAGE_PrecalculateFoliagePitches(void)
 	}
 }
 
+void ProceduralGenFoliage(void)
+{// TODO: Skip the flat base surface in the .map file?
+	if (FOLIAGE_NUM_POSITIONS > 0) return;
+
+	if (TREE_PERCENTAGE <= 0 && TREE_PERCENTAGE_SPECIAL <= 0) return;
+	
+	int				FOLIAGE_COUNT = 0;
+	float			scanDensity = 512.0;
+
+	Sys_PrintHeading("--- Finding Map Bounds ---\n");
+
+	vec3_t bounds[2];
+	VectorCopy(mapMins, bounds[0]);
+	VectorCopy(mapMaxs, bounds[1]);
+
+	Sys_PrintHeading("--- Generating Foliage Points ---\n");
+
+	Sys_Printf("* Map bounds are %f %f %f x %f %f %f.\n", bounds[0][0], bounds[0][1], bounds[0][2], bounds[1][0], bounds[1][1], bounds[1][2]);
+
+	int solidFlags = C_SOLID;
+	int numCompleted = 0;
+
+#pragma omp parallel for schedule(dynamic) num_threads(numthreads)
+	for (int i = 0; i < numMapDrawSurfs; i++)
+	{
+#pragma omp critical (__PROGRESS__)
+		{
+			printLabelledProgress("GenFoliage", numCompleted, numMapDrawSurfs);
+			numCompleted++;
+		}
+
+		mapDrawSurface_t *surf = &mapDrawSurfs[i];
+		shaderInfo_t *si = surf->shaderInfo;
+
+		if (surf->mapBrush)
+		{// Is an original .map brush, skip these...
+			continue;
+		}
+		
+		if (!(si->contentFlags & solidFlags)) {
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "caulk"))
+		{
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "skip"))
+		{
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "sky"))
+		{
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "skies"))
+		{
+			continue;
+		}
+
+
+		extern const char *materialNames[MATERIAL_LAST];
+		extern int MaterialIsValidForFoliage(int materialType);
+		int surfaceMaterialValidity = MaterialIsValidForFoliage(si->materialType);
+
+		if (!si || !surfaceMaterialValidity)
+		{
+			//Sys_Printf("Position %i is invalid material %s (%i) on shader %s.\n", i, si ? materialNames[si->materialType] : "UNKNOWN", si ? si->materialType : 0, shader->shader);
+			continue;
+		}
+		/*else if (surfaceMaterialValidity == 2)
+		{
+		Sys_Printf("Position %i is a non ground material %s (%i) on shader %s.\n", i, materialNames[si->materialType], si->materialType, shader->shader);
+		}
+		else
+		{
+		Sys_Printf("Position %i is valid material %s (%i) on shader %s.\n", i, materialNames[si->materialType], si->materialType, shader->shader);
+		}*/
+
+		extern float Distance(vec3_t pos1, vec3_t pos2);
+
+		bspDrawVert_t *vs = &surf->verts[0];
+		int *idxs = surf->indexes;
+
+		for (int j = 0; j < surf->numIndexes; j += 3)
+		{
+			vec3_t verts[3];
+
+			VectorCopy(vs[idxs[j]].xyz, verts[0]);
+			VectorCopy(vs[idxs[j + 1]].xyz, verts[1]);
+			VectorCopy(vs[idxs[j + 2]].xyz, verts[2]);
+
+			if (verts[0][2] <= MAP_WATER_LEVEL
+				&& verts[1][2] <= MAP_WATER_LEVEL
+				&& verts[2][2] <= MAP_WATER_LEVEL)
+			{// If any of the points on this triangle are below the map's water level, then skip this triangle...
+				continue;
+			}
+
+			float d1 = Distance(verts[0], verts[1]);
+			float d2 = Distance(verts[0], verts[2]);
+			float d3 = Distance(verts[1], verts[2]);
+
+			float tringleSize = max(d1, max(d2, d3));
+
+			if (tringleSize < scanDensity)
+			{// Triangle is smaller then minimum density, we can skip it completely...
+			 //Sys_Printf("Position %i is too small (%.4f).\n", i, tringleSize);
+				continue;
+			}
+
+			vec3_t normal;
+			VectorCopy(vs[idxs[j]].normal, normal);
+
+			extern void vectoangles(const vec3_t value1, vec3_t angles);
+
+			vec3_t angles;
+			vectoangles(normal, angles);
+			float pitch = angles[0];
+			if (pitch > 180)
+				pitch -= 360;
+
+			if (pitch < -180)
+				pitch += 360;
+
+			pitch += 90.0f;
+
+			if (pitch > 47.0 || pitch < -47.0)
+			{// Bad slope for a foliage...
+			 //Sys_Printf("Position %i angles too great (%.4f) shader: %s.\n", i, pitch, shader->shader);
+				continue;
+			}
+
+			//
+			// Ok, looks like a valid place to make foliage points, make foliages for this triangle...
+			//
+			int numPossibleFoliages = max((int)(((tringleSize*tringleSize) / 2.0) / scanDensity), 1);
+
+			// Make a temp list of foliage positions, so we can more quickly scan if theres already a point too close...
+			const int	THIS_TRI_MAX_FOLIAGES = 8192;
+			int			THIS_TRI_FOLIAGE_COUNT = 0;
+			vec3_t		THIS_TRI_FOLIAGES[THIS_TRI_MAX_FOLIAGES];
+
+			for (int f = 0; f < numPossibleFoliages; f++)
+			{
+				if (THIS_TRI_FOLIAGE_COUNT + 1 >= THIS_TRI_MAX_FOLIAGES)
+					break;
+
+				extern void randomBarycentricCoordinate(vec3_t v1, vec3_t v2, vec3_t v3, vec3_t &pos);
+
+				vec3_t pos;
+				randomBarycentricCoordinate(verts[0], verts[1], verts[2], pos);
+
+				if (pos[2] <= MAP_WATER_LEVEL + 16.0)
+				{// If any of the points on this triangle are below the map's water level, then skip this triangle...
+					continue;
+				}
+
+				qboolean bad = qfalse;
+
+				for (int z = 0; z < THIS_TRI_FOLIAGE_COUNT; z++)
+				{
+					if (Distance(pos, THIS_TRI_FOLIAGES[z]) < scanDensity)
+					{// Already have one here...
+						bad = qtrue;
+						break;
+					}
+				}
+
+				if (bad)
+					continue;
+
+				VectorCopy(pos, THIS_TRI_FOLIAGES[THIS_TRI_FOLIAGE_COUNT]);
+				THIS_TRI_FOLIAGE_COUNT++;
+			}
+
+			/*
+			vec3_t			FOLIAGE_POSITIONS[FOLIAGE_MAX_FOLIAGES];
+vec3_t			FOLIAGE_NORMALS[FOLIAGE_MAX_FOLIAGES];
+int				FOLIAGE_NOT_GROUND[FOLIAGE_MAX_FOLIAGES];
+float			FOLIAGE_TREE_ANGLES[FOLIAGE_MAX_FOLIAGES];
+int				FOLIAGE_TREE_SELECTION[FOLIAGE_MAX_FOLIAGES];
+float			FOLIAGE_TREE_SCALE[FOLIAGE_MAX_FOLIAGES];
+float			FOLIAGE_TREE_BUFFER[FOLIAGE_MAX_FOLIAGES];
+			*/
+
+			// Now add the new foliages to the final list...
+			for (int f = 0; f < THIS_TRI_FOLIAGE_COUNT; f++)
+			{
+				if (FOLIAGE_COUNT + 1 >= FOLIAGE_MAX_FOLIAGES)
+					break;
+
+#pragma omp critical (__ADD_FOLIAGE__)
+				{
+					//printf("DEBUG: adding at pos %f %f %f.\n", THIS_TRI_FOLIAGES[f][0], THIS_TRI_FOLIAGES[f][1], THIS_TRI_FOLIAGES[f][2]);
+					VectorCopy(THIS_TRI_FOLIAGES[f], FOLIAGE_POSITIONS[FOLIAGE_COUNT]);
+					VectorCopy(normal, FOLIAGE_NORMALS[FOLIAGE_COUNT]);
+					FOLIAGE_POSITIONS[FOLIAGE_COUNT][2] -= 8.0;
+
+					FOLIAGE_TREE_SELECTION[f] = 1;
+					FOLIAGE_TREE_ANGLES[f] = 0.0;
+					FOLIAGE_TREE_SCALE[f] = 1.0;
+					FOLIAGE_NOT_GROUND[FOLIAGE_COUNT] = qfalse;
+
+					FOLIAGE_COUNT++;
+				}
+			}
+		}
+	}
+
+	/*for (int i = 0; i < FOLIAGE_COUNT; i++)
+	{
+	printf("DEBUG: pos %f %f %f.\n", FOLIAGE_POINTS[i][0], FOLIAGE_POINTS[i][1], FOLIAGE_POINTS[i][2]);
+	}*/
+
+	Sys_Printf("* Generated %i foliage positions.\n", FOLIAGE_COUNT);
+
+
+	FOLIAGE_NUM_POSITIONS = FOLIAGE_COUNT;
+
+	if (FOLIAGE_NUM_POSITIONS > 0)
+	{
+		FOLIAGE_PrecalculateFoliagePitches();
+	}
+
+	generateforest = qtrue;
+	generatecity = qtrue;
+}
+
 qboolean FOLIAGE_LoadFoliagePositions( char *filename )
 {
 	FILE			*f;
@@ -2030,6 +2262,7 @@ void GenerateCliffFaces(void)
 		numEntities++;
 		memset(mapEnt, 0, sizeof(*mapEnt));
 
+		mapEnt->alreadyAdded = qfalse;
 		mapEnt->mapEntityNum = 0;
 
 		VectorCopy(cliffPositions[i], mapEnt->origin);
@@ -2464,6 +2697,7 @@ void GenerateCityRoads(void)
 		numEntities++;
 		memset(mapEnt, 0, sizeof(*mapEnt));
 
+		mapEnt->alreadyAdded = qfalse;
 		mapEnt->mapEntityNum = 0;
 
 		VectorCopy(roadPositions[i], mapEnt->origin);
@@ -3029,6 +3263,7 @@ void GenerateSkyscrapers(void)
 			numEntities++;
 			memset(mapEnt, 0, sizeof(*mapEnt));
 
+			mapEnt->alreadyAdded = qfalse;
 			mapEnt->mapEntityNum = 0;
 
 			VectorCopy(skyscraperPositions[i], mapEnt->origin);
@@ -3247,6 +3482,7 @@ void GenerateSkyscrapers(void)
 			numEntities++;
 			memset(mapEnt, 0, sizeof(*mapEnt));
 
+			mapEnt->alreadyAdded = qfalse;
 			mapEnt->mapEntityNum = 0;
 
 			VectorCopy(skyscraperPositions[i], mapEnt->origin);
@@ -3724,6 +3960,7 @@ void GenerateLedgeFaces(void)
 		numEntities++;
 		memset(mapEnt, 0, sizeof(*mapEnt));
 
+		mapEnt->alreadyAdded = qfalse;
 		mapEnt->mapEntityNum = 0;
 
 		VectorCopy(ledgePositions[i], mapEnt->origin);
@@ -4685,6 +4922,7 @@ void GenerateMapForest ( void )
 				numEntities++;
 				memset(mapEnt, 0, sizeof(*mapEnt));
 
+				mapEnt->alreadyAdded = qfalse;
 				mapEnt->mapEntityNum = 0;
 
 				//mapEnt->mapEntityNum = numMapEntities;
@@ -4980,6 +5218,7 @@ void GenerateStaticEntities(void)
 		numEntities++;
 		memset(mapEnt, 0, sizeof(*mapEnt));
 
+		mapEnt->alreadyAdded = qfalse;
 		mapEnt->mapEntityNum = 0;
 
 		VectorCopy(STATIC_ORIGIN[i], mapEnt->origin);
@@ -5789,6 +6028,7 @@ void GenerateMapCity(void)
 				numEntities++;
 				memset(mapEnt, 0, sizeof(*mapEnt));
 
+				mapEnt->alreadyAdded = qfalse;
 				mapEnt->mapEntityNum = 0;
 
 				//mapEnt->mapEntityNum = numMapEntities;
