@@ -181,6 +181,7 @@ float			CHUNK_MAP_LEVEL = -999999.9;
 qboolean		CHUNK_ADD_AT_MAP_EDGES = qtrue;
 float			CHUNK_MAP_EDGE_SCALE = 1.0;
 float			CHUNK_MAP_EDGE_SCALE_XY = 1.0;
+float			CHUNK_FOLIAGE_GENERATOR_SCATTER = 256.0;
 float			CHUNK_SCALE = 1.0;
 int				CHUNK_PLANE_SNAP = 0;
 int				CHUNK_MODELS_TOTAL = 0;
@@ -818,6 +819,7 @@ void FOLIAGE_LoadClimateData(char *filename)
 		CHUNK_ADD_AT_MAP_EDGES = atoi(IniRead(filename, "CHUNKS", "chunksAtMapEdges", "1")) > 0 ? qtrue : qfalse;
 		CHUNK_MAP_EDGE_SCALE = atof(IniRead(filename, "CHUNKS", "chunkMapEdgeScale", "1.0"));
 		CHUNK_MAP_EDGE_SCALE_XY = atof(IniRead(filename, "CHUNKS", "chunkMapEdgeScaleXY", "1.0"));
+		CHUNK_FOLIAGE_GENERATOR_SCATTER = atof(IniRead(filename, "CHUNKS", "chunkFoliageScatter", "256.0"));
 
 		Sys_Printf("Using map chunks system at map level %f, scaled by %f, with a plane snap of %i.\n", CHUNK_MAP_LEVEL, CHUNK_SCALE, CHUNK_PLANE_SNAP);
 
@@ -1402,7 +1404,7 @@ void ProceduralGenFoliage(void)
 	if (TREE_PERCENTAGE <= 0 && TREE_PERCENTAGE_SPECIAL <= 0) return;
 	
 	int				FOLIAGE_COUNT = 0;
-	float			scanDensity = 512.0;
+	float			scanDensity = CHUNK_FOLIAGE_GENERATOR_SCATTER;
 
 	Sys_PrintHeading("--- Finding Map Bounds ---\n");
 
@@ -1429,8 +1431,14 @@ void ProceduralGenFoliage(void)
 		mapDrawSurface_t *surf = &mapDrawSurfs[i];
 		shaderInfo_t *si = surf->shaderInfo;
 
-		if (surf->mapBrush)
+		if (surf->mapBrush && surf->mapBrush->isMapFileBrush)
 		{// Is an original .map brush, skip these...
+/*
+#pragma omp critical (__MAP_BRUSH__)
+			{
+				Sys_Printf("Surf %i is skipped (original map brush).\n", i);
+			}
+*/
 			continue;
 		}
 		
@@ -1454,6 +1462,11 @@ void ProceduralGenFoliage(void)
 		}
 
 		if (StringContainsWord(si->shader, "skies"))
+		{
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "water"))
 		{
 			continue;
 		}

@@ -89,6 +89,8 @@ dependencies
 #include "jpeglib.h"
 #include "md4.h"
 
+#include "matrix.h"
+
 #include <stdlib.h>
 
 #ifdef MAIN_C
@@ -1151,6 +1153,7 @@ typedef struct brush_s
 	qboolean            noclip;       /* vortex: don't clip faces by BSP tree */
 	qboolean            noTJunc;      /* vortex: disable T-junction fixing */
 	qboolean			opaque;
+	qboolean			isMapFileBrush = qfalse;
 	int					portalareas[ 2 ];
 
 	vec3_t				mins, maxs;

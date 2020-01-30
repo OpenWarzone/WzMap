@@ -449,7 +449,19 @@ static int GetMeshShader (T3dsLoaderPers *pers, char *fileName)
 				char origName[64] = { 0 };
 				char finalName[64] = { 0 };
 
-				strcpy(origName, mapNamePtr);
+				if (mapNamePtr[0] == '.' && mapNamePtr[1] == '\\')
+				{
+					int len = strlen(mapNamePtr);
+
+					for (int c = 2; c < len; c++)
+					{
+						origName[c - 2] = mapNamePtr[c];
+					}
+				}
+				else
+				{
+					strcpy(origName, mapNamePtr);
+				}
 
 				StripExtension(origName);
 

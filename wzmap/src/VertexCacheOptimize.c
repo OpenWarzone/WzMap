@@ -323,6 +323,125 @@ void OptimizeDrawSurfs( void )
 extern float Distance(vec3_t pos1, vec3_t pos2);
 
 #ifdef __REGENERATE_BSP_NORMALS__
+#define INVERTED_NORMALS_EPSILON 0.8//1.0
+
+void FixInvertedNormalsForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
+{
+	if (!ds->shaderInfo || ds->shaderInfo == caulkShader)
+		return;
+
+#pragma omp parallel for ordered num_threads(numthreads)
+	for (int i = 0; i < ds->numIndexes; i += 3)
+	{
+		bool badWinding = false;
+
+		int tri[3];
+		tri[0] = ds->indexes[i];
+		tri[1] = ds->indexes[i + 1];
+		tri[2] = ds->indexes[i + 2];
+
+		if (tri[0] >= ds->numVerts)
+		{
+			continue;
+		}
+		if (tri[1] >= ds->numVerts)
+		{
+			continue;
+		}
+		if (tri[2] >= ds->numVerts)
+		{
+			continue;
+		}
+
+		float dist1 = Distance(ds->verts[tri[0]].normal, ds->verts[tri[1]].normal);
+		float dist2 = Distance(ds->verts[tri[0]].normal, ds->verts[tri[2]].normal);
+		float dist3 = Distance(ds->verts[tri[1]].normal, ds->verts[tri[2]].normal);
+
+		if (dist1 > INVERTED_NORMALS_EPSILON || dist2 > INVERTED_NORMALS_EPSILON || dist3 > INVERTED_NORMALS_EPSILON)
+		{
+			badWinding = true;
+		}
+
+		vec3 normAvg(0.0, 0.0, 0.0);
+
+		if (badWinding)
+		{
+			int count = 0;
+
+			for (int j = 0; j < ds->numVerts; j++)
+			{
+				if (j == tri[0] || j == tri[1] || j == tri[2]) continue;
+
+				if (Distance(ds->verts[tri[0]].xyz, ds->verts[j].xyz) <= 2048.0)
+				{
+					normAvg = normAvg + vec3(ds->verts[j].normal) * vec3(0.5) + vec3(0.5);
+					count++;
+				}
+			}
+
+			if (count > 0)
+			{
+				normAvg /= count;
+				normAvg = normAvg * vec3(2.0) - vec3(1.0);
+
+#if 1
+				vec3_t n;
+				n[0] = normAvg.x;
+				n[1] = normAvg.y;
+				n[2] = normAvg.z;
+
+				int best = 0;
+				vec3 bestNorm(ds->verts[tri[0]].normal);
+				float bestDist = Distance(n, ds->verts[tri[0]].normal);
+
+				for (int z = 1; z < 3; z++)
+				{
+					float dist = Distance(n, ds->verts[tri[z]].normal);
+
+					if (dist < bestDist)
+					{
+						best = z;
+						bestDist = dist;
+						bestNorm.x = ds->verts[tri[z]].normal[0];
+						bestNorm.y = ds->verts[tri[z]].normal[1];
+						bestNorm.z = ds->verts[tri[z]].normal[2];
+					}
+				}
+
+				if (bestDist <= INVERTED_NORMALS_EPSILON)
+				{
+					for (int z = 0; z < 3; z++)
+					{
+						if (z != best)
+						{
+							ds->verts[tri[z]].normal[0] = bestNorm.x;
+							ds->verts[tri[z]].normal[1] = bestNorm.y;
+							ds->verts[tri[z]].normal[2] = bestNorm.z;
+						}
+					}
+				}
+				else
+				{
+					for (int z = 0; z < 3; z++)
+					{
+						ds->verts[tri[z]].normal[0] = normAvg.x;
+						ds->verts[tri[z]].normal[1] = normAvg.y;
+						ds->verts[tri[z]].normal[2] = normAvg.z;
+					}
+				}
+#else
+				for (int z = 0; z < 3; z++)
+				{
+					cv->verts[tri[z]].normal[0] = normAvg.x;
+					cv->verts[tri[z]].normal[1] = normAvg.y;
+					cv->verts[tri[z]].normal[2] = normAvg.z;
+				}
+#endif
+			}
+		}
+	}
+}
+
 void GenerateNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
 {
 	qboolean smoothOnly = qfalse;
@@ -630,6 +749,22 @@ void GenerateSmoothNormals(void)
 		if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
 
 		GenerateNormalsForMesh(ds, caulkShader);
+	}
+
+	numCompleted = 0;
+
+	for (int s = 0; s < numMapDrawSurfs; s++)
+	{
+		{
+			printLabelledProgress("FixInvertedNormals", numCompleted, numMapDrawSurfs);
+			numCompleted++;
+		}
+
+		mapDrawSurface_t *ds = &mapDrawSurfs[s];
+
+		if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
+
+		FixInvertedNormalsForSurface(ds, caulkShader);
 	}
 
 	if (MAP_SMOOTH_NORMALS)

@@ -2179,6 +2179,11 @@ void LoadMapFile( char *filename, qboolean onlyLights, qboolean onlyLightgridBru
 		if( (float) c_detail / (float) numMapBrushes < 0.10f && numMapBrushes > 500 )
 			Sys_Warning( "Over 90 percent structural map detected. Compile time may be adversely affected." );
 
+		// UQ1: Mark all BSP brushes as being from the original .map file, so the chunks system can skip the original brushes for trees etc...
+		brush_t *brushes = entities[0].brushes;
+		for (brushes; brushes != NULL; brushes = brushes->next)
+			brushes->isMapFileBrush = qtrue;
+
 		/* emit some statistics */
 		Sys_Printf(  "%9d total world brushes\n", numMapBrushes );
 		numMapBrushes = CountBrushList( entities[ 0 ].brushes );

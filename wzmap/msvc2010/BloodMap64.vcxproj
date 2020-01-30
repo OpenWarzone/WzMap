@@ -346,6 +346,7 @@
     <ClCompile Include="..\src\genfoliage.c" />
     <ClCompile Include="..\src\glad_gl.c" />
     <ClCompile Include="..\src\lightmapGPU.c" />
+    <ClCompile Include="..\src\matrix.cpp" />
     <ClCompile Include="..\src\meshOptimization\triListOpt.cpp" />
     <ClCompile Include="..\src\modelCollisionBox.cpp" />
     <ClCompile Include="..\src\proceduralGeneration.c" />
@@ -477,6 +478,7 @@
     <ClInclude Include="..\src\libs\mathlib.h" />
     <ClInclude Include="..\src\libs\picomodel.h" />
     <ClInclude Include="..\src\lightmapper.h" />
+    <ClInclude Include="..\src\matrix.h" />
     <ClInclude Include="..\src\meshdecimation\mdMeshDecimator.h" />
     <ClInclude Include="..\src\meshdecimation\mdSArray.h" />
     <ClInclude Include="..\src\meshdecimation\mdVector.h" />

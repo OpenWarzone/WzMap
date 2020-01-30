@@ -34,6 +34,7 @@ Geometry geo;
 #define STEPSIZE 18
 
 float NAVMESH_SCALE = 1.0f;
+float NAVMESH_ENTITY_SCALE = 1.0f;
 
 float cellHeight = 2.0f;
 float cellheightDivisor = 3.0f;
@@ -806,8 +807,8 @@ static void BuildNavMesh( int characterNum )
 	gw = 0;
 	gh = 0;
 
-	float r = agent.radius;
-	float h = agent.height;
+	float r = agent.radius * NAVMESH_ENTITY_SCALE;
+	float h = agent.height * NAVMESH_ENTITY_SCALE;
 
 	const float cellSize = r / 2.0;// r / 3.0;
 	cellHeight = cellSize / cellheightDivisor;//3.0; //cellSize / 2.0; // dec if holes
@@ -823,9 +824,9 @@ static void BuildNavMesh( int characterNum )
 	cfg.cs = cellSize;
 	cfg.ch = cellHeight;
 	cfg.walkableSlopeAngle = 47.0;// RAD2DEG(acosf(MIN_WALK_NORMAL));
-	cfg.walkableHeight = (int)ceilf(agent.height / cfg.ch);
-	cfg.walkableClimb = (int)floorf(stepSize / cfg.ch);
-	cfg.walkableRadius = (int)ceilf(agent.radius / cfg.cs);
+	cfg.walkableHeight = (int)ceilf(agent.height * NAVMESH_ENTITY_SCALE / cfg.ch);
+	cfg.walkableClimb = (int)floorf(stepSize * NAVMESH_ENTITY_SCALE / cfg.ch);
+	cfg.walkableRadius = (int)ceilf(agent.radius * NAVMESH_ENTITY_SCALE / cfg.cs);
 	cfg.maxEdgeLen = cfg.walkableRadius * 8.0;
 	cfg.maxSimplificationError = 1.3f;
 	cfg.minRegionArea = rcSqr(25);
@@ -861,9 +862,9 @@ static void BuildNavMesh( int characterNum )
 	tcparams.ch = cellHeight;
 	tcparams.width = ts;
 	tcparams.height = ts;
-	tcparams.walkableHeight = agent.height;
-	tcparams.walkableRadius = agent.radius;
-	tcparams.walkableClimb = stepSize;
+	tcparams.walkableHeight = agent.height * NAVMESH_ENTITY_SCALE;
+	tcparams.walkableRadius = agent.radius * NAVMESH_ENTITY_SCALE;
+	tcparams.walkableClimb = stepSize * NAVMESH_ENTITY_SCALE;
 	tcparams.maxSimplificationError = 1.3;
 	tcparams.maxTiles = tw * th * EXPECTED_LAYERS_PER_TILE;
 	tcparams.maxObstacles = 256;
@@ -999,6 +1000,11 @@ int NavMain(int argc, char **argv)
 				temp = atof(argv[i]);
 				if (temp > 0) {
 					NAVMESH_SCALE = temp;
+
+					if (NAVMESH_SCALE < 1.0)
+					{// Scale up the entity size when using small navmeshes, scaled up...
+						NAVMESH_ENTITY_SCALE = NAVMESH_SCALE;
+					}
 				}
 			}
 		}
