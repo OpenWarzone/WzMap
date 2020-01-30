@@ -956,7 +956,7 @@ int NavMain(int argc, char **argv)
 
 	if(argc < 2)
 	{
-		Sys_Printf("Usage: wzmap -nav [-ignoreRock] [-ignoreTreeLeaves] [-cellheight F] [-mergeSizeMult F] [-stepsize F] [-includecaulk] [-includesky] [-nogapfilter] MAPNAME\n");
+		Sys_Printf("Usage: wzmap -nav [-scale F] [-entityscale F] [-cellheightDivisor F] [-ignoreRock] [-ignoreTreeLeaves] [-ignoreSmallTriangles] [-cellheight F] [-mergeSizeMult F] [-stepsize F] [-includecaulk] [-includesky] [-nogapfilter] MAPNAME\n");
 		return 0;
 	}
 
@@ -1001,10 +1001,20 @@ int NavMain(int argc, char **argv)
 				if (temp > 0) {
 					NAVMESH_SCALE = temp;
 
-					if (NAVMESH_SCALE < 1.0)
+					if (NAVMESH_SCALE > 1.0)
 					{// Scale up the entity size when using small navmeshes, scaled up...
 						NAVMESH_ENTITY_SCALE = NAVMESH_SCALE;
+						//Sys_Printf("NAVMESH_ENTITY_SCALE %f.\n", NAVMESH_ENTITY_SCALE);
 					}
+				}
+			}
+		}
+		else if (!Q_stricmp(argv[i], "-entityscale")) {
+			i++;
+			if (i<(argc - 1)) {
+				temp = atof(argv[i]);
+				if (temp > 0) {
+					NAVMESH_ENTITY_SCALE = temp;
 				}
 			}
 		}
