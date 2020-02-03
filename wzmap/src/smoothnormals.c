@@ -317,10 +317,10 @@ void GenerateSmoothNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkSh
 
 	shaderInfo_t *shaderInfo1 = bspShaderInfos[dsNum];
 
-	if (!shaderInfo)
+	if (!shaderInfo1)
 		return;
 
-	if (shaderInfo == caulkShader)
+	if (shaderInfo1 == caulkShader)
 		return;
 
 	if ((shaderInfo1->contentFlags & C_TRANSLUCENT)
