@@ -24,7 +24,7 @@ void GenerateNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, 
 
 	shaderInfo_t *shaderInfo1 = bspShaderInfos[dsNum];
 
-	if (!shaderInfo)
+	if (!shaderInfo1)
 		return;
 
 	if (shaderInfo1->smoothOnly)
@@ -97,6 +97,137 @@ void GenerateNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, 
 	}
 }
 
+//
+//
+//
+
+extern float Distance(vec3_t pos1, vec3_t pos2);
+
+#define INVERTED_NORMALS_EPSILON 0.8//1.0
+
+void FixInvertedNormalsForBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, int dsNum)
+{
+	if (ds->surfaceType == SURFACE_BAD)
+		return;
+
+	shaderInfo_t *shaderInfo1 = bspShaderInfos[dsNum];
+
+	if (!shaderInfo1)
+		return;
+
+	if (shaderInfo1 == caulkShader)
+		return;
+
+	if ((shaderInfo1->contentFlags & C_TRANSLUCENT)
+		|| (shaderInfo1->contentFlags & C_NODRAW))
+		return;
+
+	bspDrawVert_t *vs = &bspDrawVerts[ds->firstVert];
+	int *idxs = &bspDrawIndexes[ds->firstIndex];
+
+#pragma omp parallel for ordered num_threads(numthreads)
+	for (int i = 0; i < ds->numIndexes; i += 3)
+	{
+		bool badWinding = false;
+
+		int tri[3];
+		tri[0] = idxs[i];
+		tri[1] = idxs[i + 1];
+		tri[2] = idxs[i + 2];
+
+		if (tri[0] >= ds->numVerts)
+		{
+			continue;
+		}
+		if (tri[1] >= ds->numVerts)
+		{
+			continue;
+		}
+		if (tri[2] >= ds->numVerts)
+		{
+			continue;
+		}
+
+		float dist1 = Distance(vs[tri[0]].normal, vs[tri[1]].normal);
+		float dist2 = Distance(vs[tri[0]].normal, vs[tri[2]].normal);
+		float dist3 = Distance(vs[tri[1]].normal, vs[tri[2]].normal);
+
+		if (dist1 > INVERTED_NORMALS_EPSILON || dist2 > INVERTED_NORMALS_EPSILON || dist3 > INVERTED_NORMALS_EPSILON)
+		{
+			badWinding = true;
+		}
+
+		vec3 normAvg(0.0, 0.0, 0.0);
+
+		if (badWinding)
+		{
+			int count = 0;
+
+			for (int j = 0; j < ds->numVerts; j++)
+			{
+				if (j == tri[0] || j == tri[1] || j == tri[2]) continue;
+
+				if (Distance(vs[tri[0]].xyz, vs[j].xyz) <= 2048.0)
+				{
+					normAvg = normAvg + vec3(vs[j].normal) * vec3(0.5) + vec3(0.5);
+					count++;
+				}
+			}
+
+			if (count > 0)
+			{
+				normAvg /= count;
+				normAvg = normAvg * vec3(2.0) - vec3(1.0);
+
+				vec3_t n;
+				n[0] = normAvg.x;
+				n[1] = normAvg.y;
+				n[2] = normAvg.z;
+
+				int best = 0;
+				vec3 bestNorm(vs[tri[0]].normal);
+				float bestDist = Distance(n, vs[tri[0]].normal);
+
+				for (int z = 1; z < 3; z++)
+				{
+					float dist = Distance(n, vs[tri[z]].normal);
+
+					if (dist < bestDist)
+					{
+						best = z;
+						bestDist = dist;
+						bestNorm.x = vs[tri[z]].normal[0];
+						bestNorm.y = vs[tri[z]].normal[1];
+						bestNorm.z = vs[tri[z]].normal[2];
+					}
+				}
+
+				if (bestDist <= INVERTED_NORMALS_EPSILON)
+				{
+					for (int z = 0; z < 3; z++)
+					{
+						if (z != best)
+						{
+							vs[tri[z]].normal[0] = bestNorm.x;
+							vs[tri[z]].normal[1] = bestNorm.y;
+							vs[tri[z]].normal[2] = bestNorm.z;
+						}
+					}
+				}
+				else
+				{
+					for (int z = 0; z < 3; z++)
+					{
+						vs[tri[z]].normal[0] = normAvg.x;
+						vs[tri[z]].normal[1] = normAvg.y;
+						vs[tri[z]].normal[2] = normAvg.z;
+					}
+				}
+			}
+		}
+	}
+}
+
 float MAX_SMOOTH_ERROR = 1.0;
 
 bool ValidForSmoothingBSP(vec3_t v1, vec3_t n1, vec3_t v2, vec3_t n2)
@@ -140,10 +271,10 @@ int GetWorkCountForSurfaceBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, i
 
 	shaderInfo_t *shaderInfo1 = bspShaderInfos[dsNum];
 
-	if (!shaderInfo)
+	if (!shaderInfo1)
 		return 0;
 
-	if (shaderInfo == caulkShader)
+	if (shaderInfo1 == caulkShader)
 		return 0;
 
 	if ((shaderInfo1->contentFlags & C_TRANSLUCENT)
@@ -356,6 +487,23 @@ void GenerateSmoothNormalsBSP(void)
 		if (shaderInfo1 && shaderInfo1->noSmooth) continue;
 
 		GenerateNormalsForMeshBSP(ds, caulkShader, s);
+	}
+
+	numCompleted = 0;
+
+	for (int s = 0; s < numBSPDrawSurfaces; s++)
+	{
+		{
+			printLabelledProgress("FixInvertedNormals", numCompleted, numBSPDrawSurfaces);
+			numCompleted++;
+		}
+
+		bspDrawSurface_t *ds = &bspDrawSurfaces[s];
+		shaderInfo_t *shaderInfo1 = bspShaderInfos[s];
+
+		if (shaderInfo1 && shaderInfo1->noSmooth) continue;
+
+		FixInvertedNormalsForBSP(ds, caulkShader, s);
 	}
 
 	MAP_SMOOTH_NORMALS = 1;
