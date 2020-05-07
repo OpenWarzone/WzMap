@@ -2685,7 +2685,9 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 		char *COLLISION_MODEL = NULL;
 		bool collisionIsBox = false;
 
-		if (USE_BOX_MODELS)
+		int allowCollisionModelTypes = IntForKey(e2, "_allowCollisionModelTypes");
+
+		if (USE_BOX_MODELS && allowCollisionModelTypes >= 4)
 		{
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };
@@ -2754,7 +2756,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 			}
 		}
 
-		if (COLLISION_MODEL == NULL && USE_CONVEX_HULL_MODELS)
+		if (COLLISION_MODEL == NULL && USE_CONVEX_HULL_MODELS && (allowCollisionModelTypes >= 3 || allowCollisionModelTypes == 1))
 		{// Check if there is a convex hull collision model first...
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };

@@ -2333,6 +2333,8 @@ void GenerateCliffFaces(void)
 			SetKeyValue(mapEnt, "snap", va("%i", CLIFF_PLANE_SNAP));
 		}
 
+		SetKeyValue(mapEnt, "_allowCollisionModelTypes", "3"); // allow convex or simplified collision models only...
+
 		//Sys_Printf( "Generated cliff face at %.4f %.4f %.4f. Angle %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2], cliffAngles[i][1] );
 
 		funcGroup = qfalse;
@@ -4052,6 +4054,8 @@ void GenerateLedgeFaces(void)
 			}
 		}
 
+		SetKeyValue(mapEnt, "_allowCollisionModelTypes", "3"); // allow convex or simplified collision models only...
+
 		// Always use origin as the near low point on ledges... They are at low angles...
 		//SetKeyValue(mapEnt, "_originAsLowPoint", "1");
 
@@ -4983,6 +4987,10 @@ void GenerateMapForest ( void )
 					SetKeyValue(mapEnt, "modelscale", str);
 				}
 
+
+				SetKeyValue(mapEnt, "_allowCollisionModelTypes", va("%i", TREE_ALLOW_SIMPLIFY[FOLIAGE_TREE_SELECTION[i]]));
+
+
 				if (TREE_FORCED_FULLSOLID[FOLIAGE_TREE_SELECTION[i]])
 				{
 					SetKeyValue(mapEnt, "_forcedSolid", "1");
@@ -5283,6 +5291,8 @@ void GenerateStaticEntities(void)
 		{
 			SetKeyValue(mapEnt, "snap", va("%i", STATIC_PLANE_SNAP[i]));
 		}
+
+		SetKeyValue(mapEnt, "_allowCollisionModelTypes", va("%i", STATIC_ALLOW_SIMPLIFY[i]));
 
 		if (STATIC_FORCED_FULLSOLID[i] >= 2)
 		{
@@ -6115,6 +6125,7 @@ void GenerateMapCity(void)
 					}
 				}
 
+				SetKeyValue(mapEnt, "_allowCollisionModelTypes", va("%i", CITY_ALLOW_SIMPLIFY[FOLIAGE_TREE_SELECTION[i]]));
 
 				if (CITY_FORCED_FULLSOLID[FOLIAGE_TREE_SELECTION[i]] >= 2)
 				{
