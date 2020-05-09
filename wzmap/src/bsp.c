@@ -872,7 +872,7 @@ void ProcessWorldModel( void )
 	}
 	
 	/* create drawsurfs for triangle models */
-	AddTriangleModels( 0, qfalse, qfalse );
+	AddTriangleModels( 0, qfalse, qfalse, qfalse );
 	
 	/* create drawsurfs for surface models */
 	AddEntitySurfaceModels( e );
@@ -1078,7 +1078,7 @@ void ProcessSubModel( void )
 	ClipSidesIntoTree( e, tree, qtrue );
 	
 	/* ydnar: create drawsurfs for triangle models */
-	AddTriangleModels( entityNum, qfalse, qfalse );
+	AddTriangleModels( entityNum, qfalse, qfalse, qfalse );
 	
 	/* create drawsurfs for surface models */
 	AddEntitySurfaceModels( e );

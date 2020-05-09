@@ -261,7 +261,7 @@ static void LoadGeometry()
 			continue;
 		}
 
-		if (excludeCaulk && StringContainsWord(shader->shader, "skip"))
+		if (excludeCaulk && StringContainsWord(shader->shader, "system/skip"))
 		{
 			continue;
 		}

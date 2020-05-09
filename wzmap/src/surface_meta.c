@@ -626,6 +626,7 @@ void MakeEntityMetaTriangles( entity_t *e )
 	start = I_FloatTime();
 
 	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
+	shaderInfo_t *skipShader = ShaderInfoForShader("textures/system/skip");
 	
 	/* walk the list of surfaces in the entity */
 	for( i = e->firstDrawSurf; i < numMapDrawSurfs; i++ )
@@ -648,13 +649,6 @@ void MakeEntityMetaTriangles( entity_t *e )
 		extern qboolean REMOVE_CAULK;
 		extern qboolean StringContainsWord(const char *haystack, const char *needle);
 
-		if (REMOVE_CAULK && ds->shaderInfo && (ds->shaderInfo == caulkShader || StringContainsWord(ds->shaderInfo->shader, "caulk")))
-		{
-			ds->shaderInfo = NULL;
-			ds->type = SURFACE_BAD;
-			continue;
-		}
-
 		if (REMOVE_CAULK && ds->shaderInfo && (ds->shaderInfo->compileFlags & C_SKIP))
 		{
 			ds->shaderInfo = NULL;
@@ -663,6 +657,20 @@ void MakeEntityMetaTriangles( entity_t *e )
 		}
 
 		if (REMOVE_CAULK && ds->shaderInfo && (ds->shaderInfo->compileFlags & C_NODRAW) && !(ds->shaderInfo->compileFlags & C_SOLID))
+		{
+			ds->shaderInfo = NULL;
+			ds->type = SURFACE_BAD;
+			continue;
+		}
+
+		if (REMOVE_CAULK && ds->shaderInfo && (ds->shaderInfo == caulkShader || StringContainsWord(ds->shaderInfo->shader, "caulk")))
+		{
+			ds->shaderInfo = NULL;
+			ds->type = SURFACE_BAD;
+			continue;
+		}
+
+		if (REMOVE_CAULK && ds->shaderInfo && (ds->shaderInfo == skipShader || StringContainsWord(ds->shaderInfo->shader, "system/skip")))
 		{
 			ds->shaderInfo = NULL;
 			ds->type = SURFACE_BAD;
@@ -1636,6 +1644,7 @@ static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles,
 	int numCompleted = 0;
 
 	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
+	shaderInfo_t *skipShader = ShaderInfoForShader("textures/system/skip");
 
 	/* walk the list of triangles */
 #pragma omp parallel for ordered num_threads(numthreads)
@@ -1664,6 +1673,12 @@ static void MetaTrianglesToSurface( int numPossibles, metaTriangle_t *possibles,
 		extern qboolean StringContainsWord(const char *haystack, const char *needle);
 
 		if (REMOVE_CAULK && (seed->si == caulkShader || StringContainsWord(seed->si->shader, "caulk")))
+		{
+			seed->si = NULL;
+			continue;
+		}
+
+		if (REMOVE_CAULK && (seed->si == skipShader || StringContainsWord(seed->si->shader, "system/skip")))
 		{
 			seed->si = NULL;
 			continue;
@@ -1980,6 +1995,7 @@ void GroupMetaTriangles( void )
 	Sys_Printf( "%9d groups\n", numMetaTriangleGroups );
 	Sys_Printf( "%9d max triangles in group\n", maxMetaTrianglesInGroup );
 
+	shaderInfo_t *skipShader = ShaderInfoForShader("textures/system/skip");
 	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
 
 	/* print out large groups (helps to optimize shaders) */
@@ -1992,13 +2008,6 @@ void GroupMetaTriangles( void )
 
 		head = &metaTriangles[group->firstTriangle];
 
-		if (REMOVE_CAULK && head->si && (head->si == caulkShader || StringContainsWord(head->si->shader, "caulk")))
-		{
-			Sys_FPrintf(SYS_STD, "          ent#%i %s - %i tris - REMOVED (CAULK)!\n", head->entityNum, (head->si != NULL) ? head->si->shader : "noshader", group->numTriangles);
-			head->si = NULL;
-			continue;
-		}
-
 		if (REMOVE_CAULK && head->si && (head->si->compileFlags & C_SKIP))
 		{
 			Sys_FPrintf(SYS_STD, "          ent#%i %s - %i tris - REMOVED (C_SKIP)!\n", head->entityNum, (head->si != NULL) ? head->si->shader : "noshader", group->numTriangles);
@@ -2009,6 +2018,20 @@ void GroupMetaTriangles( void )
 		if (REMOVE_CAULK && head->si && (head->si->compileFlags & C_NODRAW) && !(head->si->compileFlags & C_SOLID))
 		{
 			Sys_FPrintf(SYS_STD, "          ent#%i %s - %i tris - REMOVED (C_NODRAW & !C_SOLID)!\n", head->entityNum, (head->si != NULL) ? head->si->shader : "noshader", group->numTriangles);
+			head->si = NULL;
+			continue;
+		}
+
+		if (REMOVE_CAULK && head->si && (head->si == caulkShader || StringContainsWord(head->si->shader, "caulk")))
+		{
+			Sys_FPrintf(SYS_STD, "          ent#%i %s - %i tris - REMOVED (CAULK)!\n", head->entityNum, (head->si != NULL) ? head->si->shader : "noshader", group->numTriangles);
+			head->si = NULL;
+			continue;
+		}
+
+		if (REMOVE_CAULK && head->si && (head->si == skipShader || StringContainsWord(head->si->shader, "skip")))
+		{
+			Sys_FPrintf(SYS_STD, "          ent#%i %s - %i tris - REMOVED (SKIP)!\n", head->entityNum, (head->si != NULL) ? head->si->shader : "noshader", group->numTriangles);
 			head->si = NULL;
 			continue;
 		}
@@ -2033,6 +2056,7 @@ void MergeMetaTrianglesThread( int threadnum )
 	uint32_t completedGroups = 0;
 
 	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
+	shaderInfo_t *skipShader = ShaderInfoForShader("textures/system/skip");
 
 	/* cycle */
 	while( (work = GetThreadWork()) >= 0 )
@@ -2054,6 +2078,12 @@ void MergeMetaTrianglesThread( int threadnum )
 			extern qboolean StringContainsWord(const char *haystack, const char *needle);
 
 			if (REMOVE_CAULK && (head->si == caulkShader || StringContainsWord(head->si->shader, "caulk")))
+			{
+				head->si = NULL;
+				continue;
+			}
+
+			if (REMOVE_CAULK && (head->si == skipShader || StringContainsWord(head->si->shader, "skip")))
 			{
 				head->si = NULL;
 				continue;

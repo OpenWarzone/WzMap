@@ -418,7 +418,7 @@ static void GenFoliage(char *mapName)
 			continue;
 		}
 
-		if (excludeCaulk && StringContainsWord(shader->shader, "skip"))
+		if (excludeCaulk && StringContainsWord(shader->shader, "system/skip"))
 		{
 			continue;
 		}

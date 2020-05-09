@@ -18,7 +18,7 @@ qboolean	SMOOTHING_WHOLEMAP = qfalse;
 qboolean	SMOOTHING_STRICT = qfalse;
 int			SMOOTHING_PASSES = 3;
 
-void GenerateNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, int dsNum)
+void GenerateNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader, int dsNum)
 {
 	qboolean smoothOnly = qfalse;
 
@@ -31,6 +31,9 @@ void GenerateNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, 
 		smoothOnly = qtrue;
 
 	if (shaderInfo1 == caulkShader)
+		return;
+
+	if (shaderInfo1 == skipShader)
 		return;
 
 	if (!smoothOnly)
@@ -105,7 +108,7 @@ extern float Distance(vec3_t pos1, vec3_t pos2);
 
 #define INVERTED_NORMALS_EPSILON 0.8//1.0
 
-void FixInvertedNormalsForBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, int dsNum)
+void FixInvertedNormalsForBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader, int dsNum)
 {
 	if (ds->surfaceType == SURFACE_BAD)
 		return;
@@ -116,6 +119,9 @@ void FixInvertedNormalsForBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, i
 		return;
 
 	if (shaderInfo1 == caulkShader)
+		return;
+
+	if (shaderInfo1 == skipShader)
 		return;
 
 	if ((shaderInfo1->contentFlags & C_TRANSLUCENT)
@@ -310,7 +316,7 @@ int GetWorkCountForSurfaceBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, i
 	return count;
 }
 
-void GenerateSmoothNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, int dsNum)
+void GenerateSmoothNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader, int dsNum)
 {
 	if (ds->surfaceType == SURFACE_BAD)
 		return;
@@ -321,6 +327,9 @@ void GenerateSmoothNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkSh
 		return;
 
 	if (shaderInfo1 == caulkShader)
+		return;
+
+	if (shaderInfo1 == skipShader)
 		return;
 
 	if ((shaderInfo1->contentFlags & C_TRANSLUCENT)
@@ -355,7 +364,7 @@ void GenerateSmoothNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkSh
 
 					shaderInfo_t *shaderInfo2 = bspShaderInfos[s];
 
-					if (!shaderInfo2 || shaderInfo1 != shaderInfo2 || shaderInfo2 == caulkShader)
+					if (!shaderInfo2 || shaderInfo1 != shaderInfo2 || shaderInfo2 == caulkShader || shaderInfo2 == skipShader)
 						continue;
 
 					if ((shaderInfo2->contentFlags & C_TRANSLUCENT)
@@ -411,7 +420,7 @@ void GenerateSmoothNormalsForMeshBSP(bspDrawSurface_t *ds, shaderInfo_t *caulkSh
 					
 					shaderInfo_t *shaderInfo2 = shaderInfo1;
 
-					if (!shaderInfo2 || shaderInfo1 != shaderInfo2 || shaderInfo2 == caulkShader)
+					if (!shaderInfo2 || shaderInfo1 != shaderInfo2 || shaderInfo2 == caulkShader || shaderInfo2 == skipShader)
 						continue;
 
 					if ((shaderInfo2->contentFlags & C_TRANSLUCENT)
@@ -458,6 +467,7 @@ void GenerateSmoothNormalsBSP(void)
 	Sys_PrintHeading("--- GenerateNormals ---\n");
 
 	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
+	shaderInfo_t *skipShader = ShaderInfoForShader("textures/system/skip");
 
 	for (int s = 0; s < numBSPDrawSurfaces; s++)
 	{
@@ -486,7 +496,7 @@ void GenerateSmoothNormalsBSP(void)
 
 		if (shaderInfo1 && shaderInfo1->noSmooth) continue;
 
-		GenerateNormalsForMeshBSP(ds, caulkShader, s);
+		GenerateNormalsForMeshBSP(ds, caulkShader, skipShader, s);
 	}
 
 	numCompleted = 0;
@@ -503,7 +513,7 @@ void GenerateSmoothNormalsBSP(void)
 
 		if (shaderInfo1 && shaderInfo1->noSmooth) continue;
 
-		FixInvertedNormalsForBSP(ds, caulkShader, s);
+		FixInvertedNormalsForBSP(ds, caulkShader, skipShader, s);
 	}
 
 	MAP_SMOOTH_NORMALS = 1;
@@ -524,7 +534,7 @@ void GenerateSmoothNormalsBSP(void)
 
 			if (shaderInfo1 && shaderInfo1->noSmooth) continue;
 
-			GenerateSmoothNormalsForMeshBSP(ds, caulkShader, s);
+			GenerateSmoothNormalsForMeshBSP(ds, caulkShader, skipShader, s);
 		}
 	}
 }

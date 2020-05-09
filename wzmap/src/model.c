@@ -519,6 +519,7 @@ float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 			&& !(si->compileFlags & C_NODRAW)
 			&& !StringContainsWord(si->shader, "sky")
 			&& !StringContainsWord(si->shader, "caulk")
+			&& !StringContainsWord(si->shader, "system/skip")
 			&& !StringContainsWord(si->shader, "common/water"))
 		{
 			//if (DistanceHorizontal(pos, ds->mins) <= radius || DistanceHorizontal(pos, ds->maxs) <= radius)
@@ -587,6 +588,7 @@ float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 				&& !(si->compileFlags & C_NODRAW)
 				&& !StringContainsWord(si->shader, "sky")
 				&& !StringContainsWord(si->shader, "caulk")
+				&& !StringContainsWord(si->shader, "system/skip")
 				&& !StringContainsWord(si->shader, "common/water"))
 			{
 				//if (DistanceHorizontal(pos, ds->mins) <= radius || DistanceHorizontal(pos, ds->maxs) <= radius)
@@ -638,6 +640,7 @@ float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 				&& !(si->compileFlags & C_NODRAW)
 				&& !StringContainsWord(si->shader, "sky")
 				&& !StringContainsWord(si->shader, "caulk")
+				&& !StringContainsWord(si->shader, "system/skip")
 				&& !StringContainsWord(si->shader, "common/water"))
 			{
 				//if (DistanceHorizontal(pos, ds->mins) <= radius || DistanceHorizontal(pos, ds->maxs) <= radius)
@@ -689,6 +692,7 @@ float LowestMapPointNear(vec3_t pos, float radius, const char *modelName)
 				&& !(si->compileFlags & C_NODRAW)
 				&& !StringContainsWord(si->shader, "sky")
 				&& !StringContainsWord(si->shader, "caulk")
+				&& !StringContainsWord(si->shader, "system/skip")
 				&& !StringContainsWord(si->shader, "common/water"))
 			{
 				//if (DistanceHorizontal(pos, ds->mins) <= radius || DistanceHorizontal(pos, ds->maxs) <= radius)
@@ -780,7 +784,7 @@ void RemoveSurface(mapDrawSurface_t *ds)
 {
 	if (!ds) return;
 
-	if ((ds->shaderInfo->compileFlags & C_SKIP) || (ds->shaderInfo->compileFlags & C_NODRAW) || (ds->shaderInfo->compileFlags & C_HINT) || StringContainsWord(ds->shaderInfo->shader, "caulk"))
+	if ((ds->shaderInfo->compileFlags & C_SKIP) || (ds->shaderInfo->compileFlags & C_NODRAW) || (ds->shaderInfo->compileFlags & C_HINT) || StringContainsWord(ds->shaderInfo->shader, "caulk") || StringContainsWord(ds->shaderInfo->shader, "skip"))
 	{
 		ClearSurface(ds);
 	}
@@ -2409,9 +2413,9 @@ AddTriangleModels()
 adds misc_model surfaces to the bsp
 */
 
-extern qboolean CULLSIDES_AFTER_MODEL_ADITION;
+extern int CULLSIDES_AFTER_MODEL_ADITION;
 
-void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
+void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, qboolean chunksPass)
 {
 	int				added_surfaces = 0, added_triangles = 0, added_verts = 0, added_brushes = 0;
 	int				total_added_surfaces = 0, total_added_triangles = 0, total_added_verts = 0, total_added_brushes = 0;
@@ -3208,9 +3212,20 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids)
 	//CullSides( &entities[ mapEntityNum ] );
 	//CullSidesStats();
 
-	if (CULLSIDES_AFTER_MODEL_ADITION && total_added_surfaces > 0)
-	{// Do a second cullsides, to remove excess crap (stuff inside other stuff, etc) after everything was added...
-		CullSides(&entities[mapEntityNum]);
-		CullSidesStats();
+	if (CULLSIDES_AFTER_MODEL_ADITION == 1)
+	{
+		if (chunksPass && total_added_surfaces > 0)
+		{// Do a second cullsides, to remove excess crap (stuff inside other stuff, etc) after everything was added...
+			CullSides(&entities[mapEntityNum]);
+			CullSidesStats();
+		}
+	}
+	else if (CULLSIDES_AFTER_MODEL_ADITION > 1)
+	{
+		if (total_added_surfaces > 0)
+		{// Do a second cullsides, to remove excess crap (stuff inside other stuff, etc) after everything was added...
+			CullSides(&entities[mapEntityNum]);
+			CullSidesStats();
+		}
 	}
 }

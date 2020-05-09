@@ -325,9 +325,9 @@ extern float Distance(vec3_t pos1, vec3_t pos2);
 #ifdef __REGENERATE_BSP_NORMALS__
 #define INVERTED_NORMALS_EPSILON 0.8//1.0
 
-void FixInvertedNormalsForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
+void FixInvertedNormalsForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
 {
-	if (!ds->shaderInfo || ds->shaderInfo == caulkShader)
+	if (!ds->shaderInfo || ds->shaderInfo == caulkShader || ds->shaderInfo == skipShader)
 		return;
 
 #pragma omp parallel for ordered num_threads(numthreads)
@@ -442,14 +442,14 @@ void FixInvertedNormalsForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 	}
 }
 
-void GenerateNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
+void GenerateNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
 {
 	qboolean smoothOnly = qfalse;
 
 	if (ds->shaderInfo && ds->shaderInfo->smoothOnly)
 		smoothOnly = qtrue;
 
-	if (!ds->shaderInfo || ds->shaderInfo == caulkShader)
+	if (!ds->shaderInfo || ds->shaderInfo == caulkShader || ds->shaderInfo == skipShader)
 		return;
 
 	if (!smoothOnly)
@@ -530,7 +530,7 @@ bool ValidForSmoothing(vec3_t v1, vec3_t n1, vec3_t v2, vec3_t n2)
 
 #define __MULTIPASS_SMOOTHING__ // Looks better, but takes a lot longer...
 
-int GetWorkCountForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
+int GetWorkCountForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
 {
 	if (!ds->shaderInfo)
 		return 0;
@@ -538,7 +538,7 @@ int GetWorkCountForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
 	if (ds->type == SURFACE_BAD)
 		return 0;
 
-	if (ds->shaderInfo == caulkShader)
+	if (ds->shaderInfo == caulkShader || ds->shaderInfo == skipShader)
 		return 0;
 
 	if ((ds->shaderInfo->contentFlags & C_TRANSLUCENT)
@@ -586,7 +586,7 @@ int GetWorkCountForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
 int64_t totalSmoothCount = 0;
 int64_t totalSmoothComplete = 0;
 
-void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader)
+void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
 {
 	if (!ds->shaderInfo)
 		return;
@@ -594,7 +594,7 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 	if (ds->type == SURFACE_BAD)
 		return;
 
-	if (ds->shaderInfo == caulkShader)
+	if (ds->shaderInfo == caulkShader || ds->shaderInfo == skipShader)
 		return;
 
 	if ((ds->shaderInfo->contentFlags & C_TRANSLUCENT)
@@ -633,7 +633,7 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 					if (ds2->type == SURFACE_BAD)
 						continue;
 
-					if (!ds2->shaderInfo || ds->shaderInfo != ds2->shaderInfo || ds2->shaderInfo == caulkShader)
+					if (!ds2->shaderInfo || ds->shaderInfo != ds2->shaderInfo || ds2->shaderInfo == caulkShader || ds2->shaderInfo == skipShader)
 						continue;
 
 					if ((ds2->shaderInfo->contentFlags & C_TRANSLUCENT)
@@ -692,7 +692,7 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 					if (ds2->type == SURFACE_BAD)
 						continue;
 
-					if (!ds2->shaderInfo || ds->shaderInfo != ds2->shaderInfo || ds2->shaderInfo == caulkShader)
+					if (!ds2->shaderInfo || ds->shaderInfo != ds2->shaderInfo || ds2->shaderInfo == caulkShader || ds2->shaderInfo == skipShader)
 						continue;
 
 					if ((ds2->shaderInfo->contentFlags & C_TRANSLUCENT)
@@ -736,6 +736,7 @@ void GenerateSmoothNormals(void)
 	Sys_PrintHeading("--- GenerateNormals ---\n");
 
 	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
+	shaderInfo_t *skipShader = ShaderInfoForShader("textures/system/skip");
 
 	for (int s = 0; s < numMapDrawSurfs; s++)
 	{
@@ -748,7 +749,7 @@ void GenerateSmoothNormals(void)
 
 		if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
 
-		GenerateNormalsForMesh(ds, caulkShader);
+		GenerateNormalsForMesh(ds, caulkShader, skipShader);
 	}
 
 	numCompleted = 0;
@@ -764,7 +765,7 @@ void GenerateSmoothNormals(void)
 
 		if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
 
-		FixInvertedNormalsForSurface(ds, caulkShader);
+		FixInvertedNormalsForSurface(ds, caulkShader, skipShader);
 	}
 
 	if (MAP_SMOOTH_NORMALS)
@@ -779,7 +780,7 @@ void GenerateSmoothNormals(void)
 
 			if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
 
-			totalSmoothCount += GetWorkCountForSurface(ds, caulkShader);
+			totalSmoothCount += GetWorkCountForSurface(ds, caulkShader, skipShader);
 		}
 
 		for (int s = 0; s < numMapDrawSurfs; s++)
@@ -788,7 +789,7 @@ void GenerateSmoothNormals(void)
 
 			if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
 
-			GenerateSmoothNormalsForMesh(ds, caulkShader);
+			GenerateSmoothNormalsForMesh(ds, caulkShader, skipShader);
 		}
 
 		printLabelledProgress("SmoothNormals", totalSmoothCount / 32768, totalSmoothCount / 32768); // / 32768 because of huge numbers and conversion to double...

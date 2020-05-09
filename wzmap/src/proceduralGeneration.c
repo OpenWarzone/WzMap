@@ -99,7 +99,7 @@ qboolean		FORCED_MODEL_META = qfalse;
 qboolean		CAULKIFY_CRAP = qfalse;
 qboolean		REMOVE_CAULK = qfalse;
 qboolean		USE_FAST_CULLSIDES = qfalse;
-qboolean		CULLSIDES_AFTER_MODEL_ADITION = qfalse;
+int				CULLSIDES_AFTER_MODEL_ADITION = 0;
 qboolean		USE_CONVEX_HULL_MODELS = qfalse;
 int				USE_BOX_MODELS = 0;
 float			MAP_ROAD_SCAN_WIDTH_MULTIPLIER = 1.0;
@@ -153,7 +153,7 @@ float			CITY_CLIFF_CULL_RADIUS = 1.0;
 float			CITY_BUFFER = 1024.0;
 vec3_t			CITY_LOCATION = { 0 };
 float			CITY_RADIUS = 0;
-qboolean		CITY_RANDOM_ANGLES = qfalse;
+int				CITY_RANDOM_ANGLES = 0;
 vec3_t			CITY2_LOCATION = { 0 };
 float			CITY2_RADIUS = 0;
 vec3_t			CITY3_LOCATION = { 0 };
@@ -167,6 +167,7 @@ float			CITY_OFFSETS[MAX_FOREST_MODELS] = { -4.0 };
 float			CITY_SCALES[MAX_FOREST_MODELS] = { 1.0 };
 float			CITY_SCALES_XY[MAX_FOREST_MODELS] = { 1.0 };
 float			CITY_SCALES_Z[MAX_FOREST_MODELS] = { 1.0 };
+int				CITY_ANGLES_RANDOMIZE[MAX_FOREST_MODELS] = { 0 };
 qboolean		CITY_CENTRAL_ONCE[MAX_FOREST_MODELS] = { qfalse };
 qboolean		CITY_ALLOW_ROAD[MAX_FOREST_MODELS] = { qfalse };
 float			CITY_FORCED_MAX_ANGLE[MAX_FOREST_MODELS] = { 0.0 };
@@ -719,11 +720,15 @@ void FOLIAGE_LoadClimateData(char *filename)
 		Sys_Printf("Fast Cullsides will be used.\n");
 	}
 
-	CULLSIDES_AFTER_MODEL_ADITION = (qboolean)atoi(IniRead(filename, "GENERAL", "cullSidesAfterModelAddition", "0"));
+	CULLSIDES_AFTER_MODEL_ADITION = atoi(IniRead(filename, "GENERAL", "cullSidesAfterModelAddition", "0"));
 
-	if (CULLSIDES_AFTER_MODEL_ADITION)
+	if (CULLSIDES_AFTER_MODEL_ADITION == 1)
 	{
-		Sys_Printf("Cullsides will be run again after adding models.\n");
+		Sys_Printf("Cullsides will be run again after adding models in the groundChunk pass.\n");
+	}
+	else if (CULLSIDES_AFTER_MODEL_ADITION)
+	{
+		Sys_Printf("Cullsides will be run again after adding models in each pass.\n");
 	}
 
 	USE_CONVEX_HULL_MODELS = (qboolean)atoi(IniRead(filename, "GENERAL", "useConvexHullModels", "1"));
@@ -1063,8 +1068,13 @@ void FOLIAGE_LoadClimateData(char *filename)
 	{
 		CITY_RADIUS = atof(IniRead(filename, "CITY", "cityRadius", "0"));
 		CITY_CLIFF_CULL_RADIUS = atof(IniRead(filename, "CITY", "cliffFacesCullScale", "1.0"));
-		CITY_RANDOM_ANGLES = (atoi(IniRead(filename, "CITY", "cityRandomizeAngles", "0")) > 0) ? qtrue : qfalse;
+		CITY_RANDOM_ANGLES = atoi(IniRead(filename, "CITY", "cityRandomizeAngles", "0"));
 		CITY_BUFFER = atof(IniRead(filename, "CITY", "cityBuffer", "1024.0"));
+
+		for (int i = 0; i < MAX_FOREST_MODELS; i++)
+		{// Set default for each city model randomize based on the "do all" option above...
+			CITY_ANGLES_RANDOMIZE[i] = CITY_RANDOM_ANGLES ? CITY_RANDOM_ANGLES : 0;
+		}
 
 		for (i = 0; i < MAX_FOREST_MODELS; i++)
 		{
@@ -1074,6 +1084,7 @@ void FOLIAGE_LoadClimateData(char *filename)
 			CITY_SCALES_XY[i] = atof(IniRead(filename, "CITY", va("cityScaleXY%i", i), "1.0"));
 			CITY_SCALES_Z[i] = atof(IniRead(filename, "CITY", va("cityScaleZ%i", i), "1.0"));
 			CITY_CENTRAL_ONCE[i] = (qboolean)atoi(IniRead(filename, "CITY", va("cityCentralOneOnly%i", i), "0"));
+			CITY_ANGLES_RANDOMIZE[i] = atoi(IniRead(filename, "CITY", va("cityRandomizeAngles%i", i), va("%i", CITY_ANGLES_RANDOMIZE[i])));
 			CITY_ALLOW_ROAD[i] = (qboolean)atoi(IniRead(filename, "CITY", va("cityAllowOnRoad%i", i), "0"));
 			CITY_FORCED_MAX_ANGLE[i] = atof(IniRead(filename, "CITY", va("cityForcedMaxAngle%i", i), "0.0"));
 			CITY_FORCED_BUFFER_DISTANCE[i] = atof(IniRead(filename, "CITY", va("cityForcedBufferDistance%i", i), "0.0"));
@@ -1084,7 +1095,7 @@ void FOLIAGE_LoadClimateData(char *filename)
 			CITY_PLANE_SNAP[i] = atoi(IniRead(filename, "CITY", va("cityPlaneSnap%i", i), "0"));
 
 			if (strcmp(CITY_MODELS[i], ""))
-				Sys_Printf("Building %i. Model %s. Offset %.4f. Scale %.4f (XY %.4f Z %.4f). MaxAngle %i. BufferDist %.4f. InstanceDist %.4f. ForcedSolid: %s. Plane Snap: %i. Shader: %s. OneOnly: %s. AllowRoad: %s.\n", i, CITY_MODELS[i], CITY_OFFSETS[i], CITY_SCALES[i], CITY_SCALES_XY[i], CITY_SCALES_Z[i], (int)CITY_FORCED_MAX_ANGLE[i], CITY_FORCED_BUFFER_DISTANCE[i], CITY_FORCED_DISTANCE_FROM_SAME[i], CITY_FORCED_FULLSOLID[i] ? "true" : "false", CITY_PLANE_SNAP[i], CITY_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? CITY_FORCED_OVERRIDE_SHADER[i] : "Default", CITY_CENTRAL_ONCE[i] ? "true" : "false", CITY_ALLOW_ROAD[i] ? "true" : "false");
+				Sys_Printf("Building %i. Model %s. Offset %.4f. Scale %.4f (XY %.4f Z %.4f). MaxAngle %i. AngRand: %i. Buffer %.4f. InstanceBuffer %.4f. ForceSolid: %s. PlaneSnap: %i. Shader: %s. OneOnly: %s. AllowRoad: %s.\n", i, CITY_MODELS[i], CITY_OFFSETS[i], CITY_SCALES[i], CITY_SCALES_XY[i], CITY_SCALES_Z[i], (int)CITY_FORCED_MAX_ANGLE[i], CITY_ANGLES_RANDOMIZE[i], CITY_FORCED_BUFFER_DISTANCE[i], CITY_FORCED_DISTANCE_FROM_SAME[i], CITY_FORCED_FULLSOLID[i] ? "true" : "false", CITY_PLANE_SNAP[i], CITY_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? CITY_FORCED_OVERRIDE_SHADER[i] : "Default", CITY_CENTRAL_ONCE[i] ? "true" : "false", CITY_ALLOW_ROAD[i] ? "true" : "false");
 		}
 	}
 
@@ -1178,6 +1189,126 @@ void vectoangles(const vec3_t value1, vec3_t angles);
 extern qboolean StringContainsWord(const char *haystack, const char *needle);
 extern bool NO_BOUNDS_IMPROVEMENT;
 
+#ifdef __SKIPIFY__
+void CaulkifyStuff(qboolean findBounds)
+{
+	if (!CAULKIFY_CRAP) return;
+
+	Sys_PrintHeading("--- CaulkifyJunk ---\n");
+
+	int numCalkified = 0;
+	int numNoDrawAdded = 0;
+	int numSkipAdded = 0;
+	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/skip");
+
+	for (int s = 0; s < numMapDrawSurfs; s++)
+	{
+		printLabelledProgress("CaulkifyJunk", s, numMapDrawSurfs);
+
+		/* get drawsurf */
+		mapDrawSurface_t *ds = &mapDrawSurfs[s];
+		shaderInfo_t *si = ds->shaderInfo;
+
+		if ((si->compileFlags & C_SKIP) && !(si->compileFlags & C_NODRAW))
+		{
+			si->compileFlags |= C_NODRAW;
+			numNoDrawAdded++;
+		}
+
+		if (!(si->compileFlags & C_SKIP) && (si->compileFlags & C_NODRAW))
+		{
+			si->compileFlags |= C_SKIP;
+			numSkipAdded++;
+		}
+
+		if ((si->compileFlags & C_TRANSLUCENT) || (si->compileFlags & C_SKIP) || (si->compileFlags & C_FOG) || (si->compileFlags & C_NODRAW) || (si->compileFlags & C_HINT))
+		{
+			continue;
+		}
+
+		if (!(si->compileFlags & C_SOLID))
+		{
+			continue;
+		}
+
+		if (si == caulkShader)
+		{
+			continue;
+		}
+
+		if (ds->skybox)
+		{
+			continue;
+		}
+
+		if (!StringContainsWord(si->shader, "skyscraper") && StringContainsWord(si->shader, "sky"))
+		{// Never on skies...
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "system/skip"))
+		{// Already caulk...
+			continue;
+		}
+
+		if (!(si->compileFlags & C_SKY))
+		{
+			if (ds->numIndexes == 0 && ds->numVerts == 4)
+			{// This is under-terrain junk...
+				ds->shaderInfo = caulkShader;
+				numCalkified++;
+			}
+		}
+	}
+
+	if (findBounds && !NO_BOUNDS_IMPROVEMENT)
+	{
+		// Now that we have calkified stuff, re-check playableMapBounds, so we can cull most stuff that would be below the map...
+		vec3_t oldMapPlayableMins, oldMapPlayableMaxs;
+		VectorCopy(mapPlayableMins, oldMapPlayableMins);
+		VectorCopy(mapPlayableMaxs, oldMapPlayableMaxs);
+
+		ClearBounds(mapPlayableMins, mapPlayableMaxs);
+		for (int s = 0; s < numMapDrawSurfs; s++)
+		{
+			printLabelledProgress("ImproveMapBounds", s, numMapDrawSurfs);
+
+			/* get drawsurf */
+			mapDrawSurface_t *ds = &mapDrawSurfs[s];
+			shaderInfo_t *si = ds->shaderInfo;
+
+			ClearBounds(ds->mins, ds->maxs);
+			for (int i = 0; i < ds->numVerts; i++)
+				AddPointToBounds(ds->verts[i].xyz, ds->mins, ds->maxs);
+
+			// UQ1: Also record actual map playable area mins/maxs...
+			if (!(si->compileFlags & C_SKY)
+				&& !(si->compileFlags & C_SKIP)
+				&& !(si->compileFlags & C_HINT)
+				&& !(si->compileFlags & C_NODRAW)
+				&& !(!StringContainsWord(si->shader, "skyscraper") && StringContainsWord(si->shader, "sky"))
+				&& !StringContainsWord(si->shader, "system/skip")
+				&& !StringContainsWord(si->shader, "common/water"))
+			{
+				//if (!StringContainsWord(si->shader, "/sand"))
+				//Sys_Printf("ds %i [%s] bounds %.4f %.4f %.4f x %.4f %.4f %.4f.\n", s, si->shader, ds->mins[0], ds->mins[1], ds->mins[2], ds->maxs[0], ds->maxs[1], ds->maxs[2]);
+				AddPointToBounds(ds->mins, mapPlayableMins, mapPlayableMaxs);
+				AddPointToBounds(ds->maxs, mapPlayableMins, mapPlayableMaxs);
+			}
+		}
+
+		// Override playable maxs height with the full map version, we only want the lower extent of playable area...
+		mapMaxs[2] = mapPlayableMaxs[2];
+
+		Sys_Printf("Old map bounds %.4f %.4f %.4f x %.4f %.4f %.4f.\n", oldMapPlayableMins[0], oldMapPlayableMins[1], oldMapPlayableMins[2], oldMapPlayableMaxs[0], oldMapPlayableMaxs[1], oldMapPlayableMaxs[2]);
+		Sys_Printf("New map bounds %.4f %.4f %.4f x %.4f %.4f %.4f.\n", mapPlayableMins[0], mapPlayableMins[1], mapPlayableMins[2], mapPlayableMaxs[0], mapPlayableMaxs[1], mapPlayableMaxs[2]);
+	}
+
+	Sys_Printf("%d shaders set to nodraw.\n", numNoDrawAdded);
+	Sys_Printf("%d shaders set to skip.\n", numSkipAdded);
+	Sys_Printf("%d of %d surfaces were caulkified.\n", numCalkified, numMapDrawSurfs);
+}
+#else //!__SKIPIFY__
 void CaulkifyStuff(qboolean findBounds)
 {
 	if (!CAULKIFY_CRAP) return;
@@ -1296,6 +1427,7 @@ void CaulkifyStuff(qboolean findBounds)
 	Sys_Printf("%d shaders set to skip.\n", numSkipAdded);
 	Sys_Printf("%d of %d surfaces were caulkified.\n", numCalkified, numMapDrawSurfs);
 }
+#endif //__SKIPIFY__
 
 qboolean MapEntityNear(vec3_t origin)
 {
@@ -1451,7 +1583,7 @@ void ProceduralGenFoliage(void)
 			continue;
 		}
 
-		if (StringContainsWord(si->shader, "skip"))
+		if (StringContainsWord(si->shader, "system/skip"))
 		{
 			continue;
 		}
@@ -2041,7 +2173,7 @@ void GenerateChunks(void)
 	}
 
 //#if defined(__ADD_PROCEDURALS_EARLY__)
-	AddTriangleModels(0, qfalse, qfalse);
+	AddTriangleModels(0, qfalse, qfalse, qtrue);
 	CaulkifyStuff(qfalse);
 	EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 	//MoveBrushesToWorld( mapEnt );
@@ -2466,7 +2598,7 @@ void GenerateCliffFaces(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-		AddTriangleModels(0, qtrue, qtrue);
+		AddTriangleModels(0, qtrue, qtrue, qfalse);
 		EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 		//MoveBrushesToWorld( mapEnt );
 		numEntities--;
@@ -2886,7 +3018,7 @@ void GenerateCityRoads(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-		AddTriangleModels(0, qtrue, qtrue);
+		AddTriangleModels(0, qtrue, qtrue, qfalse);
 		EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 		//MoveBrushesToWorld( mapEnt );
 		numEntities--;
@@ -3453,7 +3585,7 @@ void GenerateSkyscrapers(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-			AddTriangleModels(0, qtrue, qtrue);
+			AddTriangleModels(0, qtrue, qtrue, qfalse);
 			EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 			//MoveBrushesToWorld( mapEnt );
 			numEntities--;
@@ -3669,7 +3801,7 @@ void GenerateSkyscrapers(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-			AddTriangleModels(0, qtrue, qtrue);
+			AddTriangleModels(0, qtrue, qtrue, qfalse);
 			EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 			//MoveBrushesToWorld( mapEnt );
 			numEntities--;
@@ -4190,7 +4322,7 @@ void GenerateLedgeFaces(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-		AddTriangleModels(0, qtrue, qtrue);
+		AddTriangleModels(0, qtrue, qtrue, qfalse);
 		EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 		//MoveBrushesToWorld( mapEnt );
 		numEntities--;
@@ -5177,7 +5309,7 @@ void GenerateMapForest ( void )
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-				AddTriangleModels(0, qtrue, qtrue);
+				AddTriangleModels(0, qtrue, qtrue, qfalse);
 				EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 				//MoveBrushesToWorld( mapEnt );
 				numEntities--;
@@ -6113,15 +6245,20 @@ void GenerateMapCity(void)
 				}
 				else
 				{// Record for any secondary pass...
-					if (!CITY_RANDOM_ANGLES)
-					{
-						BUILDING_ANGLES[i] = 0;
-						SetKeyValue(mapEnt, "angle", "0");
+					if (CITY_ANGLES_RANDOMIZE[FOLIAGE_TREE_SELECTION[i]] == 1)
+					{// Full 360 deg randomization...
+						BUILDING_ANGLES[i] = float(irand(0, 360));
+						SetKeyValue(mapEnt, "angle", va("%i", BUILDING_ANGLES[i]));
+					}
+					else if (CITY_ANGLES_RANDOMIZE[FOLIAGE_TREE_SELECTION[i]] >= 2)
+					{// 90/180/270 deg randomization...
+						BUILDING_ANGLES[i] = 90.0 * float(irand(1, 3));
+						SetKeyValue(mapEnt, "angle", va("%i", BUILDING_ANGLES[i]));
 					}
 					else
-					{
-						BUILDING_ANGLES[i] = irand(0, 360);
-						SetKeyValue(mapEnt, "angle", va("%i", BUILDING_ANGLES[i]));
+					{// No random angles on this model...
+						BUILDING_ANGLES[i] = 0;
+						SetKeyValue(mapEnt, "angle", "0");
 					}
 				}
 
@@ -6308,21 +6445,23 @@ void GenerateMapCity(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-				AddTriangleModels(0, qtrue, qtrue);
+				AddTriangleModels(0, qtrue, qtrue, qfalse);
 				EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 				//MoveBrushesToWorld( mapEnt );
 				numEntities--;
 #endif
 
 				if (StringContainsWord(CITY_MODELS[FOLIAGE_TREE_SELECTION[i]], "campfire"))
-				{// Special case for campfires, also make a fx_runner for flames...
-				 /* setup */
+				{
+					//
+					// Special case for campfires, also make a fx_runner for flames...
+					//
 					entitySourceBrushes = 0;
 					mapEnt = &entities[numEntities];
 					numEntities++;
 					memset(mapEnt, 0, sizeof(*mapEnt));
 
-					mapEnt->mapEntityNum = numEntities - 1;// 0;
+					mapEnt->mapEntityNum = numEntities - 1;
 
 					{
 						VectorCopy(FOLIAGE_POSITIONS[i], mapEnt->origin);
@@ -6336,7 +6475,32 @@ void GenerateMapCity(void)
 					SetKeyValue(mapEnt, "classname", "fx_runner");
 					classname = ValueForKey(mapEnt, "classname");
 
-					SetKeyValue(mapEnt, "fxFile", "effects/campfire/campfire.efx");
+					//SetKeyValue(mapEnt, "fxFile", "effects/campfire/campfire.efx");
+					//SetKeyValue(mapEnt, "fxFile", "effects/campfire/campfire2.efx");
+					SetKeyValue(mapEnt, "fxFile", "effects/campfire/campfire3.efx");
+
+
+					//
+					// Also add an ai marker... For future usage...
+					//
+					entitySourceBrushes = 0;
+					mapEnt = &entities[numEntities];
+					numEntities++;
+					memset(mapEnt, 0, sizeof(*mapEnt));
+
+					mapEnt->mapEntityNum = numEntities - 2;
+
+					{
+						VectorCopy(FOLIAGE_POSITIONS[i], mapEnt->origin);
+						mapEnt->origin[2] += CITY_OFFSETS[FOLIAGE_TREE_SELECTION[i]];
+
+						char str[32];
+						sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] + 4.0);
+						SetKeyValue(mapEnt, "origin", str);
+					}
+
+					SetKeyValue(mapEnt, "classname", "ai_marker_campfire");
+					classname = ValueForKey(mapEnt, "classname");
 				}
 			}
 

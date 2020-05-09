@@ -185,6 +185,7 @@ static int initScene(scene_t *scene)
 	Sys_PrintHeading("--- GPU Lightmapper ---\n");
 
 	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
+	shaderInfo_t *skipShader = ShaderInfoForShader("textures/system/skip");
 
 	for (int s = 0; s < numBSPDrawSurfaces; s++)
 	{
@@ -215,6 +216,9 @@ static int initScene(scene_t *scene)
 			continue;
 
 		if (shaderInfo1 == caulkShader)
+			continue;
+
+		if (shaderInfo1 == skipShader)
 			continue;
 
 		scene->vertexCount[m] = ds->numVerts;

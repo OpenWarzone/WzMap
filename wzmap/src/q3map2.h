@@ -33,6 +33,7 @@ WzMap feature defines...
 
 ------------------------------------------------------------------------------- */
 
+#define __SKIPIFY__					// Use system/skip instead of system/caulk for removing surfaces.
 #define __BASEJKA_LIGHTGRID__
 #define __SUPPORT_VALVE220__
 
@@ -1962,7 +1963,7 @@ void						PicoLoadFileFunc( char *name, byte **buffer, int *bufSize );
 picoModel_t					*FindModel( const char *name, int frame );
 picoModel_t					*LoadModel( const char *name, int frame );
 void						InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScale, remap_t *remap, shaderInfo_t *celShader, shaderInfo_t *overrideShader, qboolean forcedSolid, qboolean forcedFullSolid, qboolean forcedNoSolid, int entityNum, int mapEntityNum, char castShadows, char recvShadows, int spawnFlags, float lightmapScale, vec3_t lightmapAxis, vec3_t minlight, vec3_t minvertexlight, vec3_t ambient, vec3_t colormod, float lightmapSampleSize, int shadeAngle, int vertTexProj, qboolean noAlphaFix, float pushVertexes, qboolean skybox, int *added_surfaces, int *added_verts, int *added_triangles, int *added_brushes, qboolean cullSmallSolids, float LOWEST_NEAR_POINT, qboolean isLodModel);
-void						AddTriangleModels( int entityNum, qboolean quiet, qboolean cullSmallSolids );
+void						AddTriangleModels( int entityNum, qboolean quiet, qboolean cullSmallSolids, qboolean chunksPass );
 
 
 /* surface.c */

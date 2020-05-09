@@ -883,7 +883,7 @@ qboolean FloodEntities( tree_t *tree, qboolean quiet )
 			Sys_FPrintf( SYS_VRB, "FloodEntities: entity reached from outside -- no filling\n" );
 	}
 
-	return (qboolean) (inside && !tree->outside_node.occupied);
+	return (qboolean) (inside /*&& !tree->outside_node.occupied*/); // UQ1: Disabled this, seems to always trigger...
 }
 
 void FloodEntitiesStats( void )
