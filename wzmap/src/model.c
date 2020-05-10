@@ -798,7 +798,7 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 	, int entityNum, int mapEntityNum, char castShadows, char recvShadows, int spawnFlags, float lightmapScale, vec3_t lightmapAxis
 	, vec3_t minlight, vec3_t minvertexlight, vec3_t ambient, vec3_t colormod, float lightmapSampleSize, int shadeAngle
 	, int vertTexProj, qboolean noAlphaFix, float pushVertexes, qboolean skybox, int *added_surfaces, int *added_verts
-	, int *added_triangles, int *added_brushes, qboolean cullSmallSolids, float LOWEST_NEAR_POINT, qboolean isLodModel)
+	, int *added_triangles, int *added_brushes, qboolean cullSmallSolids, float LOWEST_NEAR_POINT, qboolean isLodModel, int centerChunkPass)
 {
 	int					s, numSurfaces;
 	m4x4_t				identity, nTransform;
@@ -944,12 +944,14 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		if (!isTriangles)
 			continue;
 
-#pragma omp critical
 		if (!(overrideShader && !surface->shader))
 		{
 			/* get shader name */
 			/* vortex: support .skin files */
-			picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
+#pragma omp critical
+			{
+				picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
+			}
 		}
 		else
 		{
@@ -1301,6 +1303,9 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			ds->celShader = celShader;
 		}
 
+		int totalVertexesToAdd = ds->numVerts - ds->currentNumVerts;
+		int totalVertexesAdded = 0;
+
 		/* copy vertexes */
 #pragma omp parallel for ordered num_threads((ds->numVerts < numthreads) ? ds->numVerts : numthreads)
 		for (i = ds->currentNumVerts; i < ds->numVerts; i++)
@@ -1310,6 +1315,16 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			vec3_t				forceVecs[2];
 			picoVec_t			*xyz, *normal, *st;
 			picoByte_t			*color;
+
+			if (centerChunkPass == 1)
+			{
+#pragma omp critical (__PROGRESS_BAR__)
+				{
+					printLabelledProgress("CenterChunkTriangles", totalVertexesAdded, totalVertexesToAdd);
+				}
+			}
+
+			totalVertexesAdded++;
 
 			/* get vertex */
 			dv = &ds->verts[i];
@@ -1391,6 +1406,14 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 					dv->color[j][2] = color[2];
 					dv->color[j][3] = color[3];
 				}
+			}
+		}
+
+		if (centerChunkPass == 1)
+		{
+#pragma omp critical (__PROGRESS_BAR__)
+			{
+				printLabelledProgress("CenterChunkTriangles", totalVertexesToAdd, totalVertexesToAdd);
 			}
 		}
 
@@ -1547,12 +1570,25 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 				continue;
 			}
 
+			int totalIndexesToAdd = (ds->numIndexes - ds->currentNumIndexes) / 3;
+			int totalIndexesAdded = 0;
+
 			/* walk triangle list */
 #pragma omp parallel for ordered num_threads((ds->numIndexes < numthreads) ? ds->numIndexes : numthreads)
 			for( i = ds->currentNumIndexes; i < ds->numIndexes; i += 3 )
 			{
 				vec3_t				points[4], backs[3];
 				vec4_t				plane, reverse, pa, pb, pc;
+
+				if (centerChunkPass == 2)
+				{
+#pragma omp critical (__PROGRESS_BAR__)
+					{
+						printLabelledProgress("CenterChunkCollision", totalIndexesAdded, totalIndexesToAdd);
+					}
+				}
+
+				totalIndexesAdded++;
 
 				/* overflow hack */
 				if( (nummapplanes + 64) >= (MAX_MAP_PLANES >> 1) )
@@ -2045,8 +2081,72 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 					distanceEpsilon = distanceEpsilon_save;
 				}
 			}
+
+			if (centerChunkPass == 2)
+			{
+#pragma omp critical (__PROGRESS_BAR__)
+				{
+					printLabelledProgress("CenterChunkCollision", totalIndexesToAdd, totalIndexesToAdd);
+				}
+			}
 		}
 	}
+}
+
+int GetPicoVertCount(picoModel_t *picoModel)
+{
+	/* each surface on the model will become a new map drawsurface */
+	int numSurfaces = PicoGetModelNumSurfaces(picoModel);
+	int numVertexes = 0;
+	int numIndexes = 0;
+
+	for (int s = 0; s < numSurfaces; s++)
+	{
+		picoSurface_t		*surface;
+
+		/* get surface */
+		surface = PicoGetModelSurface(picoModel, s);
+
+		if (surface == NULL)
+			continue;
+
+		/* only handle triangle surfaces initially (fixme: support patches) */
+		if (PicoGetSurfaceType(surface) != PICO_TRIANGLES)
+			continue;
+
+		numVertexes += surface->numVertexes;
+		numIndexes += surface->numIndexes;
+	}
+
+	return numVertexes;
+}
+
+int GetPicoIndexCount(picoModel_t *picoModel)
+{
+	/* each surface on the model will become a new map drawsurface */
+	int numSurfaces = PicoGetModelNumSurfaces(picoModel);
+	int numVertexes = 0;
+	int numIndexes = 0;
+
+	for (int s = 0; s < numSurfaces; s++)
+	{
+		picoSurface_t		*surface;
+
+		/* get surface */
+		surface = PicoGetModelSurface(picoModel, s);
+
+		if (surface == NULL)
+			continue;
+
+		/* only handle triangle surfaces initially (fixme: support patches) */
+		if (PicoGetSurfaceType(surface) != PICO_TRIANGLES)
+			continue;
+
+		numVertexes += surface->numVertexes;
+		numIndexes += surface->numIndexes;
+	}
+
+	return numIndexes;
 }
 
 void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowSimplify, qboolean loadCollision)
@@ -2080,6 +2180,9 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 	}
 	else if (allowSimplify == 4 /*&& !StringContainsWord(model, "warzone/plants") && !StringContainsWord(model, "warzone/foliage")*/)
 	{// Generate a collsion box model...
+		int baseNumVerts = GetPicoVertCount(picoModel);
+		int baseNumIdx = GetPicoIndexCount(picoModel);
+
 		// UQ1: Testing... Simple box for collision planes...
 		char			tempCollisionModel[512] = { 0 };
 		char			collisionModelObj[512] = { 0 };
@@ -2090,10 +2193,13 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 		/* try to find model */
 		picoModel_t	*picoModel2 = FindModel(collisionModelObj, frame);
-
+		
 		if (picoModel2)
 		{
-			Sys_Printf("loaded model %s. collision box model %s.\n", model, collisionModelObj);
+			int numVerts = GetPicoVertCount(picoModel2);
+			int numIdx = GetPicoIndexCount(picoModel2);
+
+			Sys_Printf("loaded model %s (%i verts %i indexes). collision box model %s (%i verts %i indexes).\n", model, baseNumVerts, baseNumIdx, collisionModelObj, numVerts, numIdx);
 			picoModel2->isCollisionModel = qtrue;
 			return;
 		}
@@ -2103,7 +2209,10 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 		if (picoModel2)
 		{
-			Sys_Printf("loaded model %s. collision box model %s.\n", model, collisionModelObj);
+			int numVerts = GetPicoVertCount(picoModel2);
+			int numIdx = GetPicoIndexCount(picoModel2);
+
+			Sys_Printf("loaded model %s (%i verts %i indexes). collision box model %s (%i verts %i indexes).\n", model, baseNumVerts, baseNumIdx, collisionModelObj, numVerts, numIdx);
 			picoModel2->isCollisionModel = qtrue;
 			*numLoadedModels++;
 			return;
@@ -2123,7 +2232,10 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 			if (picoModel2)
 			{
-				Sys_Printf("loaded model %s. collision box model %s.\n", model, collisionModelObj);
+				int numVerts = GetPicoVertCount(picoModel2);
+				int numIdx = GetPicoIndexCount(picoModel2);
+
+				Sys_Printf("loaded model %s (%i verts %i indexes). collision box model %s (%i verts %i indexes).\n", model, baseNumVerts, baseNumIdx, collisionModelObj, numVerts, numIdx);
 				picoModel2->isCollisionModel = qtrue;
 				return;
 			}
@@ -2133,7 +2245,10 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 			if (picoModel2)
 			{
-				Sys_Printf("loaded model %s. collision box model %s.\n", model, collisionModelObj);
+				int numVerts = GetPicoVertCount(picoModel2);
+				int numIdx = GetPicoIndexCount(picoModel2);
+
+				Sys_Printf("loaded model %s (%i verts %i indexes). collision box model %s (%i verts %i indexes).\n", model, baseNumVerts, baseNumIdx, collisionModelObj, numVerts, numIdx);
 				picoModel2->isCollisionModel = qtrue;
 				*numLoadedModels++;
 				return;
@@ -2147,6 +2262,9 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 		/* debug */
 		//if( loaded && picoModel && picoModel->numSurfaces != 0  )
 		//	Sys_Printf("loaded %s: %i vertexes %i triangles\n", PicoGetModelFileName( picoModel ), PicoGetModelTotalVertexes( picoModel ), PicoGetModelTotalIndexes( picoModel ) / 3 );
+
+		int baseNumVerts = GetPicoVertCount(picoModel);
+		int baseNumIdx = GetPicoIndexCount(picoModel);
 
 		if (USE_CONVEX_HULL_MODELS)
 		{// Check if there is a convex hull collision model first...
@@ -2170,8 +2288,11 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 			if (/*loaded2 &&*/ picoModel2)
 			{
+				int numVerts = GetPicoVertCount(picoModel2);
+				int numIdx = GetPicoIndexCount(picoModel2);
+
 				picoModel2->isCollisionModel = qtrue;
-				Sys_Printf("loaded model %s. convex collision model %s.\n", model, collisionModel);
+				Sys_Printf("loaded model %s (%i verts %i indexes). convex collision model %s (%i verts %i indexes).\n", model, baseNumVerts, baseNumIdx, collisionModel, numVerts, numIdx);
 				*numLoadedModels++;
 				return;
 			}
@@ -2184,8 +2305,11 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 				if (/*loaded2 &&*/ picoModel2)
 				{
+					int numVerts = GetPicoVertCount(picoModel2);
+					int numIdx = GetPicoIndexCount(picoModel2);
+
 					picoModel2->isCollisionModel = qtrue;
-					Sys_Printf("loaded model %s. convex collision model %s.\n", model, collisionModelObj);
+					Sys_Printf("loaded model %s (%i verts %i indexes). convex collision model %s (%i verts %i indexes).\n", model, baseNumVerts, baseNumIdx, collisionModelObj, numVerts, numIdx);
 					*numLoadedModels++;
 					return;
 				}
@@ -2198,8 +2322,11 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 					if (/*loaded2 &&*/ picoModel2)
 					{
+						int numVerts = GetPicoVertCount(picoModel2);
+						int numIdx = GetPicoIndexCount(picoModel2);
+
 						picoModel2->isCollisionModel = qtrue;
-						Sys_Printf("loaded model %s. convex collision model %s.\n", model, collisionModelMd3);
+						Sys_Printf("loaded model %s (%i verts %i indexes). convex collision model %s (%i verts %i indexes).\n", model, baseNumVerts, baseNumIdx, collisionModelMd3, numVerts, numIdx);
 						*numLoadedModels++;
 						return;
 					}
@@ -2225,8 +2352,11 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 		if (/*loaded2 &&*/ picoModel2)
 		{
+			int numVerts = GetPicoVertCount(picoModel2);
+			int numIdx = GetPicoIndexCount(picoModel2);
+
 			picoModel2->isCollisionModel = qtrue;
-			Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModel);
+			Sys_Printf("loaded model %s (%i verts %i indexes). collision model %s (%i verts %i indexes).\n", model, baseNumVerts, baseNumIdx, collisionModel, numVerts, numIdx);
 			*numLoadedModels++;
 			return;
 		}
@@ -2249,8 +2379,11 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 			if (/*loaded2 &&*/ picoModel2)
 			{
+				int numVerts = GetPicoVertCount(picoModel2);
+				int numIdx = GetPicoIndexCount(picoModel2);
+
 				picoModel2->isCollisionModel = qtrue;
-				Sys_Printf("loaded model %s. collision model %s.\n", model, collisionModelObj);
+				Sys_Printf("loaded model %s (%i verts %i indexes). collision model %s (%i verts %i indexes).\n", model, baseNumVerts, baseNumIdx, collisionModelObj, numVerts, numIdx);
 				*numLoadedModels++;
 			}
 			/*else if (!loaded2 && picoModel2)
@@ -2273,7 +2406,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 					if (StringContainsWord(surface->name, "collision") || StringContainsWord(surface->name, "system/nodraw_solid")) {
 						picoModel->hasCollisionGeometry = qtrue;
-						Sys_Printf("loaded model %s contains collision geometry (surface name: collision).\n", model);
+						Sys_Printf("loaded model %s (%i verts %i indexes) contains collision geometry (surface name: collision).\n", model, baseNumVerts, baseNumIdx);
 						return; // Collision is built into this model...
 					}
 
@@ -2288,7 +2421,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 					if (StringContainsWord(picoShaderName, "system/nodraw_solid") || StringContainsWord(picoShaderName, "collision")) {
 						picoModel->hasCollisionGeometry = qtrue;
-						Sys_Printf("loaded model %s contains collision geometry (shader name: system/nodraw_solid).\n", model);
+						Sys_Printf("loaded model %s (%i verts %i indexes) contains collision geometry (shader name: system/nodraw_solid).\n", model, baseNumVerts, baseNumIdx);
 						return; // Collision is built into this model...
 					}
 				}
@@ -2305,7 +2438,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 					loaded2 = PreloadModel((char*)collisionModelObj, 0);
 
 					if (loaded2) {
-						Sys_Printf("Loaded new convex collision model %s.\n", collisionModelObj);
+						//Sys_Printf("Loaded new convex collision model %s.\n", collisionModelObj);
 						*numLoadedModels++;
 					}
 
@@ -2313,6 +2446,10 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 					if (picoModel2)
 					{
+						int numVerts = GetPicoVertCount(picoModel2);
+						int numIdx = GetPicoIndexCount(picoModel2);
+
+						Sys_Printf("Loaded new convex collision model %s (%i verts %i indexes).\n", collisionModelObj, numVerts, numIdx);
 						picoModel2->isCollisionModel = qtrue;
 						return;
 					}
@@ -2330,7 +2467,7 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 					loaded2 = PreloadModel((char*)collisionModelObj, 0);
 
 					if (loaded2) {
-						Sys_Printf("Loaded new simplified collision model %s.\n", collisionModelObj);
+						//Sys_Printf("Loaded new simplified collision model %s.\n", collisionModelObj);
 						*numLoadedModels++;
 					}
 
@@ -2338,13 +2475,17 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 
 					if (picoModel2)
 					{
+						int numVerts = GetPicoVertCount(picoModel2);
+						int numIdx = GetPicoIndexCount(picoModel2);
+
+						Sys_Printf("Loaded new simplified collision model %s (%i verts %i indexes).\n", collisionModelObj, numVerts, numIdx);
 						picoModel2->isCollisionModel = qtrue;
 						return;
 					}
 				}
 #endif //__MODEL_SIMPLIFY__
 
-				Sys_Printf("loaded model %s. collision model %s. Suggestion: Create a <modelname>_collision.%s\n", model, "none", tempCollisionModelExt);
+				Sys_Printf("loaded model %s (%i verts %i indexes). collision model %s. Suggestion: Create a <modelname>_collision.%s\n", model, baseNumVerts, baseNumIdx, "none", tempCollisionModelExt);
 			}
 		}
 	}
@@ -2415,7 +2556,7 @@ adds misc_model surfaces to the bsp
 
 extern int CULLSIDES_AFTER_MODEL_ADITION;
 
-void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, qboolean chunksPass)
+void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, qboolean chunksPass, qboolean centerChunkPass)
 {
 	int				added_surfaces = 0, added_triangles = 0, added_verts = 0, added_brushes = 0;
 	int				total_added_surfaces = 0, total_added_triangles = 0, total_added_verts = 0, total_added_brushes = 0;
@@ -3102,42 +3243,44 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, 
 #ifdef CULL_BY_LOWEST_NEAR_POINT
 		if (COLLISION_MODEL && strlen(COLLISION_MODEL) > 0)
 		{
+			//Sys_Printf("Adding visible model %s surfaces.\n", COLLISION_MODEL);
+
 			// Add the actual model...
 			if (!USE_LODMODEL || !isLodModel) // misc_lodmodel doesn't output map surfaces other then the collision objects...
-				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, overrideShader, qfalse, qfalse, qtrue, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear, isLodModel);
+				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, overrideShader, qfalse, qfalse, qtrue, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear, isLodModel, centerChunkPass ? 1 : 0);
 
 			// Add the collision planes...
 			overrideShader = ShaderInfoForShader("textures/system/nodraw_solid");
 
 			//Sys_Printf("Adding collision model %s surfaces.\n", COLLISION_MODEL);
 			if (collisionIsBox && USE_BOX_MODELS > 1)
-				InsertModel((char*)COLLISION_MODEL, frame, NULL, boxTransform, uvScale, NULL, NULL, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear, isLodModel);
+				InsertModel((char*)COLLISION_MODEL, frame, NULL, boxTransform, uvScale, NULL, NULL, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear, isLodModel, centerChunkPass ? 2 : 0);
 			else
-				InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear, isLodModel);
+				InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, e2->lowestPointNear, isLodModel, centerChunkPass ? 2 : 0);
 		}
 		else
 		{
 			if (HAVE_COLLISION_GEOMETRY)
-				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear, isLodModel);
+				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear, isLodModel, centerChunkPass ? 1 : 0);
 			else if (!USE_LODMODEL || !isLodModel) // misc_lodmodel doesn't output map surfaces other then the collision objects...
-				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear, isLodModel);
+				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, e2->lowestPointNear, isLodModel, centerChunkPass ? 1 : 0);
 		}
 #else //!CULL_BY_LOWEST_NEAR_POINT
 		if (COLLISION_MODEL && strlen(COLLISION_MODEL) > 0)
 		{
 			// Add the actual model...
 			if (!USE_LODMODEL || !isLodModel) // misc_lodmodel doesn't output map surfaces other then the collision objects...
-				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, overrideShader, qfalse, qfalse, qtrue, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, 999999.0f, isLodModel);
+				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, overrideShader, qfalse, qfalse, qtrue, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, 999999.0f, isLodModel, centerChunkPass ? 1 : 0);
 
 			// Add the collision planes...
 			overrideShader = ShaderInfoForShader("textures/system/nodraw_solid");
 			
-			InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, 999999.0f, isLodModel);
+			InsertModel((char*)COLLISION_MODEL, frame, NULL, transform, uvScale, NULL, NULL, overrideShader, qtrue, qtrue, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, qfalse, 999999.0f, isLodModel, centerChunkPass ? 2 : 0);
 		}
 		else
 		{
 			if (!USE_LODMODEL || !isLodModel) // misc_lodmodel doesn't output map surfaces other then the collision objects...
-				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, 999999.0f, isLodModel);
+				InsertModel((char*)model, frame, skin, transform, uvScale, remap, celShader, overrideShader, forcedSolid, forcedFullSolid, qfalse, entityNum, e2->mapEntityNum, castShadows, recvShadows, spawnFlags, lightmapScale, lightmapAxis, minlight, minvertexlight, ambient, colormod, 0, smoothNormals, vertTexProj, noAlphaFix, pushVertexes, skybox, &added_surfaces, &added_triangles, &added_verts, &added_brushes, cullSmallSolids, 999999.0f, isLodModel, centerChunkPass ? 1 : 0);
 		}
 #endif //CULL_BY_LOWEST_NEAR_POINT
 
@@ -3165,7 +3308,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, 
 		e2->alreadyAdded = qtrue;
 	}
 
-	if (!quiet)
+	if (!quiet || centerChunkPass)
 	{
 		//int totalExpCulled = numExperimentalCulled;
 		int totalHeightCulled = numHeightCulledSurfs;
@@ -3214,7 +3357,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, 
 
 	if (CULLSIDES_AFTER_MODEL_ADITION == 1)
 	{
-		if (chunksPass && total_added_surfaces > 0)
+		if ((chunksPass || centerChunkPass) && total_added_surfaces > 0)
 		{// Do a second cullsides, to remove excess crap (stuff inside other stuff, etc) after everything was added...
 			CullSides(&entities[mapEntityNum]);
 			CullSidesStats();

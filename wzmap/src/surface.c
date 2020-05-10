@@ -3422,7 +3422,7 @@ int AddSurfaceModelsToTriangle_r( mapDrawSurface_t *ds, surfaceModel_t *model, b
 			}
 			
 			/* insert the model */
-			InsertModel( (char *) model->model, 0, 0, transform, 1.0, NULL, ds->celShader, NULL, qfalse, qfalse, qfalse, ds->entityNum, ds->mapEntityNum, ds->castShadows, ds->recvShadows, 0, ds->lightmapScale, ds->minlight, ds->minvertexlight, ds->ambient, ds->colormod, NULL, 0, ds->smoothNormals, ds->vertTexProj, ds->noAlphaFix, 0, ds->skybox, NULL, NULL, NULL, NULL, qfalse, 999999.0f, qfalse);
+			InsertModel( (char *) model->model, 0, 0, transform, 1.0, NULL, ds->celShader, NULL, qfalse, qfalse, qfalse, ds->entityNum, ds->mapEntityNum, ds->castShadows, ds->recvShadows, 0, ds->lightmapScale, ds->minlight, ds->minvertexlight, ds->ambient, ds->colormod, NULL, 0, ds->smoothNormals, ds->vertTexProj, ds->noAlphaFix, 0, ds->skybox, NULL, NULL, NULL, NULL, qfalse, 999999.0f, qfalse, qfalse);
 			
 			/* return to sender */
 			return 1;

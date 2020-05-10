@@ -160,8 +160,9 @@ int PicoModuleLoadModel( const picoModule_t* pm, char* fileName, picoByte_t* buf
 	{
 		/* use loader provided by module to read the model data */
 		picoModel_t* model = pm->load( fileName, frameNum, buffer, bufSize );
-		if( model == NULL )
-			return 1;
+		if (model == NULL)
+			//return 1;
+			return 0; // UQ1: WTF was this returning 1 on fail????????
 
 		/* assign pointer to file format module */
 		model->module = pm;
@@ -261,9 +262,13 @@ picoModel_t	*PicoLoadModel( char *fileName, int frameNum )
 	/* run it through the various loader functions and try */
 	/* to find a loader that fits the given file data */
 	/* break if module accepted file */
-	for( ; *modules != NULL; modules++ )
-		if ( PicoModuleLoadModel(*modules, fileName, buffer, bufSize, frameNum, &model) )
+	for (; *modules != NULL; modules++)
+	{
+		if (PicoModuleLoadModel(*modules, fileName, buffer, bufSize, frameNum, &model))
+		{
 			break;
+		}
+	}
 
 	/* load up external files */
 	if (model != NULL)

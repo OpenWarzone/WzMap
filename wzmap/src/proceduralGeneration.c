@@ -192,6 +192,14 @@ int				CHUNK_MAP_EDGE_MODELS_TOTAL = 0;
 char			CHUNK_MAP_EDGE_MODELS[MAX_FOREST_MODELS][128] = { 0 };
 char			CHUNK_MAP_EDGE_OVERRIDE_SHADER[MAX_FOREST_MODELS][128] = { 0 };
 
+float			CENTER_CHUNK_MAP_LEVEL = -999999.9;
+float			CENTER_CHUNK_FOLIAGE_GENERATOR_SCATTER = 256.0;
+float			CENTER_CHUNK_SCALE = 1.0;
+float			CENTER_CHUNK_ANGLE = 1.0;
+int				CENTER_CHUNK_PLANE_SNAP = 0;
+char			CENTER_CHUNK_MODEL[128] = { 0 };
+char			CENTER_CHUNK_OVERRIDE_SHADER[128] = { 0 };
+
 qboolean		ADD_SKYSCRAPERS = qfalse;
 vec3_t			SKYSCRAPERS_CENTER = { 0 };
 float			SKYSCRAPERS_RADIUS = 0;
@@ -617,6 +625,8 @@ void PreloadClimateModels(void)
 		WzMap_PreloadModel(CHUNK_MAP_EDGE_MODELS[i], 0, &numLoadedModels, 0, qtrue);
 	}
 
+	WzMap_PreloadModel(CENTER_CHUNK_MODEL, 0, &numLoadedModels, 0, qtrue);
+
 #if 0
 	if (ADD_CITY_ROADS)
 	{
@@ -849,7 +859,11 @@ void FOLIAGE_LoadClimateData(char *filename)
 				strcpy(CHUNK_MODELS[CHUNK_MODELS_TOTAL], modelName);
 				strcpy(CHUNK_OVERRIDE_SHADER[CHUNK_MODELS_TOTAL], IniRead(filename, "CHUNKS", va("overrideShader%i", i), ""));
 
-				Sys_Printf("  %s. Override Shader %s.\n", CHUNK_MODELS[CHUNK_MODELS_TOTAL], CHUNK_OVERRIDE_SHADER[CHUNK_MODELS_TOTAL][0] ? CHUNK_OVERRIDE_SHADER[CHUNK_MODELS_TOTAL] : "NONE");
+				char fileName[512];
+				strcpy(fileName, CHUNK_MODELS[CHUNK_MODELS_TOTAL]);
+				StripPath(fileName);
+
+				Sys_Printf("  %s. Override Shader %s.\n", fileName, CHUNK_OVERRIDE_SHADER[CHUNK_MODELS_TOTAL][0] ? CHUNK_OVERRIDE_SHADER[CHUNK_MODELS_TOTAL] : "NONE");
 				CHUNK_MODELS_TOTAL++;
 			}
 		}
@@ -887,6 +901,39 @@ void FOLIAGE_LoadClimateData(char *filename)
 	else
 	{
 		Sys_Printf("Not using map chunks system.\n");
+	}
+
+	//
+	// Map Center Chunk...
+	//
+
+	CENTER_CHUNK_MAP_LEVEL = atof(IniRead(filename, "CENTER_CHUNK", "chunkMapLevel", "-999999.9"));
+
+	if (CENTER_CHUNK_MAP_LEVEL > -999990.0)
+	{
+		CENTER_CHUNK_SCALE = atof(IniRead(filename, "CENTER_CHUNK", "chunkScale", "1.0"));
+		CENTER_CHUNK_ANGLE = atof(IniRead(filename, "CENTER_CHUNK", "chunkAngle", "0.0"));
+		CENTER_CHUNK_PLANE_SNAP = atoi(IniRead(filename, "CENTER_CHUNK", "chunkPlaneSnap", "1"));
+		CENTER_CHUNK_FOLIAGE_GENERATOR_SCATTER = atof(IniRead(filename, "CENTER_CHUNK", "chunkFoliageScatter", "256.0"));
+
+		Sys_Printf("Using map centerchunk system at map level %f, scaled by %f, angle %f, with a plane snap of %i.\n", CENTER_CHUNK_MAP_LEVEL, CENTER_CHUNK_SCALE, CENTER_CHUNK_ANGLE, CENTER_CHUNK_PLANE_SNAP);
+
+		Sys_Printf("Center Chunk Model:\n");
+
+		char modelName[512] = { 0 };
+		strcpy(modelName, IniRead(filename, "CENTER_CHUNK", "model", ""));
+
+		if (modelName[0])
+		{
+			strcpy(CENTER_CHUNK_MODEL, modelName);
+			strcpy(CENTER_CHUNK_OVERRIDE_SHADER, IniRead(filename, "CENTER_CHUNK", "overrideShader", ""));
+
+			Sys_Printf("  %s. Override Shader %s.\n", CENTER_CHUNK_MODEL, CENTER_CHUNK_OVERRIDE_SHADER[0] ? CENTER_CHUNK_OVERRIDE_SHADER : "NONE");
+		}
+	}
+	else
+	{
+		Sys_Printf("Not using map centerchunk system.\n");
 	}
 
 	//
@@ -944,7 +991,11 @@ void FOLIAGE_LoadClimateData(char *filename)
 			{
 				strcpy(CLIFF_MODEL[i], modelName);
 
-				Sys_Printf("  %s (custom)\n", modelName);
+				char fileName[512];
+				strcpy(fileName, CLIFF_MODEL[i]);
+				StripPath(fileName);
+
+				Sys_Printf("  %s (custom)\n", fileName);
 
 				CLIFF_MODELS_TOTAL++;
 			}
@@ -961,7 +1012,11 @@ void FOLIAGE_LoadClimateData(char *filename)
 
 			for (int i = 0; i < CLIFF_MODELS_TOTAL; i++)
 			{
-				Sys_Printf("  %s (default)\n", CLIFF_MODEL[i]);
+				char fileName[512];
+				strcpy(fileName, CLIFF_MODEL[i]);
+				StripPath(fileName);
+
+				Sys_Printf("  %s (default)\n", fileName);
 			}
 		}
 	}
@@ -1045,9 +1100,14 @@ void FOLIAGE_LoadClimateData(char *filename)
 		strcpy(TREE_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "TREES", va("overrideShader%i", i), ""));
 		TREE_PLANE_SNAP[i] = atoi(IniRead(filename, "TREES", va("treePlaneSnap%i", i), "4"));
 		TREE_ROADSCAN_MULTIPLIER[i] = atof(IniRead(filename, "TREES", va("treeRoadScanMultiplier%i", i), "1.0"));
-
+		
 		if (strcmp(TREE_MODELS[i], ""))
-			Sys_Printf("Tree %i. Model %s. Offset %.4f. Scale %.4f. MaxAngle %i. Buffer %.4f. InstanceDist %.4f. ForceSolid: %s. PlaneSnap: %i. Shader: %s. RoadScale %.4f.\n", i, TREE_MODELS[i], TREE_OFFSETS[i], TREE_SCALES[i], TREE_FORCED_MAX_ANGLE[i], TREE_FORCED_BUFFER_DISTANCE[i], TREE_FORCED_DISTANCE_FROM_SAME[i], TREE_FORCED_FULLSOLID[i] ? "true" : "false", TREE_PLANE_SNAP[i], TREE_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? TREE_FORCED_OVERRIDE_SHADER[i] : "Default", TREE_ROADSCAN_MULTIPLIER[i]);
+		{
+			char fileName[512];
+			strcpy(fileName, TREE_MODELS[i]);
+			StripPath(fileName);
+			Sys_Printf("Tree %i. Model %s. Offset %.4f. Scale %.4f. MaxAngle %i. Buffer %.4f. InstanceDist %.4f. ForceSolid: %s. PlaneSnap: %i. Shader: %s. RoadScale %.4f.\n", i, fileName, TREE_OFFSETS[i], TREE_SCALES[i], TREE_FORCED_MAX_ANGLE[i], TREE_FORCED_BUFFER_DISTANCE[i], TREE_FORCED_DISTANCE_FROM_SAME[i], TREE_FORCED_FULLSOLID[i] ? "true" : "false", TREE_PLANE_SNAP[i], TREE_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? TREE_FORCED_OVERRIDE_SHADER[i] : "Default", TREE_ROADSCAN_MULTIPLIER[i]);
+		}
 	}
 
 	// Read all the tree info from the new .climate ini files...
@@ -1095,7 +1155,13 @@ void FOLIAGE_LoadClimateData(char *filename)
 			CITY_PLANE_SNAP[i] = atoi(IniRead(filename, "CITY", va("cityPlaneSnap%i", i), "0"));
 
 			if (strcmp(CITY_MODELS[i], ""))
-				Sys_Printf("Building %i. Model %s. Offset %.4f. Scale %.4f (XY %.4f Z %.4f). MaxAngle %i. AngRand: %i. Buffer %.4f. InstanceBuffer %.4f. ForceSolid: %s. PlaneSnap: %i. Shader: %s. OneOnly: %s. AllowRoad: %s.\n", i, CITY_MODELS[i], CITY_OFFSETS[i], CITY_SCALES[i], CITY_SCALES_XY[i], CITY_SCALES_Z[i], (int)CITY_FORCED_MAX_ANGLE[i], CITY_ANGLES_RANDOMIZE[i], CITY_FORCED_BUFFER_DISTANCE[i], CITY_FORCED_DISTANCE_FROM_SAME[i], CITY_FORCED_FULLSOLID[i] ? "true" : "false", CITY_PLANE_SNAP[i], CITY_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? CITY_FORCED_OVERRIDE_SHADER[i] : "Default", CITY_CENTRAL_ONCE[i] ? "true" : "false", CITY_ALLOW_ROAD[i] ? "true" : "false");
+			{
+				char fileName[512];
+				strcpy(fileName, CITY_MODELS[i]);
+				StripPath(fileName);
+
+				Sys_Printf("Building %i. Model %s. Offset %.4f. Scale %.4f (XY %.4f Z %.4f). MaxAngle %i. AngRand: %i. Buffer %.4f. InstanceBuffer %.4f. ForceSolid: %s. PlaneSnap: %i. Shader: %s. OneOnly: %s. AllowRoad: %s.\n", i, fileName, CITY_OFFSETS[i], CITY_SCALES[i], CITY_SCALES_XY[i], CITY_SCALES_Z[i], (int)CITY_FORCED_MAX_ANGLE[i], CITY_ANGLES_RANDOMIZE[i], CITY_FORCED_BUFFER_DISTANCE[i], CITY_FORCED_DISTANCE_FROM_SAME[i], CITY_FORCED_FULLSOLID[i] ? "true" : "false", CITY_PLANE_SNAP[i], CITY_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? CITY_FORCED_OVERRIDE_SHADER[i] : "Default", CITY_CENTRAL_ONCE[i] ? "true" : "false", CITY_ALLOW_ROAD[i] ? "true" : "false");
+			}
 		}
 	}
 
@@ -1159,7 +1225,13 @@ void FOLIAGE_LoadClimateData(char *filename)
 		strcpy(STATIC_FORCED_OVERRIDE_SHADER[i], IniRead(filename, "STATIC", va("overrideShader%i", i), ""));
 
 		if (strcmp(STATIC_MODEL[i], ""))
-			Sys_Printf("Static %i. Model %s. Origin %i %i %i. Angle %.4f. Scale %.4f. Plane Snap: %i. Forced Solid: %i.\n", i, STATIC_MODEL[i], (int)STATIC_ORIGIN[i][0], (int)STATIC_ORIGIN[i][1], (int)STATIC_ORIGIN[i][2], (float)STATIC_ANGLE[i], (float)STATIC_SCALE[i], STATIC_PLANE_SNAP[i], STATIC_FORCED_FULLSOLID[i]);
+		{
+			char fileName[512];
+			strcpy(fileName, STATIC_MODEL[i]);
+			StripPath(fileName);
+
+			Sys_Printf("Static %i. Model %s. Origin %i %i %i. Angle %.4f. Scale %.4f. Plane Snap: %i. Forced Solid: %i.\n", i, fileName, (int)STATIC_ORIGIN[i][0], (int)STATIC_ORIGIN[i][1], (int)STATIC_ORIGIN[i][2], (float)STATIC_ANGLE[i], (float)STATIC_SCALE[i], STATIC_PLANE_SNAP[i], STATIC_FORCED_FULLSOLID[i]);
+		}
 	}
 
 	//
@@ -2173,11 +2245,223 @@ void GenerateChunks(void)
 	}
 
 //#if defined(__ADD_PROCEDURALS_EARLY__)
-	AddTriangleModels(0, qfalse, qfalse, qtrue);
+	AddTriangleModels(0, qfalse, qfalse, qtrue, qfalse);
 	CaulkifyStuff(qfalse);
 	EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 	//MoveBrushesToWorld( mapEnt );
 //#endif
+}
+
+void GenerateCenterChunk(void)
+{
+	if (!CENTER_CHUNK_MODEL[0]) return;
+
+	Sys_PrintHeading("--- GenerateCenterChunk ---\n");
+
+	{
+		printLabelledProgress("AddCenterChunk", 0, 1);
+
+		const char		*classname, *value;
+		float			lightmapScale;
+		vec3_t          lightmapAxis;
+		int			    smoothNormals;
+		int				vertTexProj;
+		char			shader[MAX_QPATH];
+		shaderInfo_t	*celShader = NULL;
+		brush_t			*brush;
+		parseMesh_t		*patch;
+		qboolean		funcGroup;
+		char			castShadows, recvShadows;
+		qboolean		forceNonSolid, forceNoClip, forceNoTJunc, forceMeta;
+		vec3_t          minlight, minvertexlight, ambient, colormod;
+		float           patchQuality, patchSubdivision;
+
+		/* setup */
+		entitySourceBrushes = 0;
+		mapEnt = &entities[numEntities];
+		numEntities++;
+		memset(mapEnt, 0, sizeof(*mapEnt));
+
+		mapEnt->mapEntityNum = 0;
+
+		VectorSet(mapEnt->origin, 0.0, 0.0, CENTER_CHUNK_MAP_LEVEL);
+
+		{
+			char str[32];
+			sprintf(str, "%.4f %.4f %.4f", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2]);
+			SetKeyValue(mapEnt, "origin", str);
+		}
+
+		float baseScale = CENTER_CHUNK_SCALE;// *20.0;
+
+
+		char str[128];
+		sprintf(str, "%.4f %.4f %.4f", baseScale, baseScale, baseScale);
+		SetKeyValue(mapEnt, "modelscale_vec", str);
+
+		SetKeyValue(mapEnt, "model", CENTER_CHUNK_MODEL);
+
+		if (CENTER_CHUNK_OVERRIDE_SHADER[0] != '\0')
+		{
+			SetKeyValue(mapEnt, "_overrideShader", CENTER_CHUNK_OVERRIDE_SHADER);
+		}
+
+		{
+			char str[32];
+			sprintf(str, "%.4f", CENTER_CHUNK_ANGLE);
+			SetKeyValue(mapEnt, "angle", str);
+		}
+
+		/* ydnar: get classname */
+		if (USE_LODMODEL)
+			SetKeyValue(mapEnt, "classname", "misc_lodmodel");
+		else
+			SetKeyValue(mapEnt, "classname", "misc_model");
+
+		classname = ValueForKey(mapEnt, "classname");
+
+		SetKeyValue(mapEnt, "snap", va("%i", CHUNK_PLANE_SNAP));
+
+		SetKeyValue(mapEnt, "_originAsLowPoint", "2");
+
+		//Sys_Printf( "Generated chunk at %.4f %.4f %.4f.\n", mapEnt->origin[0], mapEnt->origin[1], mapEnt->origin[2] );
+
+		funcGroup = qfalse;
+
+		/* get explicit shadow flags */
+		GetEntityShadowFlags(mapEnt, NULL, &castShadows, &recvShadows, (funcGroup || mapEnt->mapEntityNum == 0) ? qtrue : qfalse);
+
+		/* vortex: get lightmap scaling value for this entity */
+		GetEntityLightmapScale(mapEnt, &lightmapScale, 0);
+
+		/* vortex: get lightmap axis for this entity */
+		GetEntityLightmapAxis(mapEnt, lightmapAxis, NULL);
+
+		/* vortex: per-entity normal smoothing */
+		GetEntityNormalSmoothing(mapEnt, &smoothNormals, 0);
+
+		/* vortex: per-entity _minlight, _ambient, _color, _colormod  */
+		GetEntityMinlightAmbientColor(mapEnt, NULL, minlight, minvertexlight, ambient, colormod, qtrue);
+		if (mapEnt == &entities[0])
+		{
+			/* worldspawn have it empty, since it's keys sets global parms */
+			VectorSet(minlight, 0, 0, 0);
+			VectorSet(minvertexlight, 0, 0, 0);
+			VectorSet(ambient, 0, 0, 0);
+			VectorSet(colormod, 1, 1, 1);
+		}
+
+		/* vortex: _patchMeta, _patchQuality, _patchSubdivide support */
+		GetEntityPatchMeta(mapEnt, &forceMeta, &patchQuality, &patchSubdivision, 1.0, patchSubdivisions);
+
+		/* vortex: vertical texture projection */
+		if (strcmp("", ValueForKey(mapEnt, "_vtcproj")) || strcmp("", ValueForKey(mapEnt, "_vp")))
+		{
+			vertTexProj = IntForKey(mapEnt, "_vtcproj");
+			if (vertTexProj <= 0.0f)
+				vertTexProj = IntForKey(mapEnt, "_vp");
+		}
+		else
+			vertTexProj = 0;
+
+		/* ydnar: get cel shader :) for this entity */
+		value = ValueForKey(mapEnt, "_celshader");
+
+		if (value[0] == '\0')
+			value = ValueForKey(&entities[0], "_celshader");
+
+		if (value[0] != '\0')
+		{
+			sprintf(shader, "textures/%s", value);
+			celShader = ShaderInfoForShader(shader);
+			//Sys_FPrintf (SYS_VRB, "Entity %d (%s) has cel shader %s\n", mapEnt->mapEntityNum, classname, celShader->shader );
+		}
+		else
+			celShader = NULL;
+
+		/* vortex: _nonsolid forces detail non-solid brush */
+		forceNonSolid = ((IntForKey(mapEnt, "_nonsolid") > 0) || (IntForKey(mapEnt, "_ns") > 0)) ? qtrue : qfalse;
+
+		/* vortex: preserve original face winding, don't clip by bsp tree */
+		forceNoClip = ((IntForKey(mapEnt, "_noclip") > 0) || (IntForKey(mapEnt, "_nc") > 0)) ? qtrue : qfalse;
+
+		/* vortex: do not apply t-junction fixing (preserve original face winding) */
+		forceNoTJunc = ((IntForKey(mapEnt, "_notjunc") > 0) || (IntForKey(mapEnt, "_ntj") > 0)) ? qtrue : qfalse;
+
+		/* attach stuff to everything in the entity */
+		for (brush = mapEnt->brushes; brush != NULL; brush = brush->next)
+		{
+			brush->entityNum = mapEnt->mapEntityNum;
+			brush->mapEntityNum = mapEnt->mapEntityNum;
+			brush->castShadows = castShadows;
+			brush->recvShadows = recvShadows;
+			brush->lightmapScale = lightmapScale;
+			VectorCopy(lightmapAxis, brush->lightmapAxis); /* vortex */
+			brush->smoothNormals = smoothNormals; /* vortex */
+			brush->noclip = forceNoClip; /* vortex */
+			brush->noTJunc = forceNoTJunc; /* vortex */
+			brush->vertTexProj = vertTexProj; /* vortex */
+			VectorCopy(minlight, brush->minlight); /* vortex */
+			VectorCopy(minvertexlight, brush->minvertexlight); /* vortex */
+			VectorCopy(ambient, brush->ambient); /* vortex */
+			VectorCopy(colormod, brush->colormod); /* vortex */
+			brush->celShader = celShader;
+			if (forceNonSolid == qtrue)
+			{
+				brush->detail = qtrue;
+				brush->nonsolid = qtrue;
+				brush->noclip = qtrue;
+			}
+		}
+
+		for (patch = mapEnt->patches; patch != NULL; patch = patch->next)
+		{
+			patch->entityNum = mapEnt->mapEntityNum;
+			patch->mapEntityNum = mapEnt->mapEntityNum;
+			patch->castShadows = castShadows;
+			patch->recvShadows = recvShadows;
+			patch->lightmapScale = lightmapScale;
+			VectorCopy(lightmapAxis, patch->lightmapAxis); /* vortex */
+			patch->smoothNormals = smoothNormals; /* vortex */
+			patch->vertTexProj = vertTexProj; /* vortex */
+			patch->celShader = celShader;
+			patch->patchMeta = forceMeta; /* vortex */
+			patch->patchQuality = patchQuality; /* vortex */
+			patch->patchSubdivisions = patchSubdivision; /* vortex */
+			VectorCopy(minlight, patch->minlight); /* vortex */
+			VectorCopy(minvertexlight, patch->minvertexlight); /* vortex */
+			VectorCopy(ambient, patch->ambient); /* vortex */
+			VectorCopy(colormod, patch->colormod); /* vortex */
+			patch->nonsolid = forceNonSolid;
+		}
+
+		/* vortex: store map entity num */
+		{
+			char buf[32];
+			sprintf(buf, "%i", mapEnt->mapEntityNum);
+			SetKeyValue(mapEnt, "_mapEntityNum", buf);
+		}
+
+		/* ydnar: gs mods: set entity bounds */
+		SetEntityBounds(mapEnt);
+
+		/* ydnar: gs mods: load shader index map (equivalent to old terrain alphamap) */
+		LoadEntityIndexMap(mapEnt);
+
+		/* get entity origin and adjust brushes */
+		GetVectorForKey(mapEnt, "origin", mapEnt->origin);
+		if (mapEnt->originbrush_origin[0] || mapEnt->originbrush_origin[1] || mapEnt->originbrush_origin[2])
+			AdjustBrushesForOrigin(mapEnt);
+	}
+
+	printLabelledProgress("AddCenterChunk", 1, 1);
+
+	//#if defined(__ADD_PROCEDURALS_EARLY__)
+	AddTriangleModels(0, qtrue, qfalse, qfalse, qtrue);
+	CaulkifyStuff(qfalse);
+	EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
+	//MoveBrushesToWorld( mapEnt );
+	//#endif
 }
 
 int		numCliffs = 0;
@@ -2598,7 +2882,7 @@ void GenerateCliffFaces(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-		AddTriangleModels(0, qtrue, qtrue, qfalse);
+		AddTriangleModels(0, qtrue, qtrue, qfalse, qfalse);
 		EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 		//MoveBrushesToWorld( mapEnt );
 		numEntities--;
@@ -3018,7 +3302,7 @@ void GenerateCityRoads(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-		AddTriangleModels(0, qtrue, qtrue, qfalse);
+		AddTriangleModels(0, qtrue, qtrue, qfalse, qfalse);
 		EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 		//MoveBrushesToWorld( mapEnt );
 		numEntities--;
@@ -3585,7 +3869,7 @@ void GenerateSkyscrapers(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-			AddTriangleModels(0, qtrue, qtrue, qfalse);
+			AddTriangleModels(0, qtrue, qtrue, qfalse, qfalse);
 			EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 			//MoveBrushesToWorld( mapEnt );
 			numEntities--;
@@ -3801,7 +4085,7 @@ void GenerateSkyscrapers(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-			AddTriangleModels(0, qtrue, qtrue, qfalse);
+			AddTriangleModels(0, qtrue, qtrue, qfalse, qfalse);
 			EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 			//MoveBrushesToWorld( mapEnt );
 			numEntities--;
@@ -4322,7 +4606,7 @@ void GenerateLedgeFaces(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-		AddTriangleModels(0, qtrue, qtrue, qfalse);
+		AddTriangleModels(0, qtrue, qtrue, qfalse, qfalse);
 		EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 		//MoveBrushesToWorld( mapEnt );
 		numEntities--;
@@ -5309,7 +5593,7 @@ void GenerateMapForest ( void )
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-				AddTriangleModels(0, qtrue, qtrue, qfalse);
+				AddTriangleModels(0, qtrue, qtrue, qfalse, qfalse);
 				EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 				//MoveBrushesToWorld( mapEnt );
 				numEntities--;
@@ -6445,7 +6729,7 @@ void GenerateMapCity(void)
 
 
 #if defined(__ADD_PROCEDURALS_EARLY__)
-				AddTriangleModels(0, qtrue, qtrue, qfalse);
+				AddTriangleModels(0, qtrue, qtrue, qfalse, qfalse);
 				EmitBrushes(mapEnt->brushes, &mapEnt->firstBrush, &mapEnt->numBrushes);
 				//MoveBrushesToWorld( mapEnt );
 				numEntities--;

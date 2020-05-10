@@ -817,7 +817,7 @@ static int _obj_mtl_load(picoModel_t *model)
 					PicoSetSurfaceNormal(surface, vertIndex, n);
 
 					/* store current face vertex index */
-					PicoSetSurfaceIndex(surface, (k * 3 + (2 - m)), (picoIndex_t)vertIndex);
+					PicoSetSurfaceIndex(surface, ((k * 3) + m), (picoIndex_t)vertIndex);
 
 					/* get texture vertex coord */
 					if (aiSurf->mNormals != NULL && aiSurf->HasTextureCoords(0))

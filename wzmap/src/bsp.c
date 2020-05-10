@@ -45,6 +45,7 @@ vec3_t					USE_SECONDARY_FIRST_RUN_BOUNDS_MAXS;
 extern qboolean FORCED_STRUCTURAL;
 
 extern void GenerateChunks(void);
+extern void GenerateCenterChunk(void);
 extern void ProceduralGenFoliage(void);
 extern void GenerateCliffFaces ( void );
 extern void GenerateLedgeFaces(void);
@@ -842,6 +843,7 @@ void ProcessWorldModel( void )
 
 		/* UQ1: Generate procedural map chunks */
 		GenerateChunks();
+		GenerateCenterChunk();
 		ProceduralGenFoliage();
 
 		/* UQ1: Generate procedural cliff faces */
@@ -872,7 +874,7 @@ void ProcessWorldModel( void )
 	}
 	
 	/* create drawsurfs for triangle models */
-	AddTriangleModels( 0, qfalse, qfalse, qfalse );
+	AddTriangleModels( 0, qfalse, qfalse, qfalse, qfalse);
 	
 	/* create drawsurfs for surface models */
 	AddEntitySurfaceModels( e );
@@ -1078,7 +1080,7 @@ void ProcessSubModel( void )
 	ClipSidesIntoTree( e, tree, qtrue );
 	
 	/* ydnar: create drawsurfs for triangle models */
-	AddTriangleModels( entityNum, qfalse, qfalse, qfalse );
+	AddTriangleModels( entityNum, qfalse, qfalse, qfalse, qfalse);
 	
 	/* create drawsurfs for surface models */
 	AddEntitySurfaceModels( e );

@@ -814,6 +814,62 @@ static int DoNextChunk (T3dsLoaderPers *pers, int endofs, char *fileName)
 /* _3ds_load:
  *  loads an autodesk 3ds model file.
 */
+int GetPicoVertCount(picoModel_t *picoModel)
+{
+	/* each surface on the model will become a new map drawsurface */
+	int numSurfaces = PicoGetModelNumSurfaces(picoModel);
+	int numVertexes = 0;
+	int numIndexes = 0;
+
+	for (int s = 0; s < numSurfaces; s++)
+	{
+		picoSurface_t		*surface;
+
+		/* get surface */
+		surface = PicoGetModelSurface(picoModel, s);
+
+		if (surface == NULL)
+			continue;
+
+		/* only handle triangle surfaces initially (fixme: support patches) */
+		if (PicoGetSurfaceType(surface) != PICO_TRIANGLES)
+			continue;
+
+		numVertexes += surface->numVertexes;
+		numIndexes += surface->numIndexes;
+	}
+
+	return numVertexes;
+}
+
+int GetPicoIndexCount(picoModel_t *picoModel)
+{
+	/* each surface on the model will become a new map drawsurface */
+	int numSurfaces = PicoGetModelNumSurfaces(picoModel);
+	int numVertexes = 0;
+	int numIndexes = 0;
+
+	for (int s = 0; s < numSurfaces; s++)
+	{
+		picoSurface_t		*surface;
+
+		/* get surface */
+		surface = PicoGetModelSurface(picoModel, s);
+
+		if (surface == NULL)
+			continue;
+
+		/* only handle triangle surfaces initially (fixme: support patches) */
+		if (PicoGetSurfaceType(surface) != PICO_TRIANGLES)
+			continue;
+
+		numVertexes += surface->numVertexes;
+		numIndexes += surface->numIndexes;
+	}
+
+	return numIndexes;
+}
+
 static picoModel_t *_3ds_load( PM_PARAMS_LOAD )
 {
 	T3dsLoaderPers	pers;
@@ -850,6 +906,13 @@ static picoModel_t *_3ds_load( PM_PARAMS_LOAD )
 	/* process chunks */
 	if (!DoNextChunk(&pers,pers.maxofs, fileName))
 	{
+		/* well, bleh i guess */
+		PicoFreeModel(model);
+		return NULL;
+	}
+
+	if (!GetPicoVertCount(model) || !GetPicoIndexCount(model))
+	{// UQ1: Added this, since the old code is a joke... Let assimp take over by failing...
 		/* well, bleh i guess */
 		PicoFreeModel(model);
 		return NULL;

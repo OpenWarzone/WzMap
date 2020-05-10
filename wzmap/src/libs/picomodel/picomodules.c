@@ -101,7 +101,6 @@ const picoModule_t *picoModules[] =
 	&picoModuleTerrain,	/* picoterrain object */
 	&picoModuleAssimp,	/* assimp library */
 	&picoModuleOBJ,		/* wavefront object */
-	//&picoModuleAssimp,	/* assimp library */
 	NULL				/* arnold */
 };
 

@@ -546,11 +546,11 @@ void AddBrushBevels( void )
 				#endif
 			}
 
-			if ( i == buildBrush->numsides ) 
+			if ( i == buildBrush->numsides )
 			{
 				// add a new side
-				if ( buildBrush->numsides == MAX_BUILD_SIDES )
-					Sys_Error( buildBrush->entityNum, buildBrush->brushNum, "MAX_BUILD_SIDES (%d)", MAX_BUILD_SIDES );
+				if (buildBrush->numsides == MAX_BUILD_SIDES )
+					Sys_Error(buildBrush->entityNum, buildBrush->brushNum, "MAX_BUILD_SIDES (%d)", MAX_BUILD_SIDES );
 				memset( s, 0, sizeof( *s ) );
 				buildBrush->numsides++;
 				VectorClear (normal);
@@ -560,7 +560,7 @@ void AddBrushBevels( void )
 				{
 					/* ydnar: adding bevel plane snapping for fewer bsp planes */
 					if( bevelSnap > 0 )
-						dist = floor( buildBrush->maxs[ axis ] / bevelSnap ) * bevelSnap;
+						dist = floor(buildBrush->maxs[ axis ] / bevelSnap ) * bevelSnap;
 					else
 						dist = buildBrush->maxs[ axis ];
 				}
@@ -568,7 +568,7 @@ void AddBrushBevels( void )
 				{
 					/* ydnar: adding bevel plane snapping for fewer bsp planes */
 					if( bevelSnap > 0 )
-						dist = -ceil( buildBrush->mins[ axis ] / bevelSnap ) * bevelSnap;
+						dist = -ceil(buildBrush->mins[ axis ] / bevelSnap ) * bevelSnap;
 					else
 						dist = -buildBrush->mins[ axis ];
 				}
@@ -592,7 +592,7 @@ void AddBrushBevels( void )
 	//
 	// add the edge bevels
 	//
-	if ( buildBrush->numsides == 6 ) 
+	if (buildBrush->numsides == 6 )
 	{
 		return;		// pure axial
 	}
@@ -679,8 +679,8 @@ void AddBrushBevels( void )
 					//%	Sys_Printf( "n = %f %f %f\n", normal[ 0 ], normal[ 1 ], normal[ 2 ] );
 					
 					// add this plane
-					if( buildBrush->numsides == MAX_BUILD_SIDES )
-						Sys_Error( buildBrush->entityNum, buildBrush->brushNum, "MAX_BUILD_SIDES (%d)", MAX_BUILD_SIDES );
+					if(buildBrush->numsides == MAX_BUILD_SIDES )
+						Sys_Error(buildBrush->entityNum, buildBrush->brushNum, "MAX_BUILD_SIDES (%d)", MAX_BUILD_SIDES );
 					
 					s2 = &buildBrush->sides[buildBrush->numsides];
 					buildBrush->numsides++;
