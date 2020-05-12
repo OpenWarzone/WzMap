@@ -91,6 +91,7 @@ float			MAP_WATER_LEVEL = -999999.9;
 
 qboolean		USE_SECONDARY_BSP = qfalse;
 
+qboolean		MAP_REGENERATE_NORMALS = qfalse;
 int				MAP_SMOOTH_NORMALS = 1;
 
 qboolean		USE_LODMODEL = qfalse;
@@ -671,6 +672,17 @@ void FOLIAGE_LoadClimateData(char *filename)
 	if (MAP_WATER_LEVEL > -999999.0)
 	{
 		Sys_Printf("Forcing map water level to %.4f.\n", MAP_WATER_LEVEL);
+	}
+
+	MAP_REGENERATE_NORMALS = (qboolean)atoi(IniRead(filename, "GENERAL", "regenerateNormals", "0"));
+
+	if (MAP_REGENERATE_NORMALS)
+	{
+		Sys_Printf("Normals will be regenerated for this map.\n");
+	}
+	else
+	{
+		Sys_Printf("Normals will not be regenerated for this map.\n");
 	}
 
 	MAP_SMOOTH_NORMALS = atoi(IniRead(filename, "GENERAL", "smoothNormals", "1"));
@@ -1622,15 +1634,67 @@ void ProceduralGenFoliage(void)
 
 	int solidFlags = C_SOLID;
 	int numCompleted = 0;
+	int workloadTotal = 0;
 
-#pragma omp parallel for schedule(dynamic) num_threads(numthreads)
 	for (int i = 0; i < numMapDrawSurfs; i++)
 	{
-#pragma omp critical (__PROGRESS__)
+		mapDrawSurface_t *surf = &mapDrawSurfs[i];
+		shaderInfo_t *si = surf->shaderInfo;
+
+		if (surf->mapBrush && surf->mapBrush->isMapFileBrush)
+		{// Is an original .map brush, skip these...
+			continue;
+		}
+
+		if (!(si->contentFlags & solidFlags)) {
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "caulk"))
+		{
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "system/skip"))
+		{
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "sky"))
+		{
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "skies"))
+		{
+			continue;
+		}
+
+		if (StringContainsWord(si->shader, "water"))
+		{
+			continue;
+		}
+
+
+		extern int MaterialIsValidForFoliage(int materialType);
+		int surfaceMaterialValidity = MaterialIsValidForFoliage(si->materialType);
+
+		if (!si || !surfaceMaterialValidity)
+		{
+			continue;
+		}
+
+		workloadTotal += surf->numIndexes / 3;
+	}
+
+//#pragma omp parallel for schedule(dynamic) num_threads(numthreads)
+	for (int i = 0; i < numMapDrawSurfs; i++)
+	{
+/*#pragma omp critical (__PROGRESS__)
 		{
 			printLabelledProgress("GenFoliage", numCompleted, numMapDrawSurfs);
 			numCompleted++;
-		}
+		}*/
 
 		mapDrawSurface_t *surf = &mapDrawSurfs[i];
 		shaderInfo_t *si = surf->shaderInfo;
@@ -1699,8 +1763,15 @@ void ProceduralGenFoliage(void)
 		bspDrawVert_t *vs = &surf->verts[0];
 		int *idxs = surf->indexes;
 
+#pragma omp parallel for schedule(dynamic) num_threads(numthreads)
 		for (int j = 0; j < surf->numIndexes; j += 3)
 		{
+#pragma omp critical (__PROGRESS__)
+			{
+				printLabelledProgress("GenFoliage", numCompleted, workloadTotal);
+			}
+			numCompleted++;
+
 			vec3_t verts[3];
 
 			VectorCopy(vs[idxs[j]].xyz, verts[0]);
@@ -1725,6 +1796,23 @@ void ProceduralGenFoliage(void)
 			 //Sys_Printf("Position %i is too small (%.4f).\n", i, tringleSize);
 				continue;
 			}
+
+			// Optimization for crazy high-poly models... Will sadly slow low-poly ones somewhat...
+			qboolean badDensity = qfalse;
+
+			for (int z = 0; z < FOLIAGE_COUNT; z++)
+			{
+				if (Distance(verts[0], FOLIAGE_POSITIONS[z]) < scanDensity
+					|| Distance(verts[1], FOLIAGE_POSITIONS[z]) < scanDensity
+					|| Distance(verts[2], FOLIAGE_POSITIONS[z]) < scanDensity)
+				{// Already have one here...
+					badDensity = qtrue;
+					break;
+				}
+			}
+
+			if (badDensity)
+				continue;
 
 			vec3_t normal;
 			VectorCopy(vs[idxs[j]].normal, normal);
@@ -1814,9 +1902,9 @@ float			FOLIAGE_TREE_BUFFER[FOLIAGE_MAX_FOLIAGES];
 					VectorCopy(normal, FOLIAGE_NORMALS[FOLIAGE_COUNT]);
 					FOLIAGE_POSITIONS[FOLIAGE_COUNT][2] -= 8.0;
 
-					FOLIAGE_TREE_SELECTION[f] = 1;
-					FOLIAGE_TREE_ANGLES[f] = 0.0;
-					FOLIAGE_TREE_SCALE[f] = 1.0;
+					FOLIAGE_TREE_SELECTION[FOLIAGE_COUNT/*f*/] = 1;
+					FOLIAGE_TREE_ANGLES[FOLIAGE_COUNT/*f*/] = 0.0;
+					FOLIAGE_TREE_SCALE[FOLIAGE_COUNT/*f*/] = 1.0;
 					FOLIAGE_NOT_GROUND[FOLIAGE_COUNT] = qfalse;
 
 					FOLIAGE_COUNT++;
@@ -1824,6 +1912,8 @@ float			FOLIAGE_TREE_BUFFER[FOLIAGE_MAX_FOLIAGES];
 			}
 		}
 	}
+
+	printLabelledProgress("GenFoliage", workloadTotal, workloadTotal);
 
 	/*for (int i = 0; i < FOLIAGE_COUNT; i++)
 	{

@@ -5,7 +5,11 @@
 //#define __USE_Q3MAP2_METHOD__
 #define __REGENERATE_BSP_NORMALS__
 
+extern qboolean MAP_REGENERATE_NORMALS;
 extern int MAP_SMOOTH_NORMALS;
+
+int64_t normalsWorkCountTotal = 0;
+int64_t normalsWorkCountDone = 0;
 
 //
 // Indexes optimization...
@@ -325,6 +329,17 @@ extern float Distance(vec3_t pos1, vec3_t pos2);
 #ifdef __REGENERATE_BSP_NORMALS__
 #define INVERTED_NORMALS_EPSILON 0.8//1.0
 
+void FixInvertedNormalsForSurfaceWorkCount(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
+{
+	if (!ds->shaderInfo || ds->shaderInfo == caulkShader || ds->shaderInfo == skipShader)
+		return;
+
+	for (int i = 0; i < ds->numIndexes; i += 3)
+	{
+		normalsWorkCountTotal++;
+	}
+}
+
 void FixInvertedNormalsForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
 {
 	if (!ds->shaderInfo || ds->shaderInfo == caulkShader || ds->shaderInfo == skipShader)
@@ -333,6 +348,12 @@ void FixInvertedNormalsForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 #pragma omp parallel for ordered num_threads(numthreads)
 	for (int i = 0; i < ds->numIndexes; i += 3)
 	{
+#pragma omp critical (__PROGRESS_BAR__)
+		{
+			printLabelledProgress("FixInvertedNormals", normalsWorkCountDone / 32768, normalsWorkCountTotal / 32768);
+		}
+		normalsWorkCountDone++;
+
 		bool badWinding = false;
 
 		int tri[3];
@@ -442,6 +463,27 @@ void FixInvertedNormalsForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 	}
 }
 
+void GenerateNormalsForMeshWorkCount(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
+{
+	qboolean smoothOnly = qfalse;
+
+	if (ds->shaderInfo && ds->shaderInfo->smoothOnly)
+		smoothOnly = qtrue;
+
+	if (!ds->shaderInfo || ds->shaderInfo == caulkShader || ds->shaderInfo == skipShader)
+		return;
+
+	if (!smoothOnly)
+	{
+		bool broken = false;
+
+		for (int i = 0; i < ds->numIndexes; i += 3)
+		{
+			normalsWorkCountTotal++;
+		}
+	}
+}
+
 void GenerateNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
 {
 	qboolean smoothOnly = qfalse;
@@ -459,6 +501,12 @@ void GenerateNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, sha
 #pragma omp parallel for ordered num_threads(numthreads)
 		for (int i = 0; i < ds->numIndexes; i += 3)
 		{
+#pragma omp critical (__PROGRESS_BAR__)
+			{
+				printLabelledProgress("GenerateNormals", normalsWorkCountDone / 32768, normalsWorkCountTotal / 32768);
+			}
+			normalsWorkCountDone++;
+
 			if (broken) continue;
 
 			int tri[3];
@@ -530,20 +578,20 @@ bool ValidForSmoothing(vec3_t v1, vec3_t n1, vec3_t v2, vec3_t n2)
 
 #define __MULTIPASS_SMOOTHING__ // Looks better, but takes a lot longer...
 
-int GetWorkCountForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
+void  GenerateSmoothNormalsForMeshWorkCount(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
 {
 	if (!ds->shaderInfo)
-		return 0;
+		return;
 
 	if (ds->type == SURFACE_BAD)
-		return 0;
+		return;
 
 	if (ds->shaderInfo == caulkShader || ds->shaderInfo == skipShader)
-		return 0;
+		return;
 
 	if ((ds->shaderInfo->contentFlags & C_TRANSLUCENT)
 		|| (ds->shaderInfo->contentFlags & C_NODRAW))
-		return 0;
+		return;
 
 	int count = 0;
 
@@ -562,7 +610,7 @@ int GetWorkCountForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shad
 			{
 				for (int s = 0; s < numMapDrawSurfs; s++)
 				{
-					count++;
+					normalsWorkCountTotal++;
 				}
 			}
 		}
@@ -575,16 +623,12 @@ int GetWorkCountForSurface(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shad
 		{
 			for (int i = 0; i < ds->numVerts; i++)
 			{
-				count++;
+				normalsWorkCountTotal++;
 			}
 		}
 	}
-
-	return count;
 }
 
-int64_t totalSmoothCount = 0;
-int64_t totalSmoothComplete = 0;
 
 void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShader, shaderInfo_t *skipShader)
 {
@@ -623,9 +667,9 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 				{
 #pragma omp critical (__PROGRESS_BAR__)
 					{
-						printLabelledProgress("SmoothNormals", totalSmoothComplete / 32768, totalSmoothCount / 32768); // / 32768 because of huge numbers and conversion to double...
+						printLabelledProgress("SmoothNormals", normalsWorkCountDone / 32768, normalsWorkCountTotal / 32768); // / 32768 because of huge numbers and conversion to double...
 					}
-					totalSmoothComplete++;
+					normalsWorkCountDone++;
 
 					mapDrawSurface_t *ds2 = &mapDrawSurfs[s];
 					//mapDrawSurface_t *ds2 = ds;
@@ -677,9 +721,9 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 			{
 #pragma omp critical (__PROGRESS_BAR__)
 				{
-					printLabelledProgress("SmoothNormals", totalSmoothComplete / 32768, totalSmoothCount / 32768); // / 32768 because of huge numbers and conversion to double...
+					printLabelledProgress("SmoothNormals", normalsWorkCountDone / 32768, normalsWorkCountTotal / 32768); // / 32768 because of huge numbers and conversion to double...
 				}
-				totalSmoothComplete++;
+				normalsWorkCountDone++;
 
 				vec3_t accumNormal, finalNormal;
 				VectorCopy(ds->verts[i].normal, accumNormal);
@@ -729,22 +773,35 @@ void GenerateSmoothNormalsForMesh(mapDrawSurface_t *ds, shaderInfo_t *caulkShade
 
 void GenerateSmoothNormals(void)
 {
-#define MIN_SMN_INDEXES 6
-
 	int numCompleted = 0;
+
+	if (!MAP_REGENERATE_NORMALS)
+	{// Disabled...
+		return;
+	}
 
 	Sys_PrintHeading("--- GenerateNormals ---\n");
 
 	shaderInfo_t *caulkShader = ShaderInfoForShader("textures/system/caulk");
 	shaderInfo_t *skipShader = ShaderInfoForShader("textures/system/skip");
 
+	Sys_Printf("NOTE: These progress bars can update in chunks and may be slow to update. Be patient, it is still working!");
+
+	// Get work count...
+	normalsWorkCountTotal = 0;
+	normalsWorkCountDone = 0;
+
 	for (int s = 0; s < numMapDrawSurfs; s++)
 	{
-		{
-			printLabelledProgress("GenerateNormals", numCompleted, numMapDrawSurfs);
-			numCompleted++;
-		}
+		mapDrawSurface_t *ds = &mapDrawSurfs[s];
 
+		if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
+
+		GenerateNormalsForMeshWorkCount(ds, caulkShader, skipShader);
+	}
+
+	for (int s = 0; s < numMapDrawSurfs; s++)
+	{
 		mapDrawSurface_t *ds = &mapDrawSurfs[s];
 
 		if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
@@ -752,15 +809,23 @@ void GenerateSmoothNormals(void)
 		GenerateNormalsForMesh(ds, caulkShader, skipShader);
 	}
 
-	numCompleted = 0;
+	printLabelledProgress("GenerateNormals", normalsWorkCountTotal / 32768, normalsWorkCountTotal / 32768);
+
+	// Get work count...
+	normalsWorkCountTotal = 0;
+	normalsWorkCountDone = 0;
 
 	for (int s = 0; s < numMapDrawSurfs; s++)
 	{
-		{
-			printLabelledProgress("FixInvertedNormals", numCompleted, numMapDrawSurfs);
-			numCompleted++;
-		}
+		mapDrawSurface_t *ds = &mapDrawSurfs[s];
 
+		if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
+
+		FixInvertedNormalsForSurfaceWorkCount(ds, caulkShader, skipShader);
+	}
+
+	for (int s = 0; s < numMapDrawSurfs; s++)
+	{
 		mapDrawSurface_t *ds = &mapDrawSurfs[s];
 
 		if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
@@ -768,11 +833,13 @@ void GenerateSmoothNormals(void)
 		FixInvertedNormalsForSurface(ds, caulkShader, skipShader);
 	}
 
+	printLabelledProgress("FixInvertedNormals", normalsWorkCountTotal / 32768, normalsWorkCountTotal / 32768);
+
 	if (MAP_SMOOTH_NORMALS)
 	{
-		// Pre-calculate the total number of tasks, so we can give an accurate percentage bar...
-		totalSmoothCount = 0;
-		totalSmoothComplete = 0;
+		// Get work count...
+		normalsWorkCountTotal = 0;
+		normalsWorkCountDone = 0;
 
 		for (int s = 0; s < numMapDrawSurfs; s++)
 		{
@@ -780,7 +847,7 @@ void GenerateSmoothNormals(void)
 
 			if (ds->shaderInfo && ds->shaderInfo->noSmooth) continue;
 
-			totalSmoothCount += GetWorkCountForSurface(ds, caulkShader, skipShader);
+			GenerateSmoothNormalsForMeshWorkCount(ds, caulkShader, skipShader);
 		}
 
 		for (int s = 0; s < numMapDrawSurfs; s++)
@@ -792,8 +859,11 @@ void GenerateSmoothNormals(void)
 			GenerateSmoothNormalsForMesh(ds, caulkShader, skipShader);
 		}
 
-		printLabelledProgress("SmoothNormals", totalSmoothCount / 32768, totalSmoothCount / 32768); // / 32768 because of huge numbers and conversion to double...
+		printLabelledProgress("SmoothNormals", normalsWorkCountTotal / 32768, normalsWorkCountTotal / 32768); // / 32768 because of huge numbers and conversion to double...
 	}
+
+	normalsWorkCountTotal = 0;
+	normalsWorkCountDone = 0;
 }
 #else //!__REGENERATE_BSP_NORMALS__
 void GenerateSmoothNormals(void)

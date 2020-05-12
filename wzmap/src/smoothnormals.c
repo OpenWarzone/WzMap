@@ -460,8 +460,6 @@ extern int MAP_SMOOTH_NORMALS;
 
 void GenerateSmoothNormalsBSP(void)
 {
-#define MIN_SMN_INDEXES 6
-
 	int numCompleted = 0;
 
 	Sys_PrintHeading("--- GenerateNormals ---\n");

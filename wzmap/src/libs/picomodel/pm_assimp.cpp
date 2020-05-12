@@ -807,8 +807,10 @@ static int _obj_mtl_load(picoModel_t *model)
 #endif //__INVERT_ASSIMP_NORMALS__
 					VectorSet(n, norm.x, norm.y, norm.z);
 
+					int num = ((k * 3) + m)/*vertIndex*/;
+
 					/* store vertex origin */
-					PicoSetSurfaceXYZ(surface, tri[m], vert);
+					PicoSetSurfaceXYZ(surface, vertIndex, vert);
 
 					/* store vertex color */
 					PicoSetSurfaceColor(surface, 0, vertIndex, white);
@@ -817,7 +819,7 @@ static int _obj_mtl_load(picoModel_t *model)
 					PicoSetSurfaceNormal(surface, vertIndex, n);
 
 					/* store current face vertex index */
-					PicoSetSurfaceIndex(surface, ((k * 3) + m), (picoIndex_t)vertIndex);
+					PicoSetSurfaceIndex(surface, num, (picoIndex_t)tri[m]);
 
 					/* get texture vertex coord */
 					if (aiSurf->mNormals != NULL && aiSurf->HasTextureCoords(0))
