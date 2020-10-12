@@ -25,6 +25,9 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
+#include "picomodel.h"
+
 namespace Proctree
 {
 	typedef struct
@@ -167,3 +170,6 @@ namespace Proctree
 	fvec3 normalize(fvec3 a);
 	float length(fvec3 a);
 }
+
+void						PicoGenerateTreeModelDefaults(Proctree::Properties *treeProperties);
+picoModel_t					*PicoGenerateTreeModel(char *name, char *barkShader, char *leafShader, Proctree::Properties *treeProperties);

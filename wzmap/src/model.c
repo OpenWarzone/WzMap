@@ -35,6 +35,8 @@ several games based on the Quake III Arena engine, in the form of "Q3Map2."
 /* dependencies */
 #include "q3map2.h"
 
+#include "../libs/picomodel/proctree/proctree.h"
+
 extern qboolean USE_LODMODEL;
 extern qboolean USE_CONVEX_HULL_MODELS;
 extern int USE_BOX_MODELS;
@@ -802,10 +804,11 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 {
 	int					s, numSurfaces;
 	m4x4_t				identity, nTransform;
-	picoModel_t			*model;
+	picoModel_t			*model = NULL;
 	float				top = -999999, bottom = 999999;
 	bool				ALLOW_CULL_HALF_SIZE = false;
 	bool				HAS_COLLISION_INFO = false;
+	bool				MODEL_IS_PROCEDURAL = false;
 
 	if (StringContainsWord(name, "forestpine")
 		|| StringContainsWord(name, "junglepalm")
@@ -816,8 +819,71 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 		ALLOW_CULL_HALF_SIZE = true;
 	}
 
+	if (!strncmp(name, "procedural", 10)) {
+		MODEL_IS_PROCEDURAL = true;
+	}
+
 	/* get model */
-	model = LoadModel(name, frame);
+	if (MODEL_IS_PROCEDURAL) {
+#define			MAX_FOREST_MODELS				64
+		extern int irand(int min, int max);
+		extern int PROCEDURAL_TREE_COUNT;
+		extern char PROCEDURAL_TREE_BARKS[MAX_FOREST_MODELS][128];
+		extern char PROCEDURAL_TREE_LEAFS[MAX_FOREST_MODELS][128];
+
+		Proctree::Properties treeProperties;
+		PicoGenerateTreeModelDefaults(&treeProperties);
+		treeProperties.mBranchFactor = irand(0, 65536);
+
+#pragma omp critical (__GENERATE_PROCEDURAL__)
+		{
+			if (PROCEDURAL_TREE_COUNT <= 0)
+			{
+				model = PicoGenerateTreeModel((char *)name, "models/warzone/trees/treepineforestbarkcomp2.jpg", "models/warzone/trees/mp_valenwood_tree01.png", &treeProperties);
+			}
+			else
+			{// A list was specified...
+				int choice = irand(0, PROCEDURAL_TREE_COUNT-1);
+				model = PicoGenerateTreeModel((char *)name, PROCEDURAL_TREE_BARKS[choice], PROCEDURAL_TREE_LEAFS[choice], &treeProperties);
+			}
+		}
+
+		if (model == NULL) {
+			Sys_Warning("Failed in creation of a procedural tree. It returned NULL.\n");
+			return;
+		}
+		model->hasCollisionGeometry = qtrue;
+
+#if 0
+		/* each surface on the model will become a new map drawsurface */
+		numSurfaces = PicoGetModelNumSurfaces(model);
+
+		for (s = 0; s < numSurfaces; s++)
+		{
+			int					i;
+			picoVec_t			*xyz;
+			picoSurface_t		*surface;
+
+			/* get surface */
+			surface = PicoGetModelSurface(model, s);
+
+			if (surface == NULL)
+				continue;
+
+			/* only handle triangle surfaces initially (fixme: support patches) */
+			if (PicoGetSurfaceType(surface) != PICO_TRIANGLES)
+				continue;
+
+			char *picoShaderName = PicoGetSurfaceShaderNameForSkin(surface, skin);
+
+			printf("surface %i - shader %s.\n", s, picoShaderName);
+		}
+#endif
+	}
+	else
+	{
+		model = LoadModel(name, frame);
+	}
 
 	if (model == NULL)
 		return;
@@ -2091,6 +2157,11 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			}
 		}
 	}
+
+	if (MODEL_IS_PROCEDURAL) {
+		// Free this procerural model, we don't need it any more...
+		PicoFreeModel(model);
+	}
 }
 
 int GetPicoVertCount(picoModel_t *picoModel)
@@ -2153,6 +2224,11 @@ void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowS
 {
 	picoModel_t		*picoModel = NULL;
 	qboolean		loaded = qfalse;
+
+	if (!strncmp(model, "procedural", 10)) {
+		Sys_Printf("model %s is procedural, and therefore does not need to be preloaded.\n", model);
+		return;
+	}
 
 	/* load the model */
 	loaded = PreloadModel((char*)model, frame);
@@ -2527,6 +2603,10 @@ void LoadTriangleModels(void)
 		if (model[0] == '\0')
 			continue;
 
+		if (!strncmp(model, "procedural", 10)) {
+			continue;
+		}
+
 		/* get model frame */
 		if (KeyExists(e, "_frame"))
 			frame = IntForKey(e, "_frame");
@@ -2703,7 +2783,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, 
 
 		int originAsLowpoint = atoi(ValueForKey(e3, "_originAsLowPoint"));
 
-		if (originAsLowpoint >= 2)
+		if (originAsLowpoint >= 2 || !strncmp(model, "procedural", 10))
 		{
 			e3->lowestPointNear = origin[2] - 64.0;
 		}
@@ -2762,6 +2842,7 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, 
 		shaderInfo_t *overrideShader = NULL;
 		qboolean forcedSolid = qfalse;
 		qboolean forcedFullSolid = qfalse;
+		bool MODEL_IS_PROCEDURAL = false;
 
 		if (!quiet) printLabelledProgress("AddTriangleModels", num, numEntities);
 
@@ -2808,8 +2889,13 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, 
 
 		qboolean HAVE_COLLISION_GEOMETRY = qfalse;
 
-		if (1)
-		{
+		if (!strncmp(model, "procedural", 10)) {
+			MODEL_IS_PROCEDURAL = true;
+		}
+
+		if (MODEL_IS_PROCEDURAL) {
+			HAVE_COLLISION_GEOMETRY = qtrue;
+		} else {
 			picoModel_t *picoModel = FindModel((char*)model, frame);
 
 			if (!picoModel)
@@ -2832,7 +2918,10 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, 
 
 		int allowCollisionModelTypes = IntForKey(e2, "_allowCollisionModelTypes");
 
-		if (USE_BOX_MODELS && allowCollisionModelTypes >= 4)
+		if (MODEL_IS_PROCEDURAL) {
+			//
+		}
+		else if (USE_BOX_MODELS && allowCollisionModelTypes >= 4)
 		{
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };
@@ -2901,7 +2990,10 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, 
 			}
 		}
 
-		if (COLLISION_MODEL == NULL && USE_CONVEX_HULL_MODELS && (allowCollisionModelTypes >= 3 || allowCollisionModelTypes == 1))
+		if (MODEL_IS_PROCEDURAL) {
+			//
+		}
+		else if (COLLISION_MODEL == NULL && USE_CONVEX_HULL_MODELS && (allowCollisionModelTypes >= 3 || allowCollisionModelTypes == 1))
 		{// Check if there is a convex hull collision model first...
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };
@@ -2967,7 +3059,10 @@ void AddTriangleModels(int entityNum, qboolean quiet, qboolean cullSmallSolids, 
 			}
 		}
 
-		if (COLLISION_MODEL == NULL)
+		if (MODEL_IS_PROCEDURAL) {
+
+		}
+		else if (COLLISION_MODEL == NULL)
 		{// Since we didn't find a convex hull collision model, look for a normal collision model...
 			char tempCollisionModel[512] = { 0 };
 			char collisionModel[512] = { 0 };

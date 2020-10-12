@@ -6,6 +6,7 @@
 /* dependencies */
 #include "q3map2.h"
 #include "inifile.h"
+#include "libs/picomodel/proctree/proctree.h"
 
 extern void WzMap_PreloadModel(char *model, int frame, int *numLoadedModels, int allowSimplify, qboolean loadCollision);
 extern void SetEntityBounds( entity_t *e );
@@ -148,6 +149,9 @@ float			TREE_ROADSCAN_MULTIPLIER[MAX_FOREST_MODELS] = { 0.0 };
 int				TREE_PLANE_SNAP[MAX_FOREST_MODELS] = { 8 };
 qboolean		TREE_USE_ORIGIN_AS_LOWPOINT[MAX_FOREST_MODELS] = { qfalse };
 int				TREE_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 0 };
+int				PROCEDURAL_TREE_COUNT = 0;
+char			PROCEDURAL_TREE_BARKS[MAX_FOREST_MODELS][128] = { 0 };
+char			PROCEDURAL_TREE_LEAFS[MAX_FOREST_MODELS][128] = { 0 };
 qboolean		ADD_CITY_ROADS = qfalse;
 float			CITY_SCALE_MULTIPLIER = 2.5;
 float			CITY_CLIFF_CULL_RADIUS = 1.0;
@@ -1119,6 +1123,41 @@ void FOLIAGE_LoadClimateData(char *filename)
 			strcpy(fileName, TREE_MODELS[i]);
 			StripPath(fileName);
 			Sys_Printf("Tree %i. Model %s. Offset %.4f. Scale %.4f. MaxAngle %i. Buffer %.4f. InstanceDist %.4f. ForceSolid: %s. PlaneSnap: %i. Shader: %s. RoadScale %.4f.\n", i, fileName, TREE_OFFSETS[i], TREE_SCALES[i], TREE_FORCED_MAX_ANGLE[i], TREE_FORCED_BUFFER_DISTANCE[i], TREE_FORCED_DISTANCE_FROM_SAME[i], TREE_FORCED_FULLSOLID[i] ? "true" : "false", TREE_PLANE_SNAP[i], TREE_FORCED_OVERRIDE_SHADER[i][0] != '\0' ? TREE_FORCED_OVERRIDE_SHADER[i] : "Default", TREE_ROADSCAN_MULTIPLIER[i]);
+		}
+	}
+
+	for (i = 0; i < MAX_FOREST_MODELS; i++)
+	{
+		strcpy(PROCEDURAL_TREE_BARKS[PROCEDURAL_TREE_COUNT], IniRead(filename, "PROCEDURAL_TREES", va("treeBarkTexture%i", i), ""));
+
+		if (strcmp(PROCEDURAL_TREE_BARKS[PROCEDURAL_TREE_COUNT], ""))
+		{
+			strcpy(PROCEDURAL_TREE_LEAFS[PROCEDURAL_TREE_COUNT], IniRead(filename, "PROCEDURAL_TREES", va("treeLeafTexture%i", i), ""));
+
+			if (strcmp(PROCEDURAL_TREE_LEAFS[PROCEDURAL_TREE_COUNT], ""))
+			{
+				char barkFileName[512];
+				strcpy(barkFileName, PROCEDURAL_TREE_BARKS[PROCEDURAL_TREE_COUNT]);
+				StripPath(barkFileName);
+
+				char leafFileName[512];
+				strcpy(leafFileName, PROCEDURAL_TREE_LEAFS[PROCEDURAL_TREE_COUNT]);
+				StripPath(leafFileName);
+
+				Sys_Printf("Procedural Tree Type %i. Bark Shader %s. leaf Shader %s.\n", PROCEDURAL_TREE_COUNT, barkFileName, leafFileName);
+
+				PROCEDURAL_TREE_COUNT++;
+			}
+			else
+			{
+				strcpy(PROCEDURAL_TREE_BARKS[PROCEDURAL_TREE_COUNT], "");
+				strcpy(PROCEDURAL_TREE_LEAFS[PROCEDURAL_TREE_COUNT], "");
+			}
+		}
+		else
+		{
+			strcpy(PROCEDURAL_TREE_BARKS[PROCEDURAL_TREE_COUNT], "");
+			strcpy(PROCEDURAL_TREE_LEAFS[PROCEDURAL_TREE_COUNT], "");
 		}
 	}
 

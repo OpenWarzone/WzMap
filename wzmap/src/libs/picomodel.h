@@ -244,7 +244,6 @@ void 						PicoSetPrintFunc( void (*func)( int, const char* ) );
 const picoModule_t			**PicoModuleList( int *numModules );
 
 picoModel_t					*PicoLoadModel( char *name, int frameNum );
-picoModel_t					*PicoGenerateTreeModel(char *name, char *barkShader, char *leafShader, void *treeProperties);
 
 typedef size_t (*PicoInputStreamReadFunc)(void* inputStream, unsigned char* buffer, size_t length);
 picoModel_t* PicoModuleLoadModelStream( const picoModule_t* module, void* inputStream, PicoInputStreamReadFunc inputStreamRead, size_t streamLength, int frameNum );
