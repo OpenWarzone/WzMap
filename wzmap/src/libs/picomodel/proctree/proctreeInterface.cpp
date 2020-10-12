@@ -590,7 +590,7 @@ picoModel_t *PicoGenerateTreeModel(char *name, char *barkShader, char *leafShade
 
 			/* get texture vertex coord */
 			texCoord[0] = tree.mUV[vertIndex].u;
-			texCoord[1] = -tree.mUV[vertIndex].v;	/* flip t */
+			texCoord[1] = tree.mUV[vertIndex].v;	/* flip t */
 
 			/* store texture vertex coord */
 			PicoSetSurfaceST(surface, 0, vertIndex, texCoord);
@@ -666,7 +666,7 @@ picoModel_t *PicoGenerateTreeModel(char *name, char *barkShader, char *leafShade
 
 			/* get texture vertex coord */
 			texCoord[0] = tree.mTwigUV[vertIndex].u;
-			texCoord[1] = -tree.mTwigUV[vertIndex].v;	/* flip t */
+			texCoord[1] = tree.mTwigUV[vertIndex].v;	/* flip t */
 
 													/* store texture vertex coord */
 			PicoSetSurfaceST(surface, 0, vertIndex, texCoord);
