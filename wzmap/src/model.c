@@ -826,14 +826,35 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 	/* get model */
 	if (MODEL_IS_PROCEDURAL) {
 #define			MAX_FOREST_MODELS				64
-		extern int irand(int min, int max);
-		extern int PROCEDURAL_TREE_COUNT;
-		extern char PROCEDURAL_TREE_BARKS[MAX_FOREST_MODELS][128];
-		extern char PROCEDURAL_TREE_LEAFS[MAX_FOREST_MODELS][128];
+		extern int				irand(int min, int max);
+		extern int				PROCEDURAL_TREE_COUNT;
+		extern char				PROCEDURAL_TREE_BARKS[MAX_FOREST_MODELS][128];
+		extern char				PROCEDURAL_TREE_LEAFS[MAX_FOREST_MODELS][128];
+		extern int				treePropertiesSegments[MAX_FOREST_MODELS];
+		extern int				treePropertiesLevels[MAX_FOREST_MODELS];
+		extern float			treePropertiesVMultiplier[MAX_FOREST_MODELS];
+		extern int				treePropertiesTwigScale[MAX_FOREST_MODELS];
+		extern float			treePropertiesInitialBranchLength[MAX_FOREST_MODELS];
+		extern float			treePropertiesLengthFalloffFactor[MAX_FOREST_MODELS];
+		extern float			treePropertiesLengthFalloffPower[MAX_FOREST_MODELS];
+		extern float			treePropertiesClumpMax[MAX_FOREST_MODELS];
+		extern float			treePropertiesClumpMin[MAX_FOREST_MODELS];
+		extern float			treePropertiesBranchFactor[MAX_FOREST_MODELS];
+		extern float			treePropertiesDropAmount[MAX_FOREST_MODELS];
+		extern float			treePropertiesGrowAmount[MAX_FOREST_MODELS];
+		extern float			treePropertiesSweepAmount[MAX_FOREST_MODELS];
+		extern float			treePropertiesMaxRadius[MAX_FOREST_MODELS];
+		extern float			treePropertiesClimbRate[MAX_FOREST_MODELS];
+		extern float			treePropertiesTrunkKink[MAX_FOREST_MODELS];
+		extern int				treePropertiesTreeSteps[MAX_FOREST_MODELS];
+		extern float			treePropertiesTaperRate[MAX_FOREST_MODELS];
+		extern float			treePropertiesRadiusFalloffRate[MAX_FOREST_MODELS];
+		extern float			treePropertiesTwistRate[MAX_FOREST_MODELS];
+		extern float			treePropertiesTrunkLength[MAX_FOREST_MODELS];
 
 		Proctree::Properties treeProperties;
 		PicoGenerateTreeModelDefaults(&treeProperties);
-		treeProperties.mBranchFactor = irand(0, 65536);
+		treeProperties.mSeed = irand(0, 65536);
 
 #pragma omp critical (__GENERATE_PROCEDURAL__)
 		{
@@ -844,6 +865,29 @@ void InsertModel(char *name, int frame, int skin, m4x4_t transform, float uvScal
 			else
 			{// A list was specified...
 				int choice = irand(0, PROCEDURAL_TREE_COUNT-1);
+
+				treeProperties.mClumpMax = treePropertiesClumpMax[choice];
+				treeProperties.mClumpMin = treePropertiesClumpMin[choice];
+				treeProperties.mLengthFalloffFactor = treePropertiesLengthFalloffFactor[choice];
+				treeProperties.mLengthFalloffPower = treePropertiesLengthFalloffPower[choice];
+				treeProperties.mBranchFactor = treePropertiesBranchFactor[choice];
+				treeProperties.mRadiusFalloffRate = treePropertiesRadiusFalloffRate[choice];
+				treeProperties.mClimbRate = treePropertiesClimbRate[choice];
+				treeProperties.mTrunkKink = treePropertiesTrunkKink[choice];
+				treeProperties.mMaxRadius = treePropertiesMaxRadius[choice];
+				treeProperties.mTreeSteps = treePropertiesTreeSteps[choice];
+				treeProperties.mTaperRate = treePropertiesTaperRate[choice];
+				treeProperties.mTwistRate = treePropertiesTwistRate[choice];
+				treeProperties.mSegments = treePropertiesSegments[choice];
+				treeProperties.mLevels = treePropertiesLevels[choice];
+				treeProperties.mSweepAmount = treePropertiesSweepAmount[choice];
+				treeProperties.mInitialBranchLength = treePropertiesInitialBranchLength[choice];
+				treeProperties.mTrunkLength = treePropertiesTrunkLength[choice];
+				treeProperties.mDropAmount = treePropertiesDropAmount[choice];
+				treeProperties.mGrowAmount = treePropertiesGrowAmount[choice];
+				treeProperties.mVMultiplier = treePropertiesVMultiplier[choice];
+				treeProperties.mTwigScale = treePropertiesTwigScale[choice];
+
 				model = PicoGenerateTreeModel((char *)name, PROCEDURAL_TREE_BARKS[choice], PROCEDURAL_TREE_LEAFS[choice], &treeProperties);
 			}
 		}

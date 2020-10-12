@@ -152,6 +152,27 @@ int				TREE_ALLOW_SIMPLIFY[MAX_FOREST_MODELS] = { 0 };
 int				PROCEDURAL_TREE_COUNT = 0;
 char			PROCEDURAL_TREE_BARKS[MAX_FOREST_MODELS][128] = { 0 };
 char			PROCEDURAL_TREE_LEAFS[MAX_FOREST_MODELS][128] = { 0 };
+int				treePropertiesSegments[MAX_FOREST_MODELS] = { 6 };
+int				treePropertiesLevels[MAX_FOREST_MODELS] = { 5 };
+float			treePropertiesVMultiplier[MAX_FOREST_MODELS] = { 0.36f };
+int				treePropertiesTwigScale[MAX_FOREST_MODELS] = { 0.39f };
+float			treePropertiesInitialBranchLength[MAX_FOREST_MODELS] = { 0.49f };
+float			treePropertiesLengthFalloffFactor[MAX_FOREST_MODELS] = { 0.85f };
+float			treePropertiesLengthFalloffPower[MAX_FOREST_MODELS] = { 0.99f };
+float			treePropertiesClumpMax[MAX_FOREST_MODELS] = { 0.454f };
+float			treePropertiesClumpMin[MAX_FOREST_MODELS] = { 0.404f };
+float			treePropertiesBranchFactor[MAX_FOREST_MODELS] = { 2.45f };
+float			treePropertiesDropAmount[MAX_FOREST_MODELS] = { -0.1f };
+float			treePropertiesGrowAmount[MAX_FOREST_MODELS] = { 0.235f };
+float			treePropertiesSweepAmount[MAX_FOREST_MODELS] = { 0.01f };
+float			treePropertiesMaxRadius[MAX_FOREST_MODELS] = { 0.139f };
+float			treePropertiesClimbRate[MAX_FOREST_MODELS] = { 0.371f };
+float			treePropertiesTrunkKink[MAX_FOREST_MODELS] = { 0.093f };
+int				treePropertiesTreeSteps[MAX_FOREST_MODELS] = { 5 };
+float			treePropertiesTaperRate[MAX_FOREST_MODELS] = { 0.947f };
+float			treePropertiesRadiusFalloffRate[MAX_FOREST_MODELS] = { 0.73f };
+float			treePropertiesTwistRate[MAX_FOREST_MODELS] = { 3.02f };
+float			treePropertiesTrunkLength[MAX_FOREST_MODELS] = { 2.4f };
 qboolean		ADD_CITY_ROADS = qfalse;
 float			CITY_SCALE_MULTIPLIER = 2.5;
 float			CITY_CLIFF_CULL_RADIUS = 1.0;
@@ -1145,6 +1166,30 @@ void FOLIAGE_LoadClimateData(char *filename)
 				StripPath(leafFileName);
 
 				Sys_Printf("Procedural Tree Type %i. Bark Shader %s. leaf Shader %s.\n", PROCEDURAL_TREE_COUNT, barkFileName, leafFileName);
+
+
+				treePropertiesSegments[PROCEDURAL_TREE_COUNT] = atoi(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesSegments%i", i), "6"));
+				treePropertiesLevels[PROCEDURAL_TREE_COUNT] = atoi(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesLevels%i", i), "5"));
+				treePropertiesVMultiplier[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesVMultiplier%i", i), "0.36f"));
+				treePropertiesTwigScale[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesTwigScale%i", i), "0.39f"));
+				treePropertiesInitialBranchLength[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesInitialBranchLength%i", i), "0.49f"));
+				treePropertiesLengthFalloffFactor[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesLengthFalloffFactor%i", i), "0.85f"));
+				treePropertiesLengthFalloffPower[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesLengthFalloffPower%i", i), "0.99f"));
+				treePropertiesClumpMax[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesClumpMax%i", i), "0.454f"));
+				treePropertiesClumpMin[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesClumpMin%i", i), "0.404f"));
+				treePropertiesBranchFactor[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesBranchFactor%i", i), "2.45f"));
+				treePropertiesDropAmount[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesDropAmount%i", i), "-0.1f"));
+				treePropertiesGrowAmount[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesGrowAmount%i", i), "0.235f"));
+				treePropertiesSweepAmount[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesSweepAmount%i", i), "0.01f"));
+				treePropertiesMaxRadius[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesMaxRadius%i", i), "0.139f"));
+				treePropertiesClimbRate[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesClimbRate%i", i), "0.371f"));
+				treePropertiesTrunkKink[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesTrunkKink%i", i), "0.093f"));
+				treePropertiesTreeSteps[PROCEDURAL_TREE_COUNT] = atoi(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesTreeSteps%i", i), "5"));
+				treePropertiesTaperRate[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesTaperRate%i", i), "0.947f"));
+				treePropertiesRadiusFalloffRate[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesRadiusFalloffRate%i", i), "0.73f"));
+				treePropertiesTwistRate[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesTwistRate%i", i), "3.02f"));
+				treePropertiesTrunkLength[PROCEDURAL_TREE_COUNT] = atof(IniRead(filename, "PROCEDURAL_TREES", va("treePropertiesTrunkLength%i", i), "2.4f"));
+
 
 				PROCEDURAL_TREE_COUNT++;
 			}
