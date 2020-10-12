@@ -347,6 +347,8 @@
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Default</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='x64 Debug|x64'">Default</CompileAs>
     </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\proctree\proctree.cpp" />
+    <ClCompile Include="..\..\src\libs\picomodel\proctree\proctreeInterface.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\libs\picomodel.h" />
@@ -424,6 +426,7 @@
     <ClInclude Include="..\..\src\libs\picomodel\lwo\lwo2.h" />
     <ClInclude Include="..\..\src\libs\picomodel\picointernal.h" />
     <ClInclude Include="..\..\src\libs\picomodel\pm_fm.h" />
+    <ClInclude Include="..\..\src\libs\picomodel\proctree\proctree.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

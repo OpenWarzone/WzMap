@@ -12,6 +12,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="proctree">
+      <UniqueIdentifier>{f729774d-47e1-4285-a7f3-6ffa8a64fb83}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\libs\picomodel\picointernal.c">
@@ -85,6 +88,12 @@
     </ClCompile>
     <ClCompile Include="..\..\src\libs\picomodel\pm_assimp.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\proctree\proctree.cpp">
+      <Filter>proctree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\libs\picomodel\proctree\proctreeInterface.cpp">
+      <Filter>proctree</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -312,6 +321,9 @@
     </ClInclude>
     <ClInclude Include="..\..\src\libs\picomodel\assimp\XMLTools.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\libs\picomodel\proctree\proctree.h">
+      <Filter>proctree</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
