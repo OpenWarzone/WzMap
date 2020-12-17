@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <iostream>
 #include <cstdlib>
 #include "navgen.h"
+#include "inifile.h"
 
 Geometry geo;
 
@@ -44,6 +45,8 @@ qboolean ignoreTreeLeaves = qfalse;
 float mergeSizeMult = 1.0;
 float stepSize = STEPSIZE;
 int   tileSize = 64;
+
+extern float MAP_WATER_LEVEL;
 
 struct Character_nav
 {
@@ -279,6 +282,19 @@ static void LoadGeometry()
 			VectorCopy(vs[idxs[j]].xyz, iverts[0]);
 			VectorCopy(vs[idxs[j + 1]].xyz, iverts[1]);
 			VectorCopy(vs[idxs[j + 2]].xyz, iverts[2]);
+
+#ifdef __IGNORE_EXTRA_SURFACES__
+			if (MAP_WATER_LEVEL > -999999.0)
+			{
+				if (iverts[0][2] <= MAP_WATER_LEVEL
+					&& iverts[1][2] <= MAP_WATER_LEVEL
+					&& iverts[2][2] <= MAP_WATER_LEVEL)
+				{
+					//Sys_Printf("Skipping triangle because it is below water level.\n");
+					continue;
+				}
+			}
+#endif //__IGNORE_EXTRA_SURFACES__
 
 			if (NAVMESH_SCALE != 1.0)
 			{
@@ -1045,6 +1061,24 @@ int NavMain(int argc, char **argv)
 	
 	LoadBSPFile(source);
 
+	{// We need water level...
+		char filename2[1024] = { 0 };
+		char filenameTemp[1024] = { 0 };
+		strcpy(filenameTemp, source);
+		StripExtension(filenameTemp);
+		sprintf(filename2, "%s.climate", filenameTemp);
+
+		//extern void FOLIAGE_LoadClimateData(char *filename);
+		//FOLIAGE_LoadClimateData(filename2);
+		
+		MAP_WATER_LEVEL = atof(IniRead(filename2, "GENERAL", "forcedWaterLevel", "-999999.9"));
+
+		if (MAP_WATER_LEVEL > -999999.0)
+		{
+			Sys_Printf("Forcing map water level to %.4f from climate file %s.\n", MAP_WATER_LEVEL, filename2);
+		}
+	}
+	
 	ParseEntities();
 
 	LoadGeometry();

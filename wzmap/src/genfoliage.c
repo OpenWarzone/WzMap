@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <queue>
 #include <iostream>
 #include <cstdlib>
+#include "inifile.h"
 
 
 #define __IGNORE_EXTRA_SURFACES__
@@ -714,11 +715,28 @@ int GenFoliageMain(int argc, char **argv)
 	sprintf(source, "%s%s", inbase, ExpandArg(argv[i]));
 	StripExtension(source);
 
-	{
+	/*{
 		extern void FOLIAGE_LoadClimateData(char *filename);
 		char filename2[1024] = { 0 };
 		sprintf(filename2, "%s.climate", source);
 		FOLIAGE_LoadClimateData(filename2);
+	}*/
+	{// We need water level...
+		char filename2[1024] = { 0 };
+		char filenameTemp[1024] = { 0 };
+		strcpy(filenameTemp, source);
+		StripExtension(filenameTemp);
+		sprintf(filename2, "%s.climate", filenameTemp);
+
+		//extern void FOLIAGE_LoadClimateData(char *filename);
+		//FOLIAGE_LoadClimateData(filename2);
+
+		MAP_WATER_LEVEL = atof(IniRead(filename2, "GENERAL", "forcedWaterLevel", "-999999.9"));
+
+		if (MAP_WATER_LEVEL > -999999.0)
+		{
+			Sys_Printf("Forcing map water level to %.4f from climate file %s.\n", MAP_WATER_LEVEL, filename2);
+		}
 	}
 
 	char mapFilename[1024] = { 0 };
